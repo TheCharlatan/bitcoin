@@ -290,6 +290,77 @@ As mentioned above, when maintaining portability of the wallet between the stand
 node software is desired, Berkeley DB 4.8 must be used.
 
 
+Dependency Build Instructions: OpenSUSE
+----------------------------------------------
+Build requirements:
+
+    sudo zypper install -t pattern devel_basis
+    sudo zypper install libtool automake autoconf pkg-config libopenssl-devel libevent-devel 
+
+Options when installing required Boost library files:
+
+1. On at least openSUSE Leap there are generic names for the
+individual boost development packages, so the following can be used to only
+install necessary parts of boost:
+
+Tumbleweed:
+
+        sudo zypper install libboost_system1_64_0-devel libboost_filesystem1_64_0-devel libboost_chrono1_64_0-devel libboost_program_options1_64_0-devel libboost_test1_64_0-devel libboost_thread1_64_0-devel
+        
+Leap:
+
+        sudo zypper install libboost_system1_61_0-devel libboost_filesystem1_61_0-devel libboost_chrono1_61_0-devel libboost_program_options1_61_0-devel libboost_test1_61_0-devel libboost_thread1_61_0-devel
+
+2. If that doesn't work, you can install all boost development packages with:
+
+Tumbleweed:
+
+        sudo zypper install boost_1_64-devel
+Leap:
+
+        sudo zypper install boost_1_61-devel
+
+For the upgrader additional packages are needed:
+
+        sudo zypper install libcurl-devel libzip-devel
+
+
+BerkeleyDB is required for the wallet.
+
+      sudo zypper install libdb-4_8-devel
+
+Optional (see --with-miniupnpc and --enable-upnp-default):
+
+    sudo zypper install libminiupnpc-devel
+
+Dependencies for the GUI: openSUSE
+-----------------------------------------
+
+If you want to build gridcoinresearch, make sure that the required packages for Qt development
+are installed. Either Qt 5 or Qt 4 are necessary to build the GUI.
+If both Qt 4 and Qt 5 are installed, Qt 5 will be used. Pass `--with-gui=qt4` to configure to choose Qt4.
+To build without GUI pass `--without-gui`.
+
+To build with Qt 5 (recommended) you need the following:
+
+    sudo zypper install libQt5Gui5 libQt5Core5 libQt5DBus5 libQt5Network-devel libqt5-qttools-devel libqt5-qttools
+
+Additionally for Tumbleweed:
+
+    sudo zypper install libQt5Charts5-designer
+
+Alternatively, to build with Qt 4 you need the following:
+
+    sudo zypper install libqt4-devel
+
+libqrencode (optional) can be installed with:
+
+    sudo zypper install qrencode-devel
+
+Once these are installed, they will be found by configure and a gridcoinresearch executable will be
+built by default.
+
+
 ARM Cross-compilation
 -------------------
 These steps can be performed on, for example, an Ubuntu VM. The depends system
