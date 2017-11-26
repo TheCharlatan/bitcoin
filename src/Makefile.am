@@ -373,7 +373,6 @@ libbitcoin_cli_a_SOURCES = \
   $(BITCOIN_CORE_H)
 
 nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
-#
 
 # bitcoind binary #
 bitcoind_SOURCES = bitcoind.cpp
