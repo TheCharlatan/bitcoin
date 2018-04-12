@@ -12,6 +12,10 @@ For example:
 
     make HOST=x86_64-w64-mingw32 -j4
 
+To build the more recent Qt5.9.4, you can build depends with
+
+  make HOST=host-platform-triple QT_59=1
+
 A prefix will be generated that's suitable for plugging into Bitcoin's
 configure. In the above example, a dir named x86_64-w64-mingw32 will be
 created. To use it for Bitcoin:
