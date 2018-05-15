@@ -76,13 +76,7 @@ AC_DEFUN([BITCOIN_QT_INIT],[
     [use_dbus=$withval],
     [use_dbus=auto])
 
-  AC_ARG_ENABLE([qt59],
-    [AS_HELP_STRING([--enable-qt59],
-    [compile with qt594 (default is no)])],
-    [enable_qt59=$enableval],
-    [enable_qt59=no])
-
-  AC_SUBST(QT_TRANSLATION_DIR,$qt_translation_path)
+   AC_SUBST(QT_TRANSLATION_DIR,$qt_translation_path)
 ])
 
 dnl Find the appropriate version of Qt libraries and includes.
@@ -298,7 +292,7 @@ AC_DEFUN([_BITCOIN_QT_CHECK_QT5],[
       #endif
     ]],
     [[
-      #if QT_VERSION < 0x050000
+      #if QT_VERSION < 0x050000 OR QT_VERSION_MAJOR < 5
       choke
       #endif
     ]])],
@@ -306,17 +300,38 @@ AC_DEFUN([_BITCOIN_QT_CHECK_QT5],[
     [bitcoin_cv_qt5=no])
 ])])
 
+dnl Internal. Check if the included version of Qt is greater than Qt57.
+dnl Requires: INCLUDES must be populated as necessary.
+dnl Output: bitcoin_cv_qt5=yes|no
+AC_DEFUN([_BITCOIN_QT_CHECK_QT5],[
+  AC_CACHE_CHECK(for > Qt 5.7, bitcoin_cv_qt58,[
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+      #include <QtCore/qconfig.h>
+      #ifndef QT_VERSION
+      #  include <QtCore/qglobal.h>
+      #endif
+    ]],
+    [[
+      #if QT_VERSION_MINOR < 8
+      choke
+      #endif
+    ]])],
+    [bitcoin_cv_qt58=yes],
+    [bitcoin_cv_qt58=no])
+])])
+
+
 dnl Internal. Check if the linked version of Qt was built as static libs.
 dnl Requires: Qt5. This check cannot determine if Qt4 is static.
 dnl Requires: INCLUDES and LIBS must be populated as necessary.
 dnl Output: bitcoin_cv_static_qt=yes|no
 dnl Output: Defines QT_STATICPLUGIN if plugins are static.
 AC_DEFUN([_BITCOIN_QT_IS_STATIC],[
-  if test x$enable_qt59 = xno; then
+  dnl if test x$enable_qt59 = xno; then
     AC_CACHE_CHECK(for static Qt, bitcoin_cv_static_qt,[
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #include <QtCore/qconfig.h>
-        #ifndef QT_VERSION
+        #ifndef QT_VERSION OR QT_VERSION_STR
         #  include <QtCore/qglobal.h>
         #endif
       ]],
@@ -328,9 +343,9 @@ AC_DEFUN([_BITCOIN_QT_IS_STATIC],[
       [bitcoin_cv_static_qt=yes],
       [bitcoin_cv_static_qt=no])
     ])
-  else 
-    bitcoin_cv_static_qt=yes
-  fi
+  dnl else 
+  dnl   bitcoin_cv_static_qt=yes
+  dnl fi
   if test "x$bitcoin_cv_static_qt" = xyes; then
     AC_DEFINE(QT_STATICPLUGIN, 1, [Define this symbol for static Qt plugins])
   fi
@@ -370,7 +385,7 @@ AC_DEFUN([_BITCOIN_QT_FIND_STATIC_PLUGINS],[
      if test "x$use_pkgconfig" = xyes; then
      : dnl
      m4_ifdef([PKG_CHECK_MODULES],[
-       if test x$enable_qt59 = xno; then
+       if test x$bitcoin_cv_qt58 = xno; then
          PKG_CHECK_MODULES([QTPLATFORM], [Qt5PlatformSupport], [QT_LIBS="$QTPLATFORM_LIBS $QT_LIBS"])
        else 
          PKG_CHECK_MODULES([QTPLATFORM], [Qt5FontDatabaseSupport], [QT_LIBS="$QTFONTDATABASE_LIBS $QT_LIBS"])
@@ -399,7 +414,7 @@ AC_DEFUN([_BITCOIN_QT_FIND_STATIC_PLUGINS],[
                #endif
              ]],
              [[
-               #if QT_VERSION < 0x050600
+               #if QT_VERSION < 0x050600 OR QT_VERSION_MINOR < 6
                choke
                #endif
              ]])],
@@ -407,7 +422,7 @@ AC_DEFUN([_BITCOIN_QT_FIND_STATIC_PLUGINS],[
            [bitcoin_cv_need_platformsupport=no])
          ])
          if test "x$bitcoin_cv_need_platformsupport" = xyes; then
-           if test x$enable_qt59 = xno; then
+           if test x$bitcoin_cv_qt58 = xno; then
              BITCOIN_QT_CHECK(AC_CHECK_LIB([${QT_LIB_PREFIX}PlatformSupport],[main],,BITCOIN_QT_FAIL(lib$QT_LIB_PREFIXPlatformSupport not found)))
            else
              BITCOIN_QT_CHECK(AC_CHECK_LIB([${QT_LIB_PREFIX}FontDatabaseSupport],[main],,BITCOIN_QT_FAIL(lib$QT_LIB_PREFIXFontDatabaseSupport not found)))
@@ -531,7 +546,7 @@ AC_DEFUN([_BITCOIN_QT_FIND_LIBS_WITHOUT_PKGCONFIG],[
 
   BITCOIN_QT_CHECK(AC_CHECK_LIB([z] ,[main],,AC_MSG_WARN([zlib not found. Assuming qt has it built-in])))
   BITCOIN_QT_CHECK(AC_SEARCH_LIBS([jpeg_create_decompress] ,[qtjpeg jpeg],,AC_MSG_WARN([libjpeg not found. Assuming qt has it built-in])))
-  if test x$enable_qt59 = xno; then                                                                                                                                                                     
+  if test x$bitcoin_cv_qt58 = xno; then
     BITCOIN_QT_CHECK(AC_SEARCH_LIBS([png_error] ,[qtpng png],,AC_MSG_WARN([libpng not found. Assuming qt has it built-in])))
     BITCOIN_QT_CHECK(AC_SEARCH_LIBS([pcre16_exec], [qtpcre pcre16],,AC_MSG_WARN([libpcre16 not found. Assuming qt has it built-in])))
   else
