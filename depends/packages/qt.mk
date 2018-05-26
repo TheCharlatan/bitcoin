@@ -7,7 +7,7 @@ $(package)_sha256_hash=69e6bde3ab00673a77e1506173551fec7d0cd899fcbf9b1260517db1b
 $(package)_dependencies=openssl zlib
 $(package)_linux_dependencies=freetype fontconfig libxcb libX11 xproto libXext
 $(package)_build_subdir=qtbase
-$(package)_qt_libs=corelib network widgets gui plugins testlib concurrent xml
+$(package)_qt_libs=corelib network widgets gui plugins testlib
 $(package)_patches=fix_qt_pkgconfig.patch mac-qmake.conf fix_configure_mac.patch fix_no_printer.patch qfixed-coretext.patch
 
 $(package)_qttranslations_file_name=qttranslations-$($(package)_suffix)
@@ -52,6 +52,7 @@ $(package)_config_opts += -no-sql-psql
 $(package)_config_opts += -no-sql-sqlite
 $(package)_config_opts += -no-sql-sqlite2
 $(package)_config_opts += -no-use-gold-linker
+$(package)_config_opts += -no-xinput2
 $(package)_config_opts += -nomake examples
 $(package)_config_opts += -nomake tests
 $(package)_config_opts += -opensource
@@ -69,6 +70,8 @@ $(package)_config_opts += -silent
 $(package)_config_opts += -v
 $(package)_config_opts += -no-feature-printer
 $(package)_config_opts += -no-feature-printdialog
+$(package)_config_opts += -no-feature-concurrent
+$(package)_config_opts += -no-feature-xml
 
 ifneq ($(build_os),darwin)
 $(package)_config_opts_darwin = -xplatform macx-clang-linux
@@ -83,6 +86,7 @@ endif
 $(package)_config_opts_linux  = -qt-xkbcommon
 $(package)_config_opts_linux += -qt-xcb
 $(package)_config_opts_linux += -system-freetype
+$(package)_config_opts_linux += -no-feature-sessionmanager
 $(package)_config_opts_linux += -fontconfig
 $(package)_config_opts_linux += -no-opengl
 $(package)_config_opts_arm_linux  = -platform linux-g++ -xplatform $(host)
@@ -115,7 +119,7 @@ endef
 define $(package)_preprocess_cmds
   sed -i.old "s|updateqm.commands = \$$$$\$$$$LRELEASE|updateqm.commands = $($(package)_extract_dir)/qttools/bin/lrelease|" qttranslations/translations/translations.pro && \
   sed -i.old "/updateqm.depends =/d" qttranslations/translations/translations.pro && \
-  sed -i.old "s/src_plugins.depends = src_sql src_xml src_network/src_plugins.depends = src_xml src_network/" qtbase/src/src.pro && \
+  sed -i.old "s/src_plugins.depends = src_sql src_network/src_plugins.depends = src_network/" qtbase/src/src.pro && \
   sed -i.old "s|X11/extensions/XIproto.h|X11/X.h|" qtbase/src/plugins/platforms/xcb/qxcbxsettings.cpp && \
   sed -i.old 's/if \[ "$$$$XPLATFORM_MAC" = "yes" \]; then xspecvals=$$$$(macSDKify/if \[ "$$$$BUILD_ON_MAC" = "yes" \]; then xspecvals=$$$$(macSDKify/' qtbase/configure && \
   sed -i.old 's/CGEventCreateMouseEvent(0, kCGEventMouseMoved, pos, 0)/CGEventCreateMouseEvent(0, kCGEventMouseMoved, pos, kCGMouseButtonLeft)/' qtbase/src/plugins/platforms/cocoa/qcocoacursor.mm && \
