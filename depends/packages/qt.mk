@@ -1,9 +1,9 @@
 PACKAGE=qt
-$(package)_version=5.9.4
+$(package)_version=5.9.5
 $(package)_download_path=http://download.qt.io/official_releases/qt/5.9/$($(package)_version)/submodules
 $(package)_suffix=opensource-src-$($(package)_version).tar.xz
 $(package)_file_name=qtbase-$($(package)_suffix)
-$(package)_sha256_hash=69e6bde3ab00673a77e1506173551fec7d0cd899fcbf9b1260517db1b61004cf
+$(package)_sha256_hash=7d3ef666d2efcf260a5a0780a1ccd49f897e839e1d9932225be4859ec26730d4
 $(package)_dependencies=openssl zlib
 $(package)_linux_dependencies=freetype fontconfig libxcb libX11 xproto libXext
 $(package)_build_subdir=qtbase
@@ -11,10 +11,10 @@ $(package)_qt_libs=corelib network widgets gui plugins testlib
 $(package)_patches=fix_qt_pkgconfig.patch mac-qmake.conf fix_configure_mac.patch fix_no_printer.patch qfixed-coretext.patch
 
 $(package)_qttranslations_file_name=qttranslations-$($(package)_suffix)
-$(package)_qttranslations_sha256_hash=e5cf81f88cc6811166ea631e6b7faa869a578a910dce61e951f98ff83f27bad6
+$(package)_qttranslations_sha256_hash=f499e66e40d6b90ef4f01232eed4c9fc91022d947c727d18b2f04b8b6f583cc9
 
 $(package)_qttools_file_name=qttools-$($(package)_suffix)
-$(package)_qttools_sha256_hash=95aa5782d5a79be22fba36cea4dc2319cf2a2060a3cc1e24e6585b8d98996e87
+$(package)_qttools_sha256_hash=2c120f9b8f85adeeb98a60f027bf683115ff35e8985abb05fc9160305b15d2b3
 
 $(package)_extra_sources  = $($(package)_qttranslations_file_name)
 $(package)_extra_sources += $($(package)_qttools_file_name)

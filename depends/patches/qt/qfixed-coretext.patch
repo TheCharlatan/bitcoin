@@ -30,5 +30,6 @@ index 25ff69d877d..98b753eff96 100644
  }
  
  QFontEngine *QCoreTextFontEngine::cloneWithSize(qreal pixelSize) const
+ {
 -- 
 2.16.3
