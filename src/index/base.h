@@ -75,6 +75,9 @@ private:
     /// to a chain reorganization), the index must halt until Commit succeeds or else it could end up
     /// getting corrupted.
     bool Commit();
+
+    virtual bool AllowPrune() const = 0;
+
 protected:
     CChainState* m_chainstate{nullptr};
 
@@ -125,6 +128,8 @@ public:
 
     /// Get a summary of the index and its state.
     IndexSummary GetSummary() const;
+
+    void SetBestBlockIndex(const CBlockIndex* block);
 };
 
 #endif // BITCOIN_INDEX_BASE_H
