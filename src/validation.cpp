@@ -2288,12 +2288,28 @@ bool CChainState::FlushStateToDisk(
         CoinsCacheSizeState cache_state = GetCoinsCacheSizeState();
         LOCK(m_blockman.cs_LastBlockFile);
         if (fPruneMode && (m_blockman.m_check_for_pruning || nManualPruneHeight > 0) && !fReindex) {
-            // make sure we don't prune above the blockfilterindexes bestblocks
+            // make sure we don't prune above any of the prune locks bestblocks
             // pruning is height-based
             int last_prune = m_chain.Height(); // last height we can prune
+            std::optional<std::string> limiting_lock; // prune lock that actually was the limiting factor, only used for logging
+
             ForEachBlockFilterIndex([&](BlockFilterIndex& index) {
-               last_prune = std::max(1, std::min(last_prune, index.GetSummary().best_block_height));
+                last_prune = std::max(1, std::min(last_prune, index.GetSummary().best_block_height));
             });
+
+            for (const auto& prune_lock : m_blockman.m_prune_locks) {
+                if (prune_lock.second.height_first == std::numeric_limits<int>::max()) continue;
+                // Remove the buffer and one additional block here to get actual height that is outside of the buffer
+                const int lock_height{prune_lock.second.height_first - PRUNE_LOCK_BUFFER - 1};
+                last_prune = std::max(1, std::min(last_prune, lock_height));
+                if (last_prune == lock_height) {
+                    limiting_lock = prune_lock.first;
+                }
+            }
+
+            if (limiting_lock) {
+                LogPrint(BCLog::PRUNE, "%s limited pruning to height %d\n", limiting_lock.value(), last_prune);
+            }
 
             if (nManualPruneHeight > 0) {
                 LOG_TIME_MILLIS_WITH_CATEGORY("find files to prune (manual)", BCLog::BENCH);
@@ -2531,6 +2547,18 @@ bool CChainState::DisconnectTip(BlockValidationState& state, DisconnectedBlockTr
         assert(flushed);
     }
     LogPrint(BCLog::BENCH, "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * MILLI);
+
+    {
+        // Prune locks that began at or after the tip should get moved backward so they get a chance to reorg
+        const int max_height_first = pindexDelete->nHeight - 1;
+        for (auto& prune_lock : m_blockman.m_prune_locks) {
+            if (prune_lock.second.height_first <= max_height_first) continue;
+
+            prune_lock.second.height_first = max_height_first;
+            LogPrint(BCLog::PRUNE, "%s prune lock moved back to %d\n", prune_lock.first, max_height_first);
+        }
+    }
+
     // Write the chain state to disk, if necessary.
     if (!FlushStateToDisk(state, FlushStateMode::IF_NEEDED)) {
         return false;

@@ -12,6 +12,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <unordered_map>
 #include <vector>
 
 extern RecursiveMutex cs_main;
@@ -56,6 +57,10 @@ typedef std::unordered_map<uint256, CBlockIndex*, BlockHasher> BlockMap;
 
 struct CBlockIndexWorkComparator {
     bool operator()(const CBlockIndex* pa, const CBlockIndex* pb) const;
+};
+
+struct PruneLockInfo {
+    int height_first{std::numeric_limits<int>::max()}; //! Height of earliest block that should be kept and not pruned
 };
 
 /**
@@ -159,6 +164,16 @@ public:
 
     //! Returns last CBlockIndex* that is a checkpoint
     CBlockIndex* GetLastCheckpoint(const CCheckpointData& data) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+
+    /**
+     * Map from external index name to oldest block that must not be pruned.
+     *
+     * @note Internally, only blocks at height (height_first - PRUNE_LOCK_BUFFER) and
+     * below will be pruned, but callers should avoid assuming any particular buffer size.
+     */
+    std::unordered_map<std::string, PruneLockInfo> m_prune_locks GUARDED_BY(::cs_main);
+
+    void UpdatePruneLock(const std::string& name, const PruneLockInfo& lock_info) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     ~BlockManager()
     {
