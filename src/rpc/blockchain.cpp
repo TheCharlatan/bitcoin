@@ -1109,7 +1109,7 @@ static RPCHelpMan pruneblockchain()
             "                  to prune blocks whose block time is at least 2 hours older than the provided timestamp."},
                 },
                 RPCResult{
-                    RPCResult::Type::NUM, "", "Height of the last block pruned"},
+                    RPCResult::Type::NUM, "", "The height of the first (lowest) block that is still stored, after pruning"},
                 RPCExamples{
                     HelpExampleCli("pruneblockchain", "1000")
             + HelpExampleRpc("pruneblockchain", "1000")
