@@ -522,6 +522,16 @@ public:
     //
     // Stream subset
     //
+    void seek(int64_t offset, int origin)
+    {
+        if (IsNull()) {
+            throw std::ios_base::failure("CAutoFile::read: file handle is nullptr");
+        }
+        if (fseek(file, offset, origin) != 0) {
+            throw std::ios_base::failure(feof(file) ? "CAutoFile::seek: end of file" : "CAutoFile::seek: fseek failed");
+        }
+    }
+
     void read(Span<std::byte> dst)
     {
         if (!file) throw std::ios_base::failure("AutoFile::read: file handle is nullptr");
