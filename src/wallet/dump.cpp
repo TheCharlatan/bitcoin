@@ -60,7 +60,13 @@ bool DumpWallet(const ArgsManager& args, CWallet& wallet, bilingual_str& error)
     hasher.write(MakeByteSpan(line));
 
     // Write out the file format
-    line = strprintf("%s,%s\n", "format", db.Format());
+    std::string format = db.Format();
+    // BDB files are opened using BerkeleyRODatabase which gives it's format as "bdb_ro"
+    // We want to override that format back to "bdb"
+    if (format == "bdb_ro") {
+        format = "bdb";
+    }
+    line = strprintf("%s,%s\n", "format", format);
     dump_file.write(line.data(), line.size());
     hasher.write(MakeByteSpan(line));
 
