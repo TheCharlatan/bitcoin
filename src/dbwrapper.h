@@ -218,6 +218,7 @@ public:
         bool in_memory = false;
         bool wipe_existing = false;
         bool obfuscate_data = false;
+        bool do_compact = false;
     };
 
     /**

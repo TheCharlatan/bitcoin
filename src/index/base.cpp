@@ -8,6 +8,7 @@
 #include <node/ui_interface.h>
 #include <shutdown.h>
 #include <tinyformat.h>
+#include <util/args.h>
 #include <util/syscall_sandbox.h>
 #include <util/system.h>
 #include <util/thread.h>
@@ -33,7 +34,7 @@ static void FatalError(const char* fmt, const Args&... args)
 }
 
 BaseIndex::DB::DB(const fs::path& path, size_t n_cache_size, bool f_memory, bool f_wipe, bool f_obfuscate) :
-    CDBWrapper(path, n_cache_size, {.in_memory = f_memory, .wipe_existing = f_wipe, .obfuscate_data = f_obfuscate})
+    CDBWrapper(path, n_cache_size, {.in_memory = f_memory, .wipe_existing = f_wipe, .obfuscate_data = f_obfuscate, .do_compact = gArgs.GetBoolArg("-forcecompactdb", false)})
 {}
 
 bool BaseIndex::DB::ReadBestBlock(CBlockLocator& locator) const

@@ -64,7 +64,7 @@ struct CoinEntry {
 }
 
 CCoinsViewDB::CCoinsViewDB(fs::path ldb_path, size_t nCacheSize, bool fMemory, bool fWipe) :
-    m_db(std::make_unique<CDBWrapper>(ldb_path, nCacheSize, CDBWrapper::Options{.in_memory = fMemory, .wipe_existing = fWipe, .obfuscate_data = true})),
+    m_db(std::make_unique<CDBWrapper>(ldb_path, nCacheSize, CDBWrapper::Options{.in_memory = fMemory, .wipe_existing = fWipe, .obfuscate_data = true, .do_compact = gArgs.GetBoolArg("-forcecompactdb", false)})),
     m_ldb_path(ldb_path),
     m_is_memory(fMemory) { }
 
@@ -170,7 +170,7 @@ size_t CCoinsViewDB::EstimateSize() const
     return m_db->EstimateSize(DB_COIN, uint8_t(DB_COIN + 1));
 }
 
-CBlockTreeDB::CBlockTreeDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(gArgs.GetDataDirNet() / "blocks" / "index", nCacheSize, {.in_memory = fMemory, .wipe_existing = fWipe, .obfuscate_data = false}) {
+CBlockTreeDB::CBlockTreeDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(gArgs.GetDataDirNet() / "blocks" / "index", nCacheSize, {.in_memory = fMemory, .wipe_existing = fWipe, .obfuscate_data = false, .do_compact = gArgs.GetBoolArg("-forcecompactdb", false)}) {
 }
 
 bool CBlockTreeDB::ReadBlockFileInfo(int nFile, CBlockFileInfo &info) {
