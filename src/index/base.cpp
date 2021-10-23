@@ -33,7 +33,7 @@ static void FatalError(const char* fmt, const Args&... args)
 }
 
 BaseIndex::DB::DB(const fs::path& path, size_t n_cache_size, bool f_memory, bool f_wipe, bool f_obfuscate) :
-    CDBWrapper(path, n_cache_size, f_memory, f_wipe, f_obfuscate)
+    CDBWrapper(path, n_cache_size, {.in_memory = f_memory, .wipe_existing = f_wipe, .obfuscate_data = f_obfuscate})
 {}
 
 bool BaseIndex::DB::ReadBestBlock(CBlockLocator& locator) const

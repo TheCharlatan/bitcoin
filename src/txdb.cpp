@@ -64,7 +64,7 @@ struct CoinEntry {
 }
 
 CCoinsViewDB::CCoinsViewDB(fs::path ldb_path, size_t nCacheSize, bool fMemory, bool fWipe) :
-    m_db(std::make_unique<CDBWrapper>(ldb_path, nCacheSize, fMemory, fWipe, true)),
+    m_db(std::make_unique<CDBWrapper>(ldb_path, nCacheSize, CDBWrapper::Options{.in_memory = fMemory, .wipe_existing = fWipe, .obfuscate_data = true})),
     m_ldb_path(ldb_path),
     m_is_memory(fMemory) { }
 
@@ -77,7 +77,7 @@ void CCoinsViewDB::ResizeCache(size_t new_cache_size)
         // filesystem lock.
         m_db.reset();
         m_db = std::make_unique<CDBWrapper>(
-            m_ldb_path, new_cache_size, m_is_memory, /*fWipe*/ false, /*obfuscate*/ true);
+            m_ldb_path, new_cache_size, CDBWrapper::Options{.in_memory = m_is_memory, .obfuscate_data = true});
     }
 }
 
@@ -170,7 +170,7 @@ size_t CCoinsViewDB::EstimateSize() const
     return m_db->EstimateSize(DB_COIN, uint8_t(DB_COIN + 1));
 }
 
-CBlockTreeDB::CBlockTreeDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(gArgs.GetDataDirNet() / "blocks" / "index", nCacheSize, fMemory, fWipe) {
+CBlockTreeDB::CBlockTreeDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(gArgs.GetDataDirNet() / "blocks" / "index", nCacheSize, {.in_memory = fMemory, .wipe_existing = fWipe, .obfuscate_data = false}) {
 }
 
 bool CBlockTreeDB::ReadBlockFileInfo(int nFile, CBlockFileInfo &info) {

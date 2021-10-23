@@ -116,7 +116,7 @@ static leveldb::Options GetOptions(size_t nCacheSize)
     return options;
 }
 
-CDBWrapper::CDBWrapper(const fs::path& path, size_t nCacheSize, bool fMemory, bool fWipe, bool obfuscate)
+CDBWrapper::CDBWrapper(const fs::path& path, size_t nCacheSize, const Options& opts)
     : m_name{fs::PathToString(path.stem())}
 {
     penv = nullptr;
@@ -126,11 +126,11 @@ CDBWrapper::CDBWrapper(const fs::path& path, size_t nCacheSize, bool fMemory, bo
     syncoptions.sync = true;
     options = GetOptions(nCacheSize);
     options.create_if_missing = true;
-    if (fMemory) {
+    if (opts.in_memory) {
         penv = leveldb::NewMemEnv(leveldb::Env::Default());
         options.env = penv;
     } else {
-        if (fWipe) {
+        if (opts.wipe_existing) {
             LogPrintf("Wiping LevelDB in %s\n", fs::PathToString(path));
             leveldb::Status result = leveldb::DestroyDB(fs::PathToString(path), options);
             dbwrapper_private::HandleError(result);
@@ -157,7 +157,7 @@ CDBWrapper::CDBWrapper(const fs::path& path, size_t nCacheSize, bool fMemory, bo
 
     bool key_exists = Read(OBFUSCATE_KEY_KEY, obfuscate_key);
 
-    if (!key_exists && obfuscate && IsEmpty()) {
+    if (!key_exists && opts.obfuscate_data && IsEmpty()) {
         // Initialize non-degenerate obfuscation if it won't upset
         // existing, non-obfuscated data.
         std::vector<unsigned char> new_key = CreateObfuscateKey();
