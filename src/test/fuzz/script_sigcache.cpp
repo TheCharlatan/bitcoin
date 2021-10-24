@@ -10,6 +10,7 @@
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util.h>
+#include <util/args.h>
 
 #include <cstdint>
 #include <optional>
@@ -21,7 +22,7 @@ void initialize_script_sigcache()
     static const ECCVerifyHandle ecc_verify_handle;
     ECC_Start();
     SelectParams(CBaseChainParams::REGTEST);
-    InitSignatureCache();
+    InitSignatureCache(gArgs.GetIntArg("-maxsigcachesize"));
 }
 
 FUZZ_TARGET_INIT(script_sigcache, initialize_script_sigcache)

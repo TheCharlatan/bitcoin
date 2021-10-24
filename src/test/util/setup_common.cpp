@@ -130,7 +130,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     ECC_Start();
     SetupEnvironment();
     SetupNetworking();
-    InitSignatureCache();
+    InitSignatureCache(gArgs.GetIntArg("-maxsigcachesize"));
     InitScriptExecutionCache();
     m_node.chain = interfaces::MakeChain(m_node);
     fCheckBlockIndex = true;

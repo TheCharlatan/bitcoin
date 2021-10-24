@@ -1140,7 +1140,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                   args.GetArg("-datadir", ""), fs::PathToString(fs::current_path()));
     }
 
-    InitSignatureCache();
+    InitSignatureCache(args.GetIntArg("-maxsigcachesize"));
     InitScriptExecutionCache();
 
     int script_threads = args.GetIntArg("-par", DEFAULT_SCRIPTCHECK_THREADS);

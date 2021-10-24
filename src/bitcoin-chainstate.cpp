@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
     // Necessary for CheckInputScripts (eventually called by ProcessNewBlock),
     // which will try the script cache first and fall back to actually
     // performing the check with the signature cache.
-    InitSignatureCache();
+    InitSignatureCache(32);
     InitScriptExecutionCache();
 
 

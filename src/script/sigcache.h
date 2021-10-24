@@ -10,6 +10,7 @@
 #include <span.h>
 #include <util/hasher.h>
 
+#include <optional>
 #include <vector>
 
 // DoS prevention: limit cache size to 32MB (over 1000000 entries on 64-bit
@@ -33,6 +34,6 @@ public:
     bool VerifySchnorrSignature(Span<const unsigned char> sig, const XOnlyPubKey& pubkey, const uint256& sighash) const override;
 };
 
-void InitSignatureCache();
+void InitSignatureCache(std::optional<int64_t> max_size);
 
 #endif // BITCOIN_SCRIPT_SIGCACHE_H
