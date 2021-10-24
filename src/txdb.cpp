@@ -63,21 +63,27 @@ struct CoinEntry {
 
 }
 
-CCoinsViewDB::CCoinsViewDB(fs::path ldb_path, size_t nCacheSize, bool fMemory, bool fWipe) :
-    m_db(std::make_unique<CDBWrapper>(ldb_path, nCacheSize, CDBWrapper::Options{.in_memory = fMemory, .wipe_existing = fWipe, .obfuscate_data = true, .do_compact = gArgs.GetBoolArg("-forcecompactdb", false)})),
+CCoinsViewDB::CCoinsViewDB(fs::path ldb_path, size_t nCacheSize, const Options& opts) :
+    m_db(std::make_unique<CDBWrapper>(ldb_path, nCacheSize, CDBWrapper::Options{.in_memory = opts.in_memory, .wipe_existing = opts.wipe_existing, .obfuscate_data = true, .do_compact = opts.do_compact})),
     m_ldb_path(ldb_path),
-    m_is_memory(fMemory) { }
+    m_opts(opts) { }
 
 void CCoinsViewDB::ResizeCache(size_t new_cache_size)
 {
     // We can't do this operation with an in-memory DB since we'll lose all the coins upon
     // reset.
-    if (!m_is_memory) {
+    if (!m_opts.in_memory) {
         // Have to do a reset first to get the original `m_db` state to release its
         // filesystem lock.
         m_db.reset();
-        m_db = std::make_unique<CDBWrapper>(
-            m_ldb_path, new_cache_size, CDBWrapper::Options{.in_memory = m_is_memory, .obfuscate_data = true});
+
+        CDBWrapper::Options opts {
+            .in_memory = m_opts.in_memory,
+            .wipe_existing = m_opts.wipe_existing,
+            .obfuscate_data = true,
+            .do_compact = m_opts.do_compact,
+        };
+        m_db = std::make_unique<CDBWrapper>(m_ldb_path, new_cache_size, opts);
     }
 }
 
@@ -108,8 +114,8 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) {
     CDBBatch batch(*m_db);
     size_t count = 0;
     size_t changed = 0;
-    size_t batch_size = (size_t)gArgs.GetIntArg("-dbbatchsize", nDefaultDbBatchSize);
-    int crash_simulate = gArgs.GetIntArg("-dbcrashratio", 0);
+    size_t batch_size = m_opts.batch_write_size;
+    int crash_simulate = m_opts.simulate_write_crash_ratio;
     assert(!hashBlock.IsNull());
 
     uint256 old_tip = GetBestBlock();

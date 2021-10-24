@@ -1432,8 +1432,18 @@ CoinsViews::CoinsViews(
     std::string ldb_name,
     size_t cache_size_bytes,
     bool in_memory,
-    bool should_wipe) : m_dbview(
-                            gArgs.GetDataDirNet() / ldb_name, cache_size_bytes, in_memory, should_wipe),
+    bool should_wipe) : m_dbview(gArgs.GetDataDirNet() / ldb_name,
+                                 cache_size_bytes,
+                                 [&]{
+                                     CCoinsViewDB::Options db_opts {
+                                         .in_memory = in_memory,
+                                         .wipe_existing = should_wipe
+                                     };
+                                     db_opts.do_compact = gArgs.GetBoolArg("-forcecompactdb", db_opts.do_compact);
+                                     db_opts.batch_write_size = gArgs.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
+                                     db_opts.simulate_write_crash_ratio = gArgs.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
+                                     return db_opts;
+                                 }()),
                         m_catcherview(&m_dbview) {}
 
 void CoinsViews::InitCache()

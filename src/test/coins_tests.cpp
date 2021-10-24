@@ -269,7 +269,14 @@ BOOST_AUTO_TEST_CASE(coins_cache_simulation_test)
     CCoinsViewTest base;
     SimulationTest(&base, false);
 
-    CCoinsViewDB db_base{"test", /*nCacheSize=*/1 << 23, /*fMemory=*/true, /*fWipe=*/false};
+    CCoinsViewDB::Options opts {
+        .in_memory = true,
+        .wipe_existing = false,
+    };
+    opts.do_compact = m_args.GetBoolArg("-forcecompactdb", opts.do_compact);
+    opts.batch_write_size = m_args.GetIntArg("-dbbatchsize", opts.batch_write_size);
+    opts.simulate_write_crash_ratio = m_args.GetIntArg("-dbcrashratio", opts.simulate_write_crash_ratio);
+    CCoinsViewDB db_base{"test", /*nCacheSize=*/ 1 << 23, opts};
     SimulationTest(&db_base, true);
 }
 

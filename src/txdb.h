@@ -49,15 +49,23 @@ extern RecursiveMutex cs_main;
 /** CCoinsView backed by the coin database (chainstate/) */
 class CCoinsViewDB final : public CCoinsView
 {
+public:
+    struct Options {
+        bool in_memory = false;
+        bool wipe_existing = false;
+        bool do_compact = false;
+        size_t batch_write_size = nDefaultDbBatchSize;
+        int simulate_write_crash_ratio = 0;
+    };
 protected:
     std::unique_ptr<CDBWrapper> m_db;
     fs::path m_ldb_path;
-    bool m_is_memory;
+    const Options m_opts;
 public:
     /**
      * @param[in] ldb_path    Location in the filesystem where leveldb data will be stored.
      */
-    explicit CCoinsViewDB(fs::path ldb_path, size_t nCacheSize, bool fMemory, bool fWipe);
+    explicit CCoinsViewDB(fs::path ldb_path, size_t nCacheSize, const Options& opts);
 
     bool GetCoin(const COutPoint &outpoint, Coin &coin) const override;
     bool HaveCoin(const COutPoint &outpoint) const override;
