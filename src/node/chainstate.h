@@ -9,6 +9,10 @@
 #include <functional>
 #include <optional>
 
+namespace fs {
+    class path;
+}
+
 class ChainstateManager;
 class CTxMemPool;
 namespace Consensus {
@@ -61,6 +65,7 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
                                                      bool fPruneMode,
                                                      const Consensus::Params& consensus_params,
                                                      bool fReindexChainState,
+                                                     const fs::path& net_data_dir_path,
                                                      int64_t nBlockTreeDBCache,
                                                      int64_t nCoinDBCache,
                                                      int64_t nCoinCacheUsage,

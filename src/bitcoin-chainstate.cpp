@@ -81,6 +81,7 @@ int main(int argc, char* argv[])
                                    false,
                                    chainparams.GetConsensus(),
                                    false,
+                                   gArgs.GetDataDirNet(),
                                    2 << 20,
                                    2 << 22,
                                    (450 << 20) - (2 << 20) - (2 << 22),

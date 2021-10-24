@@ -165,7 +165,7 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     m_cache_sizes = CalculateCacheSizes(m_args);
 
     m_node.chainman = std::make_unique<ChainstateManager>(GetAdjustedTime);
-    m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(m_cache_sizes.block_tree_db, true);
+    m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(m_args.GetDataDirNet() / "blocks" / "index", 1 << 20, CBlockTreeDB::Options{ .in_memory = true });
 
     // Start script-checking threads. Set g_parallel_script_checks to true so they are used.
     constexpr int script_check_threads = 2;
@@ -204,6 +204,7 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
                                            fPruneMode,
                                            chainparams.GetConsensus(),
                                            m_args.GetBoolArg("-reindex-chainstate", false),
+                                           m_args.GetDataDirNet(),
                                            m_cache_sizes.block_tree_db,
                                            m_cache_sizes.coins_db,
                                            m_cache_sizes.coins,

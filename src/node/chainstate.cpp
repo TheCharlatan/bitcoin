@@ -5,6 +5,7 @@
 #include <node/chainstate.h>
 
 #include <consensus/params.h>
+#include <fs.h>
 #include <node/blockstorage.h>
 #include <validation.h>
 
@@ -15,6 +16,7 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
                                                      bool fPruneMode,
                                                      const Consensus::Params& consensus_params,
                                                      bool fReindexChainState,
+                                                     const fs::path& net_data_dir_path,
                                                      int64_t nBlockTreeDBCache,
                                                      int64_t nCoinDBCache,
                                                      int64_t nCoinCacheUsage,
@@ -38,7 +40,12 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
     // new CBlockTreeDB tries to delete the existing file, which
     // fails if it's still open from the previous loop. Close it first:
     pblocktree.reset();
-    pblocktree.reset(new CBlockTreeDB(nBlockTreeDBCache, block_tree_db_in_memory, fReset));
+
+    CBlockTreeDB::Options opts {
+        .in_memory = block_tree_db_in_memory,
+        .wipe_existing = fReset,
+    };
+    pblocktree.reset(new CBlockTreeDB(net_data_dir_path / "blocks" / "index", nBlockTreeDBCache, opts));
 
     if (fReset) {
         pblocktree->WriteReindexing(true);

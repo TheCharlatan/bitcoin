@@ -1421,6 +1421,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                                               fPruneMode,
                                               chainparams.GetConsensus(),
                                               fReindexChainState,
+                                              gArgs.GetDataDirNet(),
                                               cache_sizes.block_tree_db,
                                               cache_sizes.coins_db,
                                               cache_sizes.coins,
