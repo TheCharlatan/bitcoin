@@ -451,20 +451,35 @@ bool ArgsManager::IsArgNegated(const std::string& strArg) const
 
 std::string ArgsManager::GetArg(const std::string& strArg, const std::string& strDefault) const
 {
+    return GetArg(strArg).value_or(strDefault);
+}
+
+std::optional<std::string> ArgsManager::GetArg(const std::string& strArg) const
+{
     const util::SettingsValue value = GetSetting(strArg);
-    return value.isNull() ? strDefault : value.isFalse() ? "0" : value.isTrue() ? "1" : value.get_str();
+    return value.isNull() ? std::nullopt : std::make_optional(value.isFalse() ? "0" : value.isTrue() ? "1" : value.get_str());
 }
 
 int64_t ArgsManager::GetIntArg(const std::string& strArg, int64_t nDefault) const
 {
+    return GetIntArg(strArg).value_or(nDefault);
+}
+
+std::optional<int64_t> ArgsManager::GetIntArg(const std::string& strArg) const
+{
     const util::SettingsValue value = GetSetting(strArg);
-    return value.isNull() ? nDefault : value.isFalse() ? 0 : value.isTrue() ? 1 : value.isNum() ? value.get_int64() : LocaleIndependentAtoi<int64_t>(value.get_str());
+    return value.isNull() ? std::nullopt : std::make_optional(value.isFalse() ? 0 : value.isTrue() ? 1 : value.isNum() ? value.get_int64() : LocaleIndependentAtoi<int64_t>(value.get_str()));
 }
 
 bool ArgsManager::GetBoolArg(const std::string& strArg, bool fDefault) const
 {
+    return GetBoolArg(strArg).value_or(fDefault);
+}
+
+std::optional<bool> ArgsManager::GetBoolArg(const std::string& strArg) const
+{
     const util::SettingsValue value = GetSetting(strArg);
-    return value.isNull() ? fDefault : value.isBool() ? value.get_bool() : InterpretBool(value.get_str());
+    return value.isNull() ? std::nullopt : std::make_optional(value.isBool() ? value.get_bool() : InterpretBool(value.get_str()));
 }
 
 bool ArgsManager::SoftSetArg(const std::string& strArg, const std::string& strValue)
