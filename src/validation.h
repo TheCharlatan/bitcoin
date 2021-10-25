@@ -23,6 +23,7 @@
 #include <txdb.h>
 #include <txmempool.h> // For CTxMemPool::cs
 #include <uint256.h>
+#include <util/args.h>
 #include <util/check.h>
 #include <util/hasher.h>
 #include <util/translation.h>

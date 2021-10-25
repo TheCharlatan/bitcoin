@@ -183,6 +183,8 @@ public:
 
     void UpdatePruneLock(const std::string& name, const PruneLockInfo& lock_info) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
+    void CleanupBlockRevFiles();
+
     ~BlockManager()
     {
         Unload();
@@ -194,8 +196,6 @@ bool IsBlockPruned(const CBlockIndex* pblockindex) EXCLUSIVE_LOCKS_REQUIRED(::cs
 
 //! Find the first block that is not pruned
 const CBlockIndex* GetFirstStoredBlock(const CBlockIndex* start_block) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-
-void CleanupBlockRevFiles();
 
 /** Open a block file (blk?????.dat) */
 FILE* OpenBlockFile(const FlatFilePos& pos, bool fReadOnly = false);
