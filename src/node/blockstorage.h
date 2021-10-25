@@ -9,6 +9,7 @@
 #include <protocol.h> // For CMessageHeader::MessageStartChars
 #include <sync.h>
 #include <txdb.h>
+#include <util/args.h>
 
 #include <atomic>
 #include <cstdint>
@@ -116,7 +117,14 @@ private:
     /** Dirty block file entries. */
     std::set<int> m_dirty_fileinfo;
 
+    const fs::path& m_blocks_dir;
+    bool m_fast_prune;
 public:
+    BlockManager(const fs::path& blocks_dir = gArgs.GetBlocksDirPath(),
+                 bool fast_prune = gArgs.GetBoolArg("-fastprune", false))
+        : m_blocks_dir(blocks_dir),
+          m_fast_prune(fast_prune) {};
+
     BlockMap m_block_index GUARDED_BY(cs_main);
 
     /**
