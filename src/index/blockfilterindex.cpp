@@ -9,8 +9,7 @@
 #include <node/blockstorage.h>
 #include <util/args.h>
 #include <util/system.h>
-
-using node::UndoReadFromDisk;
+#include <validation.h>
 
 /* The index database stores three items for each block: the disk location of the encoded filter,
  * its dSHA256 hash, and the header. Those belonging to blocks on the active chain are indexed by
@@ -216,7 +215,7 @@ bool BlockFilterIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex
     uint256 prev_header;
 
     if (pindex->nHeight > 0) {
-        if (!UndoReadFromDisk(block_undo, pindex)) {
+        if (!m_chainstate->m_blockman.UndoReadFromDisk(block_undo, pindex)) {
             return false;
         }
 

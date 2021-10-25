@@ -19,7 +19,6 @@ using kernel::GetBogoSize;
 using kernel::TxOutSer;
 
 using node::ReadBlockFromDisk;
-using node::UndoReadFromDisk;
 
 static constexpr uint8_t DB_BLOCK_HASH{'s'};
 static constexpr uint8_t DB_BLOCK_HEIGHT{'t'};
@@ -120,7 +119,7 @@ bool CoinStatsIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
 
     // Ignore genesis block
     if (pindex->nHeight > 0) {
-        if (!UndoReadFromDisk(block_undo, pindex)) {
+        if (!m_chainstate->m_blockman.UndoReadFromDisk(block_undo, pindex)) {
             return false;
         }
 
@@ -402,7 +401,7 @@ bool CoinStatsIndex::ReverseBlock(const CBlock& block, const CBlockIndex* pindex
 
     // Ignore genesis block
     if (pindex->nHeight > 0) {
-        if (!UndoReadFromDisk(block_undo, pindex)) {
+        if (!m_chainstate->m_blockman.UndoReadFromDisk(block_undo, pindex)) {
             return false;
         }
 

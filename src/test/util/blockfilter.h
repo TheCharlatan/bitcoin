@@ -7,7 +7,10 @@
 
 #include <blockfilter.h>
 class CBlockIndex;
+namespace node {
+    class BlockManager;
+}
 
-bool ComputeFilter(BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter);
+bool ComputeFilter(BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter, node::BlockManager& blockman);
 
 #endif // BITCOIN_TEST_UTIL_BLOCKFILTER_H
