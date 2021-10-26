@@ -286,7 +286,7 @@ bool CoinStatsIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* n
         do {
             CBlock block;
 
-            if (!ReadBlockFromDisk(block, iter_tip, consensus_params)) {
+            if (!m_chainstate->m_blockman.ReadBlockFromDisk(block, iter_tip, consensus_params)) {
                 return error("%s: Failed to read block %s from disk",
                              __func__, iter_tip->GetBlockHash().ToString());
             }

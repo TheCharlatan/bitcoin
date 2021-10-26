@@ -343,7 +343,7 @@ public:
     NodeContext* m_context{nullptr};
 };
 
-bool FillBlock(const CBlockIndex* index, const FoundBlock& block, UniqueLock<RecursiveMutex>& lock, const CChain& active)
+bool FillBlock(const CBlockIndex* index, const FoundBlock& block, UniqueLock<RecursiveMutex>& lock, const CChain& active, BlockManager& blockman)
 {
     if (!index) return false;
     if (block.m_hash) *block.m_hash = index->GetBlockHash();
@@ -352,10 +352,10 @@ bool FillBlock(const CBlockIndex* index, const FoundBlock& block, UniqueLock<Rec
     if (block.m_max_time) *block.m_max_time = index->GetBlockTimeMax();
     if (block.m_mtp_time) *block.m_mtp_time = index->GetMedianTimePast();
     if (block.m_in_active_chain) *block.m_in_active_chain = active[index->nHeight] == index;
-    if (block.m_next_block) FillBlock(active[index->nHeight] == index ? active[index->nHeight + 1] : nullptr, *block.m_next_block, lock, active);
+    if (block.m_next_block) FillBlock(active[index->nHeight] == index ? active[index->nHeight + 1] : nullptr, *block.m_next_block, lock, active, blockman);
     if (block.m_data) {
         REVERSE_LOCK(lock);
-        if (!ReadBlockFromDisk(*block.m_data, index, Params().GetConsensus())) block.m_data->SetNull();
+        if (!blockman.ReadBlockFromDisk(*block.m_data, index, Params().GetConsensus())) block.m_data->SetNull();
     }
     block.found = true;
     return true;
@@ -499,13 +499,13 @@ public:
     {
         WAIT_LOCK(cs_main, lock);
         const CChain& active = Assert(m_node.chainman)->ActiveChain();
-        return FillBlock(m_node.chainman->m_blockman.LookupBlockIndex(hash), block, lock, active);
+        return FillBlock(m_node.chainman->m_blockman.LookupBlockIndex(hash), block, lock, active, m_node.chainman->m_blockman);
     }
     bool findFirstBlockWithTimeAndHeight(int64_t min_time, int min_height, const FoundBlock& block) override
     {
         WAIT_LOCK(cs_main, lock);
         const CChain& active = Assert(m_node.chainman)->ActiveChain();
-        return FillBlock(active.FindEarliestAtLeast(min_time, min_height), block, lock, active);
+        return FillBlock(active.FindEarliestAtLeast(min_time, min_height), block, lock, active, m_node.chainman->m_blockman);
     }
     bool findAncestorByHeight(const uint256& block_hash, int ancestor_height, const FoundBlock& ancestor_out) override
     {
@@ -513,10 +513,10 @@ public:
         const CChain& active = Assert(m_node.chainman)->ActiveChain();
         if (const CBlockIndex* block = m_node.chainman->m_blockman.LookupBlockIndex(block_hash)) {
             if (const CBlockIndex* ancestor = block->GetAncestor(ancestor_height)) {
-                return FillBlock(ancestor, ancestor_out, lock, active);
+                return FillBlock(ancestor, ancestor_out, lock, active, m_node.chainman->m_blockman);
             }
         }
-        return FillBlock(nullptr, ancestor_out, lock, active);
+        return FillBlock(nullptr, ancestor_out, lock, active, m_node.chainman->m_blockman);
     }
     bool findAncestorByHash(const uint256& block_hash, const uint256& ancestor_hash, const FoundBlock& ancestor_out) override
     {
@@ -525,7 +525,7 @@ public:
         const CBlockIndex* block = m_node.chainman->m_blockman.LookupBlockIndex(block_hash);
         const CBlockIndex* ancestor = m_node.chainman->m_blockman.LookupBlockIndex(ancestor_hash);
         if (block && ancestor && block->GetAncestor(ancestor->nHeight) != ancestor) ancestor = nullptr;
-        return FillBlock(ancestor, ancestor_out, lock, active);
+        return FillBlock(ancestor, ancestor_out, lock, active, m_node.chainman->m_blockman);
     }
     bool findCommonAncestor(const uint256& block_hash1, const uint256& block_hash2, const FoundBlock& ancestor_out, const FoundBlock& block1_out, const FoundBlock& block2_out) override
     {
@@ -537,9 +537,9 @@ public:
         // Using & instead of && below to avoid short circuiting and leaving
         // output uninitialized. Cast bool to int to avoid -Wbitwise-instead-of-logical
         // compiler warnings.
-        return int{FillBlock(ancestor, ancestor_out, lock, active)} &
-               int{FillBlock(block1, block1_out, lock, active)} &
-               int{FillBlock(block2, block2_out, lock, active)};
+        return int{FillBlock(ancestor, ancestor_out, lock, active, m_node.chainman->m_blockman)} &
+               int{FillBlock(block1, block1_out, lock, active, m_node.chainman->m_blockman)} &
+               int{FillBlock(block2, block2_out, lock, active, m_node.chainman->m_blockman)};
     }
     void findCoins(std::map<COutPoint, Coin>& coins) override { return FindCoins(m_node, coins); }
     double guessVerificationProgress(const uint256& block_hash) override
