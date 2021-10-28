@@ -3803,15 +3803,6 @@ void PruneBlockFilesManual(CChainState& active_chainstate, int nManualPruneHeigh
     }
 }
 
-void CChainState::LoadMempool(const ArgsManager& args)
-{
-    if (!m_mempool) return;
-    if (args.GetBoolArg("-persistmempool", DEFAULT_PERSIST_MEMPOOL)) {
-        ::LoadMempool(*m_mempool, *this);
-    }
-    m_mempool->SetIsLoaded(!ShutdownRequested());
-}
-
 bool CChainState::LoadChainTip()
 {
     AssertLockHeld(cs_main);

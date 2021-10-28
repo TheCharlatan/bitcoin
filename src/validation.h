@@ -495,14 +495,14 @@ protected:
      */
     mutable std::atomic<bool> m_cached_finished_ibd{false};
 
-    //! Optional mempool that is kept in sync with the chain.
-    //! Only the active chainstate has a mempool.
-    CTxMemPool* m_mempool;
-
     //! Manages the UTXO set, which is a reflection of the contents of `m_chain`.
     std::unique_ptr<CoinsViews> m_coins_views;
 
 public:
+    //! Optional mempool that is kept in sync with the chain.
+    //! Only the active chainstate has a mempool.
+    CTxMemPool* m_mempool;
+
     //! Reference to a BlockManager instance which itself is shared across all
     //! CChainState instances.
     node::BlockManager& m_blockman;
@@ -713,9 +713,6 @@ public:
      * By default this only executes fully when using the Regtest chain; see: fCheckBlockIndex.
      */
     void CheckBlockIndex();
-
-    /** Load the persisted mempool from disk */
-    void LoadMempool(const ArgsManager& args);
 
     /** Update the chain tip based on database information, i.e. CoinsTip()'s best block. */
     bool LoadChainTip() EXCLUSIVE_LOCKS_REQUIRED(cs_main);
