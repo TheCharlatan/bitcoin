@@ -37,6 +37,8 @@ extern RecursiveMutex cs_main;
 
 /** Fake height value used in Coin to signify they are only in the memory pool (since 0.8) */
 static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
+/** Default for -mempoolexpiry, expiration time for mempool transactions in hours */
+static const unsigned int DEFAULT_MEMPOOL_EXPIRY = 336;
 
 struct LockPoints {
     // Will be set to the blockchain height and median time past
@@ -561,6 +563,7 @@ public:
     std::map<uint256, CAmount> mapDeltas GUARDED_BY(cs);
 
     const size_t m_max_size;
+    const std::chrono::hours m_expiry;
 
     /** Create a new CTxMemPool.
      * Sanity checks will be off by default for performance, because otherwise
@@ -570,7 +573,7 @@ public:
      * @param[in] estimator is used to estimate appropriate transaction fees.
      * @param[in] check_ratio is the ratio used to determine how often sanity checks will run.
      */
-    explicit CTxMemPool(CBlockPolicyEstimator* estimator = nullptr, int check_ratio = 0, std::optional<size_t> max_size = std::nullopt);
+    explicit CTxMemPool(CBlockPolicyEstimator* estimator = nullptr, int check_ratio = 0, std::optional<size_t> max_size = std::nullopt, std::optional<int64_t> expiry = std::nullopt);
 
     /**
      * If sanity-checking is turned on, check makes sure the pool is

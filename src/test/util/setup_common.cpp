@@ -160,7 +160,7 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     GetMainSignals().RegisterBackgroundSignalScheduler(*m_node.scheduler);
 
     m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>();
-    m_node.mempool = std::make_unique<CTxMemPool>(m_node.fee_estimator.get(), 1, gArgs.GetIntArg("-maxmempool"));
+    m_node.mempool = std::make_unique<CTxMemPool>(m_node.fee_estimator.get(), 1, gArgs.GetIntArg("-maxmempool"), gArgs.GetIntArg("-mempoolexpiry"));
 
     m_cache_sizes = CalculateCacheSizes(m_args);
 

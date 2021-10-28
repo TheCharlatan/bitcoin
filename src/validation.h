@@ -75,8 +75,6 @@ static_assert(DEFAULT_ANCESTOR_LIMIT >= MAX_PACKAGE_COUNT);
 static_assert(DEFAULT_ANCESTOR_SIZE_LIMIT >= MAX_PACKAGE_SIZE);
 static_assert(DEFAULT_DESCENDANT_SIZE_LIMIT >= MAX_PACKAGE_SIZE);
 
-/** Default for -mempoolexpiry, expiration time for mempool transactions in hours */
-static const unsigned int DEFAULT_MEMPOOL_EXPIRY = 336;
 /** Maximum number of dedicated script-checking threads allowed */
 static const int MAX_SCRIPTCHECK_THREADS = 15;
 /** -par default (number of script-checking threads, 0 = auto) */
