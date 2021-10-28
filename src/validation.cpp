@@ -1419,10 +1419,10 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     return nSubsidy;
 }
 
-CoinsViews::CoinsViews(std::string ldb_name,
+CoinsViews::CoinsViews(const fs::path& ldb_path,
                        size_t cache_size_bytes,
                        CCoinsViewDB::Options& opts)
-    : m_dbview(gArgs.GetDataDirNet() / ldb_name, cache_size_bytes, opts),
+    : m_dbview(ldb_path, cache_size_bytes, opts),
       m_catcherview(&m_dbview) {}
 
 void CoinsViews::InitCache()
@@ -1452,7 +1452,7 @@ void CChainState::InitCoinsDB(size_t cache_size_bytes,
         leveldb_name += "_" + m_from_snapshot_blockhash->ToString();
     }
 
-    m_coins_views = std::make_unique<CoinsViews>(leveldb_name, cache_size_bytes, opts);
+    m_coins_views = std::make_unique<CoinsViews>(m_datadir_net / leveldb_name, cache_size_bytes, opts);
 }
 
 void CChainState::InitCoinsCache(size_t cache_size_bytes)
@@ -2369,7 +2369,7 @@ bool CChainState::FlushStateToDisk(
             // twice (once in the log, and once in the tables). This is already
             // an overestimation, as most will delete an existing entry or
             // overwrite one. Still, use a conservative safety factor of 2.
-            if (!CheckDiskSpace(gArgs.GetDataDirNet(), 48 * 2 * 2 * CoinsTip().GetCacheSize())) {
+            if (!CheckDiskSpace(m_datadir_net, 48 * 2 * 2 * CoinsTip().GetCacheSize())) {
                 return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
             }
             // Flush the chainstate (which may refer to block index entries).
@@ -4531,7 +4531,7 @@ static const uint64_t MEMPOOL_DUMP_VERSION = 1;
 bool LoadMempool(CTxMemPool& pool, CChainState& active_chainstate, FopenFn mockable_fopen_function)
 {
     int64_t nExpiryTimeout = std::chrono::seconds{pool.m_expiry}.count();
-    FILE* filestr{mockable_fopen_function(gArgs.GetDataDirNet() / "mempool.dat", "rb")};
+    FILE* filestr{mockable_fopen_function(active_chainstate.m_datadir_net / "mempool.dat", "rb")};
     CAutoFile file(filestr, SER_DISK, CLIENT_VERSION);
     if (file.IsNull()) {
         LogPrintf("Failed to open mempool file from disk. Continuing anyway.\n");

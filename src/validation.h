@@ -435,7 +435,7 @@ public:
     //! state to disk, which should not be done until the health of the database is verified.
     //!
     //! All arguments forwarded onto CCoinsViewDB.
-    CoinsViews(std::string ldb_name,
+    CoinsViews(const fs::path& ldb_path,
                size_t cache_size_bytes,
                CCoinsViewDB::Options& opts);
 
