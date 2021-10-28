@@ -163,7 +163,7 @@ BOOST_FIXTURE_TEST_CASE(checkinputs_test, Dersig100Setup)
     // that we would pass again with a different set of flags.
     {
         LOCK(cs_main);
-        InitScriptExecutionCache();
+        InitScriptExecutionCache(m_node.args->GetIntArg("-maxsigcachesize"));
     }
 
     CScript p2pk_scriptPubKey = CScript() << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;

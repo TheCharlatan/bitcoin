@@ -1141,7 +1141,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     InitSignatureCache(args.GetIntArg("-maxsigcachesize"));
-    InitScriptExecutionCache();
+    InitScriptExecutionCache(gArgs.GetIntArg("-maxsigcachesize"));
 
     int script_threads = args.GetIntArg("-par", DEFAULT_SCRIPTCHECK_THREADS);
     if (script_threads <= 0) {

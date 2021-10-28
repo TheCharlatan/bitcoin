@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
     // which will try the script cache first and fall back to actually
     // performing the check with the signature cache.
     InitSignatureCache(32);
-    InitScriptExecutionCache();
+    InitScriptExecutionCache(32);
 
 
     // SETUP: Scheduling and Background Signals

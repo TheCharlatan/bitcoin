@@ -353,7 +353,7 @@ public:
 };
 
 /** Initializes the script-execution cache */
-void InitScriptExecutionCache();
+void InitScriptExecutionCache(std::optional<int64_t> max_size);
 
 /** Functions for validating blocks and updating the block tree */
 

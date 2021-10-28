@@ -131,7 +131,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     SetupEnvironment();
     SetupNetworking();
     InitSignatureCache(gArgs.GetIntArg("-maxsigcachesize"));
-    InitScriptExecutionCache();
+    InitScriptExecutionCache(gArgs.GetIntArg("-maxsigcachesize"));
     m_node.chain = interfaces::MakeChain(m_node);
     fCheckBlockIndex = true;
     static bool noui_connected = false;
