@@ -1270,7 +1270,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     node.mempool = std::make_unique<CTxMemPool>(node.fee_estimator.get(), check_ratio, gArgs.GetIntArg("-maxmempool"), gArgs.GetIntArg("-mempoolexpiry"));
 
     assert(!node.chainman);
-    node.chainman = std::make_unique<ChainstateManager>(GetAdjustedTime);
+    ChainstateManager::Options opts{
+        .datadir_net = args.GetDataDirNet(),
+        .adjusted_time_callback = GetAdjustedTime,
+    };
+    node.chainman = std::make_unique<ChainstateManager>(opts);
     ChainstateManager& chainman = *node.chainman;
 
     assert(!node.peerman);

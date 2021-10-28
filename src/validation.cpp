@@ -1440,6 +1440,7 @@ CChainState::CChainState(
       m_blockman(blockman),
       m_params(::Params()),
       m_chainman(chainman),
+      m_datadir_net(chainman.m_datadir_net),
       m_adjusted_time_callback(chainman.m_adjusted_time_callback),
       m_from_snapshot_blockhash(from_snapshot_blockhash) {}
 

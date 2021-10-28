@@ -73,7 +73,11 @@ int main(int argc, char* argv[])
 
 
     // SETUP: Chainstate
-    ChainstateManager chainman{static_cast<int64_t(*)()>(GetTime)};
+    ChainstateManager::Options opts{
+        .datadir_net = gArgs.GetDataDirNet(),
+        .adjusted_time_callback = static_cast<int64_t (*)()>(GetTime),
+    };
+    ChainstateManager chainman{opts};
 
     auto rv = node::LoadChainstate(false,
                                    std::ref(chainman),

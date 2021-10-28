@@ -23,7 +23,11 @@ BOOST_FIXTURE_TEST_SUITE(validation_chainstate_tests, TestingSetup)
 //!
 BOOST_AUTO_TEST_CASE(validation_chainstate_resize_caches)
 {
-    ChainstateManager manager{GetAdjustedTime};
+    ChainstateManager::Options opts{
+        .datadir_net = m_args.GetDataDirNet(),
+        .adjusted_time_callback = GetAdjustedTime,
+    };
+    ChainstateManager manager{opts};
     WITH_LOCK(::cs_main, manager.m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(m_args.GetDataDirNet() / "blocks" / "index", 1 << 20, CBlockTreeDB::Options{ .in_memory = true }));
     CTxMemPool mempool;
 

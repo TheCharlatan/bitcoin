@@ -515,7 +515,10 @@ public:
     //! chainstate within deeply nested method calls.
     ChainstateManager& m_chainman;
 
+    const fs::path m_datadir_net;
+
     const std::function<int64_t()> m_adjusted_time_callback;
+
 
     explicit CChainState(
         CTxMemPool* mempool,
@@ -866,11 +869,19 @@ private:
     friend CChainState;
 
 public:
+
+    struct Options {
+        fs::path datadir_net;
+        std::function<int64_t()> adjusted_time_callback;
+    };
+
+    const fs::path m_datadir_net;
     const std::function<int64_t()> m_adjusted_time_callback;
 
-    explicit ChainstateManager(const std::function<int64_t()>& adjusted_time_callback)
-        : m_adjusted_time_callback(adjusted_time_callback)
-    {};
+    explicit ChainstateManager(const Options& opts)
+        : m_datadir_net(opts.datadir_net),
+          m_adjusted_time_callback(opts.adjusted_time_callback)
+        {};
 
     std::thread m_load_block;
     //! A single BlockManager instance is shared across each constructed

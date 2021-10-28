@@ -164,7 +164,11 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
 
     m_cache_sizes = CalculateCacheSizes(m_args);
 
-    m_node.chainman = std::make_unique<ChainstateManager>(GetAdjustedTime);
+    ChainstateManager::Options opts{
+        .datadir_net = m_args.GetDataDirNet(),
+        .adjusted_time_callback = GetAdjustedTime,
+    };
+    m_node.chainman = std::make_unique<ChainstateManager>(opts);
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(m_args.GetDataDirNet() / "blocks" / "index", 1 << 20, CBlockTreeDB::Options{ .in_memory = true });
 
     // Start script-checking threads. Set g_parallel_script_checks to true so they are used.
