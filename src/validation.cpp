@@ -2333,7 +2333,7 @@ bool CChainState::FlushStateToDisk(
         // Write blocks and block index to disk.
         if (fDoFullFlush || fPeriodicWrite) {
             // Ensure we can write block index
-            if (!CheckDiskSpace(gArgs.GetBlocksDirPath())) {
+            if (!CheckDiskSpace(m_blockman.m_blocks_dir)) {
                 return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
             }
             {
