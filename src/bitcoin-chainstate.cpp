@@ -77,6 +77,8 @@ int main(int argc, char* argv[])
         .datadir_net = gArgs.GetDataDirNet(),
         .adjusted_time_callback = static_cast<int64_t (*)()>(GetTime),
         .stop_at_height = 0,
+        .blocks_dir = gArgs.GetBlocksDirPath(),
+        .fast_prune = false,
     };
     ChainstateManager chainman{opts};
 

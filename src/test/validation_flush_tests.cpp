@@ -21,7 +21,7 @@ BOOST_FIXTURE_TEST_SUITE(validation_flush_tests, ChainTestingSetup)
 BOOST_AUTO_TEST_CASE(getcoinscachesizestate)
 {
     CTxMemPool mempool;
-    BlockManager blockman{};
+    BlockManager blockman{m_node.args->GetBlocksDirPath(), m_node.args->GetBoolArg("-fastprune", false)};
     CChainState chainstate{&mempool, blockman, *Assert(m_node.chainman)};
 
     CCoinsViewDB::Options db_opts {

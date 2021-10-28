@@ -870,6 +870,8 @@ public:
         fs::path datadir_net;
         std::function<int64_t()> adjusted_time_callback;
         int stop_at_height;
+        fs::path blocks_dir;
+        bool fast_prune;
     };
 
     const fs::path m_datadir_net;
@@ -879,8 +881,8 @@ public:
     explicit ChainstateManager(const Options& opts)
         : m_datadir_net(opts.datadir_net),
           m_adjusted_time_callback(opts.adjusted_time_callback),
-          m_stop_at_height(opts.stop_at_height)
-        {};
+          m_stop_at_height(opts.stop_at_height),
+          m_blockman{opts.blocks_dir, opts.fast_prune} {};
 
     std::thread m_load_block;
     //! A single BlockManager instance is shared across each constructed

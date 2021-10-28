@@ -1274,6 +1274,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         .datadir_net = args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
         .stop_at_height = static_cast<int>(args.GetIntArg("-stopatheight", DEFAULT_STOPATHEIGHT)),
+        .blocks_dir = args.GetBlocksDirPath(),
+        .fast_prune = args.GetBoolArg("-fastprune", false),
     };
     node.chainman = std::make_unique<ChainstateManager>(opts);
     ChainstateManager& chainman = *node.chainman;

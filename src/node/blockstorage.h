@@ -117,11 +117,10 @@ private:
     /** Dirty block file entries. */
     std::set<int> m_dirty_fileinfo;
 
-    const fs::path& m_blocks_dir;
+    const fs::path m_blocks_dir;
     bool m_fast_prune;
 public:
-    BlockManager(const fs::path& blocks_dir = gArgs.GetBlocksDirPath(),
-                 bool fast_prune = gArgs.GetBoolArg("-fastprune", false))
+    BlockManager(const fs::path& blocks_dir, bool fast_prune)
         : m_blocks_dir(blocks_dir),
           m_fast_prune(fast_prune) {};
 
