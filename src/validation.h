@@ -516,9 +516,8 @@ public:
     ChainstateManager& m_chainman;
 
     const fs::path m_datadir_net;
-
     const std::function<int64_t()> m_adjusted_time_callback;
-
+    const int m_stop_at_height;
 
     explicit CChainState(
         CTxMemPool* mempool,
@@ -873,14 +872,17 @@ public:
     struct Options {
         fs::path datadir_net;
         std::function<int64_t()> adjusted_time_callback;
+        int stop_at_height;
     };
 
     const fs::path m_datadir_net;
     const std::function<int64_t()> m_adjusted_time_callback;
+    const int m_stop_at_height;
 
     explicit ChainstateManager(const Options& opts)
         : m_datadir_net(opts.datadir_net),
-          m_adjusted_time_callback(opts.adjusted_time_callback)
+          m_adjusted_time_callback(opts.adjusted_time_callback),
+          m_stop_at_height(opts.stop_at_height)
         {};
 
     std::thread m_load_block;

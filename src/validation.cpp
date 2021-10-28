@@ -1442,6 +1442,7 @@ CChainState::CChainState(
       m_chainman(chainman),
       m_datadir_net(chainman.m_datadir_net),
       m_adjusted_time_callback(chainman.m_adjusted_time_callback),
+      m_stop_at_height(chainman.m_stop_at_height),
       m_from_snapshot_blockhash(from_snapshot_blockhash) {}
 
 void CChainState::InitCoinsDB(size_t cache_size_bytes,
@@ -2904,7 +2905,7 @@ bool CChainState::ActivateBestChain(BlockValidationState& state, std::shared_ptr
 
     CBlockIndex *pindexMostWork = nullptr;
     CBlockIndex *pindexNewTip = nullptr;
-    int nStopAtHeight = gArgs.GetIntArg("-stopatheight", DEFAULT_STOPATHEIGHT);
+    int nStopAtHeight = m_stop_at_height;
     do {
         // Block until the validation queue drains. This should largely
         // never happen in normal operation, however may happen during

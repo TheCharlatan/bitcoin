@@ -1273,6 +1273,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     ChainstateManager::Options opts{
         .datadir_net = args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
+        .stop_at_height = static_cast<int>(args.GetIntArg("-stopatheight", DEFAULT_STOPATHEIGHT)),
     };
     node.chainman = std::make_unique<ChainstateManager>(opts);
     ChainstateManager& chainman = *node.chainman;

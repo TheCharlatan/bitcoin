@@ -26,6 +26,7 @@ BOOST_AUTO_TEST_CASE(validation_chainstate_resize_caches)
     ChainstateManager::Options opts{
         .datadir_net = m_args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
+        .stop_at_height = static_cast<int>(m_args.GetIntArg("-stopatheight", DEFAULT_STOPATHEIGHT)),
     };
     ChainstateManager manager{opts};
     WITH_LOCK(::cs_main, manager.m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(m_args.GetDataDirNet() / "blocks" / "index", 1 << 20, CBlockTreeDB::Options{ .in_memory = true }));
