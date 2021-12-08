@@ -16,7 +16,7 @@ BOOST_FIXTURE_TEST_SUITE(policyestimator_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(BlockPolicyEstimates)
 {
-    CBlockPolicyEstimator feeEst;
+    CBlockPolicyEstimator feeEst{gArgs.GetDataDirNet() / FEE_ESTIMATES_FILENAME};
     CTxMemPool mpool(&feeEst);
     LOCK2(cs_main, mpool.cs);
     TestMemPoolEntryHelper entry;

@@ -1263,7 +1263,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     assert(!node.fee_estimator);
     // Don't initialize fee estimation with old data if we don't relay transactions,
     // as they would never get updated.
-    if (!ignores_incoming_txs) node.fee_estimator = std::make_unique<CBlockPolicyEstimator>();
+    if (!ignores_incoming_txs) node.fee_estimator = std::make_unique<CBlockPolicyEstimator>(gArgs.GetDataDirNet() / FEE_ESTIMATES_FILENAME);
 
     assert(!node.mempool);
     int check_ratio = std::min<int>(std::max<int>(args.GetIntArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0), 1000000);
