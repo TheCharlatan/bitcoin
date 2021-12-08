@@ -10,6 +10,7 @@
 #include <test/util/mining.h>
 #include <test/util/script.h>
 #include <test/util/setup_common.h>
+#include <util/args.h>
 #include <util/rbf.h>
 #include <validation.h>
 #include <validationinterface.h>

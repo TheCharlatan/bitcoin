@@ -10,10 +10,10 @@
 #include <fs.h>
 #include <serialize.h>
 #include <streams.h>
-#include <util/system.h>
 #include <wallet/db.h>
 
 #include <atomic>
+#include <condition_variable>
 #include <map>
 #include <memory>
 #include <string>

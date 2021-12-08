@@ -17,6 +17,7 @@
 #include <signet.h>
 #include <streams.h>
 #include <undo.h>
+#include <util/args.h>
 #include <util/syscall_sandbox.h>
 #include <util/system.h>
 #include <validation.h>

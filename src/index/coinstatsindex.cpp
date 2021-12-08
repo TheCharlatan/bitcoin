@@ -10,6 +10,8 @@
 #include <serialize.h>
 #include <txdb.h>
 #include <undo.h>
+#include <util/args.h>
+#include <util/system.h>
 #include <validation.h>
 
 using kernel::CCoinsStats;

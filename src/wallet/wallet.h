@@ -17,7 +17,6 @@
 #include <util/message.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <util/ui_change_type.h>
 #include <validationinterface.h>
 #include <wallet/coinselection.h>

@@ -7,6 +7,7 @@
 #include <consensus/params.h>
 #include <deploymentstatus.h>
 #include <test/util/setup_common.h>
+#include <util/args.h>
 #include <validation.h>
 #include <versionbits.h>
 

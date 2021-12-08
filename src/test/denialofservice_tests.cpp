@@ -17,8 +17,8 @@
 #include <test/util/net.h>
 #include <test/util/setup_common.h>
 #include <txorphanage.h>
+#include <util/args.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <util/time.h>
 #include <validation.h>
 

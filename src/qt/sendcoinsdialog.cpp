@@ -24,6 +24,7 @@
 #include <node/ui_interface.h>
 #include <policy/fees.h>
 #include <txmempool.h>
+#include <util/args.h>
 #include <validation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/fees.h>

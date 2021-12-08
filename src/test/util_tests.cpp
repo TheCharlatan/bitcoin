@@ -13,10 +13,12 @@
 #include <test/util/setup_common.h>
 #include <test/util/str.h>
 #include <uint256.h>
+#include <util/args.h>
 #include <util/getuniquepath.h>
 #include <util/message.h> // For MessageSign(), MessageVerify(), MESSAGE_MAGIC
 #include <util/moneystr.h>
 #include <util/overflow.h>
+#include <util/settings.h>
 #include <util/spanparsing.h>
 #include <util/strencodings.h>
 #include <util/string.h>

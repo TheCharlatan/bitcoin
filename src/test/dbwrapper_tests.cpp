@@ -5,6 +5,7 @@
 #include <dbwrapper.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
+#include <util/args.h>
 
 #include <memory>
 

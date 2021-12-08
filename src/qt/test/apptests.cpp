@@ -12,6 +12,7 @@
 #include <qt/rpcconsole.h>
 #include <shutdown.h>
 #include <test/util/setup_common.h>
+#include <util/args.h> // for GetBoolArg
 #include <validation.h>
 
 #if defined(HAVE_CONFIG_H)
