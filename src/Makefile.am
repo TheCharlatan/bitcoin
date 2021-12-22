@@ -29,6 +29,7 @@ LIBBITCOIN_NODE=libbitcoin_node.a
 LIBBITCOIN_COMMON=libbitcoin_common.a
 LIBBITCOIN_CONSENSUS=libbitcoin_consensus.a
 LIBBITCOIN_CLI=libbitcoin_cli.a
+LIBBITCOIN_KERNEL=libbitcoin_kernel.a
 LIBBITCOIN_UTIL=libbitcoin_util.a
 LIBBITCOIN_CRYPTO_BASE=crypto/libbitcoin_crypto_base.la
 LIBBITCOINQT=qt/libbitcoinqt.a
@@ -52,26 +53,18 @@ LIBBITCOIN_CRYPTO = $(LIBBITCOIN_CRYPTO_BASE)
 if ENABLE_SSE41
 LIBBITCOIN_CRYPTO_SSE41 = crypto/libbitcoin_crypto_sse41.la
 LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_SSE41)
-LIBBITCOINCRYPTO_SSE41 = crypto/libbitcoin_crypto_sse41.la
-LIBBITCOINCRYPTO += $(LIBBITCOINCRYPTO_SSE41)
 endif
 if ENABLE_AVX2
 LIBBITCOIN_CRYPTO_AVX2 = crypto/libbitcoin_crypto_avx2.la
 LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_AVX2)
-LIBBITCOINCRYPTO_AVX2 = crypto/libbitcoin_crypto_avx2.la
-LIBBITCOINCRYPTO += $(LIBBITCOINCRYPTO_AVX2)
 endif
 if ENABLE_X86_SHANI
 LIBBITCOIN_CRYPTO_X86_SHANI = crypto/libbitcoin_crypto_x86_shani.la
 LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_X86_SHANI)
-LIBBITCOINCRYPTO_X86_SHANI = crypto/libbitcoin_crypto_x86_shani.la
-LIBBITCOINCRYPTO += $(LIBBITCOINCRYPTO_X86_SHANI)
 endif
 if ENABLE_ARM_SHANI
 LIBBITCOIN_CRYPTO_ARM_SHANI = crypto/libbitcoin_crypto_arm_shani.la
 LIBBITCOIN_CRYPTO += $(LIBBITCOIN_CRYPTO_ARM_SHANI)
-LIBBITCOINCRYPTO_ARM_SHANI = crypto/libbitcoin_crypto_arm_shani.la
-LIBBITCOINCRYPTO += $(LIBBITCOINCRYPTO_ARM_SHANI)
 endif
 noinst_LTLIBRARIES += $(LIBBITCOIN_CRYPTO)
 
@@ -585,10 +578,6 @@ crypto_libbitcoin_crypto_arm_shani_la_CPPFLAGS = $(AM_CPPFLAGS)
 crypto_libbitcoin_crypto_arm_shani_la_CXXFLAGS += $(ARM_SHANI_CXXFLAGS)
 crypto_libbitcoin_crypto_arm_shani_la_CPPFLAGS += -DENABLE_ARM_SHANI
 crypto_libbitcoin_crypto_arm_shani_la_SOURCES = crypto/sha256_arm_shani.cpp
-
-crypto_libbitcoin_crypto_arm_shani_la_CPPFLAGS = $(crypto_libbitcoin_crypto_arm_shani_a_CPPFLAGS)
-crypto_libbitcoin_crypto_arm_shani_la_CXXFLAGS = $(crypto_libbitcoin_crypto_arm_shani_a_CXXFLAGS)
-crypto_libbitcoin_crypto_arm_shani_la_SOURCES = $(crypto_libbitcoin_crypto_arm_shani_a_SOURCES)
 
 # consensus: shared between all executables that validate any consensus rules.
 libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
