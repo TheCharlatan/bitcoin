@@ -180,6 +180,7 @@ BITCOIN_CORE_H = \
   interfaces/ipc.h \
   interfaces/node.h \
   interfaces/wallet.h \
+  kernel/init/common.h \
   key.h \
   key_io.h \
   logging.h \
