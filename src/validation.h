@@ -435,7 +435,9 @@ public:
     //! state to disk, which should not be done until the health of the database is verified.
     //!
     //! All arguments forwarded onto CCoinsViewDB.
-    CoinsViews(std::string ldb_name, size_t cache_size_bytes, bool in_memory, bool should_wipe);
+    CoinsViews(std::string ldb_name,
+               size_t cache_size_bytes,
+               CCoinsViewDB::Options& opts);
 
     //! Initialize the CCoinsViewCache member.
     void InitCache() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
@@ -527,11 +529,9 @@ public:
      *
      * All parameters forwarded to CoinsViews.
      */
-    void InitCoinsDB(
-        size_t cache_size_bytes,
-        bool in_memory,
-        bool should_wipe,
-        std::string leveldb_name = "chainstate");
+    void InitCoinsDB(size_t cache_size_bytes,
+                     CCoinsViewDB::Options& opts,
+                     std::string leveldb_name = "chainstate");
 
     //! Initialize the in-memory coins cache (to be done after the health of the on-disk database
     //! is verified).

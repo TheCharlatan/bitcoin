@@ -23,7 +23,16 @@ BOOST_AUTO_TEST_CASE(getcoinscachesizestate)
     CTxMemPool mempool;
     BlockManager blockman{};
     CChainState chainstate{&mempool, blockman, *Assert(m_node.chainman)};
-    chainstate.InitCoinsDB(/*cache_size_bytes=*/1 << 10, /*in_memory=*/true, /*should_wipe=*/false);
+
+    CCoinsViewDB::Options db_opts {
+        .in_memory = true,
+        .wipe_existing = false,
+    };
+    db_opts.do_compact = m_args.GetBoolArg("-forcecompactdb", db_opts.do_compact);
+    db_opts.batch_write_size = m_args.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
+    db_opts.simulate_write_crash_ratio = m_args.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
+    chainstate.InitCoinsDB(/*cache_size_bytes=*/1 << 10, /*opts=*/db_opts);
+
     WITH_LOCK(::cs_main, chainstate.InitCoinsCache(1 << 10));
 
     constexpr bool is_64_bit = sizeof(void*) == 8;

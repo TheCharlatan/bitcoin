@@ -7,6 +7,7 @@
 #include <consensus/params.h>
 #include <fs.h>
 #include <node/blockstorage.h>
+#include <util/args.h>
 #include <validation.h>
 
 namespace node {
@@ -88,10 +89,16 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
     // block tree into BlockIndex()!
 
     for (CChainState* chainstate : chainman.GetAll()) {
-        chainstate->InitCoinsDB(
-            /* cache_size_bytes */ nCoinDBCache,
-            /* in_memory */ coins_db_in_memory,
-            /* should_wipe */ fReset || fReindexChainState);
+        CCoinsViewDB::Options db_opts{
+            .in_memory = coins_db_in_memory,
+            .wipe_existing = fReset || fReindexChainState,
+        };
+        db_opts.do_compact = gArgs.GetBoolArg("-forcecompactdb", db_opts.do_compact);
+        db_opts.batch_write_size = gArgs.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
+        db_opts.simulate_write_crash_ratio = gArgs.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
+
+        chainstate->InitCoinsDB(/* cache_size_bytes */ nCoinDBCache,
+                                /* opts */ db_opts);
 
         if (coins_error_cb) {
             chainstate->CoinsErrorCatcher().AddReadErrCallback(coins_error_cb);

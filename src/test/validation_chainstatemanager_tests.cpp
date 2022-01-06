@@ -40,8 +40,16 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
     //
     CChainState& c1 = WITH_LOCK(::cs_main, return manager.InitializeChainstate(&mempool));
     chainstates.push_back(&c1);
-    c1.InitCoinsDB(
-        /*cache_size_bytes=*/1 << 23, /*in_memory=*/true, /*should_wipe=*/false);
+
+    CCoinsViewDB::Options db_opts {
+        .in_memory = true,
+        .wipe_existing = false,
+    };
+    db_opts.do_compact = m_args.GetBoolArg("-forcecompactdb", db_opts.do_compact);
+    db_opts.batch_write_size = m_args.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
+    db_opts.simulate_write_crash_ratio = m_args.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
+
+    c1.InitCoinsDB(/*cache_size_bytes=*/1 << 23, /*opts=*/db_opts);
     WITH_LOCK(::cs_main, c1.InitCoinsCache(1 << 23));
 
     BOOST_CHECK(!manager.IsSnapshotActive());
@@ -69,8 +77,15 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
 
     BOOST_CHECK_EQUAL(manager.SnapshotBlockhash().value(), snapshot_blockhash);
 
-    c2.InitCoinsDB(
-        /*cache_size_bytes=*/1 << 23, /*in_memory=*/true, /*should_wipe=*/false);
+    CCoinsViewDB::Options db_opts2 {
+        .in_memory = true,
+        .wipe_existing = false,
+    };
+    db_opts2.do_compact = m_args.GetBoolArg("-forcecompactdb", db_opts2.do_compact);
+    db_opts2.batch_write_size = m_args.GetIntArg("-dbbatchsize", db_opts2.batch_write_size);
+    db_opts2.simulate_write_crash_ratio = m_args.GetIntArg("-dbcrashratio", db_opts2.simulate_write_crash_ratio);
+
+    c2.InitCoinsDB(/*cache_size_bytes=*/1 << 23, /*opts=*/db_opts2);
     WITH_LOCK(::cs_main, c2.InitCoinsCache(1 << 23));
     // Unlike c1, which doesn't have any blocks. Gets us different tip, height.
     c2.LoadGenesisBlock();
@@ -119,8 +134,15 @@ BOOST_AUTO_TEST_CASE(chainstatemanager_rebalance_caches)
     //
     CChainState& c1 = WITH_LOCK(cs_main, return manager.InitializeChainstate(&mempool));
     chainstates.push_back(&c1);
-    c1.InitCoinsDB(
-        /*cache_size_bytes=*/1 << 23, /*in_memory=*/true, /*should_wipe=*/false);
+
+    CCoinsViewDB::Options db_opts {
+        .in_memory = true,
+        .wipe_existing = false,
+    };
+    db_opts.do_compact = gArgs.GetBoolArg("-forcecompactdb", db_opts.do_compact);
+    db_opts.batch_write_size = gArgs.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
+    db_opts.simulate_write_crash_ratio = gArgs.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
+    c1.InitCoinsDB(/*cache_size_bytes=*/1 << 23, /*opts=*/db_opts);
 
     {
         LOCK(::cs_main);
@@ -137,8 +159,15 @@ BOOST_AUTO_TEST_CASE(chainstatemanager_rebalance_caches)
     //
     CChainState& c2 = WITH_LOCK(cs_main, return manager.InitializeChainstate(&mempool, GetRandHash()));
     chainstates.push_back(&c2);
-    c2.InitCoinsDB(
-        /*cache_size_bytes=*/1 << 23, /*in_memory=*/true, /*should_wipe=*/false);
+
+    CCoinsViewDB::Options db_opts2 {
+        .in_memory = true,
+        .wipe_existing = false,
+    };
+    db_opts2.do_compact = m_args.GetBoolArg("-forcecompactdb", db_opts2.do_compact);
+    db_opts2.batch_write_size = m_args.GetIntArg("-dbbatchsize", db_opts2.batch_write_size);
+    db_opts2.simulate_write_crash_ratio = m_args.GetIntArg("-dbcrashratio", db_opts2.simulate_write_crash_ratio);
+    c2.InitCoinsDB(/*cache_size_bytes=*/1 << 23, /*opts=*/db_opts2);
 
     {
         LOCK(::cs_main);

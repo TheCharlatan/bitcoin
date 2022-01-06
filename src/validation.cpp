@@ -1428,23 +1428,11 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     return nSubsidy;
 }
 
-CoinsViews::CoinsViews(
-    std::string ldb_name,
-    size_t cache_size_bytes,
-    bool in_memory,
-    bool should_wipe) : m_dbview(gArgs.GetDataDirNet() / ldb_name,
-                                 cache_size_bytes,
-                                 [&]{
-                                     CCoinsViewDB::Options db_opts {
-                                         .in_memory = in_memory,
-                                         .wipe_existing = should_wipe
-                                     };
-                                     db_opts.do_compact = gArgs.GetBoolArg("-forcecompactdb", db_opts.do_compact);
-                                     db_opts.batch_write_size = gArgs.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
-                                     db_opts.simulate_write_crash_ratio = gArgs.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
-                                     return db_opts;
-                                 }()),
-                        m_catcherview(&m_dbview) {}
+CoinsViews::CoinsViews(std::string ldb_name,
+                       size_t cache_size_bytes,
+                       CCoinsViewDB::Options& opts)
+    : m_dbview(gArgs.GetDataDirNet() / ldb_name, cache_size_bytes, opts),
+      m_catcherview(&m_dbview) {}
 
 void CoinsViews::InitCache()
 {
@@ -1464,18 +1452,15 @@ CChainState::CChainState(
       m_adjusted_time_callback(chainman.m_adjusted_time_callback),
       m_from_snapshot_blockhash(from_snapshot_blockhash) {}
 
-void CChainState::InitCoinsDB(
-    size_t cache_size_bytes,
-    bool in_memory,
-    bool should_wipe,
-    std::string leveldb_name)
+void CChainState::InitCoinsDB(size_t cache_size_bytes,
+                              CCoinsViewDB::Options& opts,
+                              std::string leveldb_name)
 {
     if (m_from_snapshot_blockhash) {
         leveldb_name += "_" + m_from_snapshot_blockhash->ToString();
     }
 
-    m_coins_views = std::make_unique<CoinsViews>(
-        leveldb_name, cache_size_bytes, in_memory, should_wipe);
+    m_coins_views = std::make_unique<CoinsViews>(leveldb_name, cache_size_bytes, opts);
 }
 
 void CChainState::InitCoinsCache(size_t cache_size_bytes)
@@ -4827,9 +4812,18 @@ bool ChainstateManager::ActivateSnapshot(
 
     {
         LOCK(::cs_main);
+
+        CCoinsViewDB::Options db_opts {
+            .in_memory = in_memory,
+            .wipe_existing = false,
+        };
+        db_opts.do_compact = gArgs.GetBoolArg("-forcecompactdb", db_opts.do_compact);
+        db_opts.batch_write_size = gArgs.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
+        db_opts.simulate_write_crash_ratio = gArgs.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
+
         snapshot_chainstate->InitCoinsDB(
             static_cast<size_t>(current_coinsdb_cache_size * SNAPSHOT_CACHE_PERC),
-            in_memory, false, "chainstate");
+            db_opts, "chainstate");
         snapshot_chainstate->InitCoinsCache(
             static_cast<size_t>(current_coinstip_cache_size * SNAPSHOT_CACHE_PERC));
     }
