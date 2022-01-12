@@ -18,7 +18,6 @@
 
 extern RecursiveMutex cs_main;
 
-class ArgsManager;
 class BlockValidationState;
 class CBlock;
 class CBlockFileInfo;
@@ -213,7 +212,7 @@ bool IsBlockPruned(const CBlockIndex* pblockindex) EXCLUSIVE_LOCKS_REQUIRED(::cs
 //! Find the first block that is not pruned
 const CBlockIndex* GetFirstStoredBlock(const CBlockIndex* start_block) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const ArgsManager& args);
+void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, bool stop_after_import, bool persist_mempool);
 
 bool ReadBlockFromDisk(const fs::path& blocks_dir, bool fast_prune, CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
 } // namespace node

@@ -17,7 +17,6 @@
 #include <signet.h>
 #include <streams.h>
 #include <undo.h>
-#include <util/args.h>
 #include <util/syscall_sandbox.h>
 #include <util/system.h>
 #include <validation.h>
@@ -888,7 +887,7 @@ struct CImportingNow {
     }
 };
 
-void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const ArgsManager& args)
+void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, bool stop_after_import, bool persist_mempool)
 {
     SetSyscallSandboxPolicy(SyscallSandboxPolicy::INITIALIZATION_LOAD_BLOCKS);
     ScheduleBatchPriority();
@@ -952,7 +951,7 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
             }
         }
 
-        if (args.GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
+        if (stop_after_import) {
             LogPrintf("Stopping after block import\n");
             StartShutdown();
             return;
@@ -961,7 +960,7 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
 
     CChainState& active_chainstate = chainman.ActiveChainstate();
     if (CTxMemPool* mempool = active_chainstate.m_mempool) {
-        if (args.GetBoolArg("-persistmempool", DEFAULT_PERSIST_MEMPOOL)) {
+        if (persist_mempool) {
             ::LoadMempool(*mempool, active_chainstate);
         }
         mempool->SetIsLoaded(!ShutdownRequested());
