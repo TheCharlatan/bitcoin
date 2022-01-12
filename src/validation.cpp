@@ -347,9 +347,7 @@ void CChainState::MaybeUpdateMempoolForReorg(
     // previously-confirmed transactions back to the mempool.
     // UpdateTransactionsFromBlock finds descendants of any transactions in
     // the disconnectpool that were added back and cleans up the mempool state.
-    const uint64_t ancestor_count_limit = gArgs.GetIntArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
-    const uint64_t ancestor_size_limit = gArgs.GetIntArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT) * 1000;
-    m_mempool->UpdateTransactionsFromBlock(vHashUpdate, ancestor_size_limit, ancestor_count_limit);
+    m_mempool->UpdateTransactionsFromBlock(vHashUpdate);
 
     // Predicate to use for filtering transactions in removeForReorg.
     // Checks whether the transaction is still final and, if it spends a coinbase output, mature.
@@ -452,10 +450,11 @@ class MemPoolAccept
 {
 public:
     explicit MemPoolAccept(CTxMemPool& mempool, CChainState& active_chainstate) : m_pool(mempool), m_view(&m_dummy), m_viewmempool(&active_chainstate.CoinsTip(), m_pool), m_active_chainstate(active_chainstate),
-        m_limit_ancestors(gArgs.GetIntArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT)),
-        m_limit_ancestor_size(gArgs.GetIntArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT)*1000),
-        m_limit_descendants(gArgs.GetIntArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT)),
-        m_limit_descendant_size(gArgs.GetIntArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT)*1000) {
+                                                                                  m_limit_ancestors(m_pool.m_limits.ancestor_count),
+                                                                                  m_limit_ancestor_size(m_pool.m_limits.ancestor_size * 1000),
+                                                                                  m_limit_descendants(m_pool.m_limits.descendant_count),
+                                                                                  m_limit_descendant_size(m_pool.m_limits.descendant_size * 1000)
+ {
     }
 
     // We put the arguments we're handed into a struct, so we can pass them

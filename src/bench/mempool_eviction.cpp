@@ -108,7 +108,13 @@ static void MempoolEviction(benchmark::Bench& bench)
     tx7.vout[1].scriptPubKey = CScript() << OP_7 << OP_EQUAL;
     tx7.vout[1].nValue = 10 * COIN;
 
-    CTxMemPool pool;
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool pool{limits};
     LOCK2(cs_main, pool.cs);
     // Create transaction references outside the "hot loop"
     const CTransactionRef tx1_r{MakeTransactionRef(tx1)};

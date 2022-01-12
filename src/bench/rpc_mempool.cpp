@@ -5,6 +5,7 @@
 #include <bench/bench.h>
 #include <rpc/blockchain.h>
 #include <txmempool.h>
+#include <util/args.h>
 
 #include <univalue.h>
 
@@ -17,7 +18,13 @@ static void AddTx(const CTransactionRef& tx, const CAmount& fee, CTxMemPool& poo
 
 static void RpcMempool(benchmark::Bench& bench)
 {
-    CTxMemPool pool;
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool pool{limits};
     LOCK2(cs_main, pool.cs);
 
     for (int i = 0; i < 1000; ++i) {

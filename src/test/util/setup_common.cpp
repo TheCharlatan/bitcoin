@@ -160,7 +160,14 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     GetMainSignals().RegisterBackgroundSignalScheduler(*m_node.scheduler);
 
     m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>(gArgs.GetDataDirNet() / FEE_ESTIMATES_FILENAME);
-    m_node.mempool = std::make_unique<CTxMemPool>(m_node.fee_estimator.get(), 1, gArgs.GetIntArg("-maxmempool"), gArgs.GetIntArg("-mempoolexpiry"));
+
+    CTxMemPool::Limits limits{};
+    // limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    // limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    // limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    // limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    m_node.mempool = std::make_unique<CTxMemPool>(limits, m_node.fee_estimator.get(), 1, gArgs.GetIntArg("-maxmempool"), gArgs.GetIntArg("-mempoolexpiry"));
 
     m_cache_sizes = CalculateCacheSizes(m_args);
 
@@ -285,7 +292,14 @@ CBlock TestChain100Setup::CreateBlock(
     CChainState& chainstate)
 {
     const CChainParams& chainparams = Params();
-    CTxMemPool empty_pool;
+
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool empty_pool{limits};
     CBlock block = BlockAssembler(chainstate, empty_pool, chainparams).CreateNewBlock(scriptPubKey)->block;
 
     Assert(block.vtx.size() == 1);

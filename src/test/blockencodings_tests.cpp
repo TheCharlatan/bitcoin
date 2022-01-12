@@ -54,7 +54,13 @@ constexpr long SHARED_TX_OFFSET{3};
 
 BOOST_AUTO_TEST_CASE(SimpleRoundTripTest)
 {
-    CTxMemPool pool;
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool pool{limits};
     TestMemPoolEntryHelper entry;
     CBlock block(BuildBlockTestCase());
 
@@ -137,7 +143,13 @@ public:
 
 BOOST_AUTO_TEST_CASE(NonCoinbasePreforwardRTTest)
 {
-    CTxMemPool pool;
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool pool{limits};
     TestMemPoolEntryHelper entry;
     CBlock block(BuildBlockTestCase());
 
@@ -207,7 +219,13 @@ BOOST_AUTO_TEST_CASE(NonCoinbasePreforwardRTTest)
 
 BOOST_AUTO_TEST_CASE(SufficientPreforwardRTTest)
 {
-    CTxMemPool pool;
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool pool{limits};
     TestMemPoolEntryHelper entry;
     CBlock block(BuildBlockTestCase());
 
@@ -258,7 +276,13 @@ BOOST_AUTO_TEST_CASE(SufficientPreforwardRTTest)
 
 BOOST_AUTO_TEST_CASE(EmptyBlockRoundTripTest)
 {
-    CTxMemPool pool;
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool pool{limits};
     CMutableTransaction coinbase;
     coinbase.vin.resize(1);
     coinbase.vin[0].scriptSig.resize(10);

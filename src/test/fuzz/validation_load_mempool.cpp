@@ -8,6 +8,7 @@
 #include <test/fuzz/util.h>
 #include <test/util/setup_common.h>
 #include <txmempool.h>
+#include <util/args.h>
 #include <util/time.h>
 #include <validation.h>
 
@@ -30,7 +31,13 @@ FUZZ_TARGET_INIT(validation_load_mempool, initialize_validation_load_mempool)
     SetMockTime(ConsumeTime(fuzzed_data_provider));
     FuzzedFileProvider fuzzed_file_provider = ConsumeFile(fuzzed_data_provider);
 
-    CTxMemPool pool{};
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool pool{limits};
     auto fuzzed_fopen = [&](const fs::path&, const char*) {
         return fuzzed_file_provider.open();
     };

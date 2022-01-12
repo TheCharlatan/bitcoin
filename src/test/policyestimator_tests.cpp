@@ -17,7 +17,14 @@ BOOST_FIXTURE_TEST_SUITE(policyestimator_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(BlockPolicyEstimates)
 {
     CBlockPolicyEstimator feeEst{gArgs.GetDataDirNet() / FEE_ESTIMATES_FILENAME};
-    CTxMemPool mpool(&feeEst);
+
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool mpool(limits, &feeEst);
     LOCK2(cs_main, mpool.cs);
     TestMemPoolEntryHelper entry;
     CAmount basefee(2000);

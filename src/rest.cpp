@@ -804,7 +804,12 @@ static bool rest_getutxos(const std::any& context, HTTPRequest* req, const std::
             process_utxos(viewMempool, *mempool);
         } else {
             LOCK(cs_main);  // no need to lock mempool!
-            process_utxos(chainman.ActiveChainstate().CoinsTip(), CTxMemPool());
+            CTxMemPool::Limits limits{};
+            limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+            limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+            limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+            limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+            process_utxos(chainman.ActiveChainstate().CoinsTip(), CTxMemPool(limits));
         }
 
         for (size_t i = 0; i < hits.size(); ++i) {

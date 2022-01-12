@@ -373,7 +373,12 @@ static RPCHelpMan generateblock()
     {
         LOCK(cs_main);
 
-        CTxMemPool empty_mempool;
+        CTxMemPool::Limits limits{};
+        limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+        limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+        limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+        limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+        CTxMemPool empty_mempool{limits};
         std::unique_ptr<CBlockTemplate> blocktemplate(BlockAssembler(chainman.ActiveChainstate(), empty_mempool, chainparams).CreateNewBlock(coinbase_script));
         if (!blocktemplate) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");

@@ -9,6 +9,7 @@
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util.h>
 #include <txmempool.h>
+#include <util/args.h>
 
 #include <cstdint>
 #include <optional>
@@ -23,7 +24,14 @@ FUZZ_TARGET(rbf)
     if (!mtx) {
         return;
     }
-    CTxMemPool pool;
+
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool pool{limits};
     LIMITED_WHILE(fuzzed_data_provider.ConsumeBool(), 10000) {
         const std::optional<CMutableTransaction> another_mtx = ConsumeDeserializable<CMutableTransaction>(fuzzed_data_provider);
         if (!another_mtx) {

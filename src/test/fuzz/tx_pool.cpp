@@ -143,7 +143,13 @@ FUZZ_TARGET_INIT(tx_pool_standard, initialize_tx_pool)
     // The sum of the values of all spendable outpoints
     constexpr CAmount SUPPLY_TOTAL{COINBASE_MATURITY * 50 * COIN};
 
-    CTxMemPool tx_pool_{/*estimator=*/nullptr, /*check_ratio=*/1, node.args->GetIntArg("-maxmempool"), node.args->GetIntArg("-mempoolexpiry")};
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool tx_pool_{/*limits=*/limits, /*estimator=*/nullptr, /*check_ratio=*/1, node.args->GetIntArg("-maxmempool"), node.args->GetIntArg("-mempoolexpiry")};
     MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&tx_pool_);
 
     chainstate.SetMempool(&tx_pool);
@@ -317,7 +323,13 @@ FUZZ_TARGET_INIT(tx_pool, initialize_tx_pool)
         txids.push_back(ConsumeUInt256(fuzzed_data_provider));
     }
 
-    CTxMemPool tx_pool_{/*estimator=*/nullptr, /*check_ratio=*/1};
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool tx_pool_{/*limits=*/limits, /*estimator=*/nullptr, /*check_ratio=*/1};
     MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&tx_pool_);
 
     LIMITED_WHILE(fuzzed_data_provider.ConsumeBool(), 300)

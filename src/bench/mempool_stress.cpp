@@ -88,7 +88,14 @@ static void ComplexMemPool(benchmark::Bench& bench)
     }
     std::vector<CTransactionRef> ordered_coins = CreateOrderedCoins(det_rand, childTxs, /* min_ancestors */ 1);
     const auto testing_setup = MakeNoLogFileContext<const TestingSetup>(CBaseChainParams::MAIN);
-    CTxMemPool pool;
+
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool pool{limits};
     LOCK2(cs_main, pool.cs);
     bench.run([&]() NO_THREAD_SAFETY_ANALYSIS {
         for (auto& tx : ordered_coins) {
@@ -105,7 +112,14 @@ static void MempoolCheck(benchmark::Bench& bench)
     const int childTxs = bench.complexityN() > 1 ? static_cast<int>(bench.complexityN()) : 2000;
     const std::vector<CTransactionRef> ordered_coins = CreateOrderedCoins(det_rand, childTxs, /* min_ancestors */ 5);
     const auto testing_setup = MakeNoLogFileContext<const TestingSetup>(CBaseChainParams::MAIN, {"-checkmempool=1"});
-    CTxMemPool pool;
+
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool pool{limits};
     LOCK2(cs_main, pool.cs);
     const CCoinsViewCache& coins_tip = testing_setup.get()->m_node.chainman->ActiveChainstate().CoinsTip();
     for (auto& tx : ordered_coins) AddTx(tx, pool);

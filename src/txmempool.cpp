@@ -119,8 +119,7 @@ size_t CTxMemPoolEntry::GetTxSize() const
 }
 
 void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendants,
-                                      const std::set<uint256>& setExclude, std::set<uint256>& descendants_to_remove,
-                                      uint64_t ancestor_size_limit, uint64_t ancestor_count_limit)
+                                      const std::set<uint256>& setExclude, std::set<uint256>& descendants_to_remove)
 {
     CTxMemPoolEntry::Children stageEntries, descendants;
     stageEntries = updateIt->GetMemPoolChildrenConst();
@@ -160,7 +159,7 @@ void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendan
             // Don't directly remove the transaction here -- doing so would
             // invalidate iterators in cachedDescendants. Mark it for removal
             // by inserting into descendants_to_remove.
-            if (descendant.GetCountWithAncestors() > ancestor_count_limit || descendant.GetSizeWithAncestors() > ancestor_size_limit) {
+            if (descendant.GetCountWithAncestors() > m_limits.ancestor_count || descendant.GetSizeWithAncestors() > m_limits.ancestor_size) {
                 descendants_to_remove.insert(descendant.GetTx().GetHash());
             }
         }
@@ -168,7 +167,7 @@ void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendan
     mapTx.modify(updateIt, update_descendant_state(modifySize, modifyFee, modifyCount));
 }
 
-void CTxMemPool::UpdateTransactionsFromBlock(const std::vector<uint256> &vHashesToUpdate, uint64_t ancestor_size_limit, uint64_t ancestor_count_limit)
+void CTxMemPool::UpdateTransactionsFromBlock(const std::vector<uint256> &vHashesToUpdate)
 {
     AssertLockHeld(cs);
     // For each entry in vHashesToUpdate, store the set of in-mempool, but not
@@ -211,7 +210,7 @@ void CTxMemPool::UpdateTransactionsFromBlock(const std::vector<uint256> &vHashes
                 }
             }
         } // release epoch guard for UpdateForDescendants
-        UpdateForDescendants(it, mapMemPoolDescendantsToUpdate, setAlreadyIncluded, descendants_to_remove, ancestor_size_limit, ancestor_count_limit);
+        UpdateForDescendants(it, mapMemPoolDescendantsToUpdate, setAlreadyIncluded, descendants_to_remove);
     }
 
     for (const auto& txid : descendants_to_remove) {
@@ -463,10 +462,11 @@ void CTxMemPoolEntry::UpdateAncestorState(int64_t modifySize, CAmount modifyFee,
     assert(int(nSigOpCostWithAncestors) >= 0);
 }
 
-CTxMemPool::CTxMemPool(CBlockPolicyEstimator* estimator, int check_ratio, std::optional<size_t> max_size, std::optional<int64_t> expiry)
+CTxMemPool::CTxMemPool(const Limits& limits, CBlockPolicyEstimator* estimator, int check_ratio, std::optional<size_t> max_size, std::optional<int64_t> expiry)
     : m_check_ratio(check_ratio), minerPolicyEstimator(estimator),
       m_max_size(max_size.value_or(DEFAULT_MAX_MEMPOOL_SIZE) * 1000000),
-      m_expiry(std::chrono::hours{expiry.value_or(DEFAULT_MEMPOOL_EXPIRY)})
+      m_expiry(std::chrono::hours{expiry.value_or(DEFAULT_MEMPOOL_EXPIRY)}),
+      m_limits(limits)
 {
     _clear(); //lock free clear
 }

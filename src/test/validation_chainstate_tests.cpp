@@ -32,7 +32,14 @@ BOOST_AUTO_TEST_CASE(validation_chainstate_resize_caches)
     };
     ChainstateManager manager{opts};
     WITH_LOCK(::cs_main, manager.m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(m_args.GetDataDirNet() / "blocks" / "index", 1 << 20, CBlockTreeDB::Options{ .in_memory = true }));
-    CTxMemPool mempool;
+
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool mempool{limits};
 
     //! Create and add a Coin with DynamicMemoryUsage of 80 bytes to the given view.
     auto add_coin = [](CCoinsViewCache& coins_view) -> COutPoint {

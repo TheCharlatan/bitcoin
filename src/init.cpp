@@ -1267,7 +1267,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     assert(!node.mempool);
     int check_ratio = std::min<int>(std::max<int>(args.GetIntArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0), 1000000);
-    node.mempool = std::make_unique<CTxMemPool>(node.fee_estimator.get(), check_ratio, gArgs.GetIntArg("-maxmempool"), gArgs.GetIntArg("-mempoolexpiry"));
+
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+    node.mempool = std::make_unique<CTxMemPool>(limits, node.fee_estimator.get(), check_ratio, gArgs.GetIntArg("-maxmempool"), gArgs.GetIntArg("-mempoolexpiry"));
 
     assert(!node.chainman);
     ChainstateManager::Options opts{

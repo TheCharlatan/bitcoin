@@ -20,7 +20,13 @@ BOOST_FIXTURE_TEST_SUITE(validation_flush_tests, ChainTestingSetup)
 //!
 BOOST_AUTO_TEST_CASE(getcoinscachesizestate)
 {
-    CTxMemPool mempool;
+    CTxMemPool::Limits limits{};
+    limits.ancestor_count = gArgs.GetIntArg("-limitancestorcount", limits.ancestor_count);
+    limits.ancestor_size = gArgs.GetIntArg("-limitancestorsize", limits.ancestor_size);
+    limits.descendant_count = gArgs.GetIntArg("-limitdescendantcount", limits.descendant_count);
+    limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
+
+    CTxMemPool mempool{limits};
     BlockManager blockman{m_node.args->GetBlocksDirPath(), m_node.args->GetBoolArg("-fastprune", false)};
     CChainState chainstate{&mempool, blockman, *Assert(m_node.chainman)};
 

@@ -355,6 +355,15 @@ enum class MemPoolRemovalReason {
     REPLACED,    //!< Removed for replacement
 };
 
+/** Default for -limitancestorcount, max number of in-mempool ancestors */
+static const unsigned int DEFAULT_ANCESTOR_LIMIT = 25;
+/** Default for -limitancestorsize, maximum kilobytes of tx + all in-mempool ancestors */
+static const unsigned int DEFAULT_ANCESTOR_SIZE_LIMIT = 101;
+/** Default for -limitdescendantcount, max number of in-mempool descendants */
+static const unsigned int DEFAULT_DESCENDANT_LIMIT = 25;
+/** Default for -limitdescendantsize, maximum kilobytes of in-mempool descendants */
+static const unsigned int DEFAULT_DESCENDANT_SIZE_LIMIT = 101;
+
 /**
  * CTxMemPool stores valid-according-to-the-current-best-chain transactions
  * that may be included in the next block.
@@ -565,6 +574,15 @@ public:
     const size_t m_max_size;
     const std::chrono::hours m_expiry;
 
+    struct Limits {
+        size_t ancestor_count = DEFAULT_ANCESTOR_LIMIT;
+        size_t ancestor_size = DEFAULT_ANCESTOR_SIZE_LIMIT;
+        size_t descendant_count = DEFAULT_DESCENDANT_LIMIT;
+        size_t descendant_size = DEFAULT_DESCENDANT_SIZE_LIMIT;
+    };
+
+    const Limits m_limits;
+
     /** Create a new CTxMemPool.
      * Sanity checks will be off by default for performance, because otherwise
      * accepting transactions becomes O(N^2) where N is the number of transactions
@@ -573,7 +591,7 @@ public:
      * @param[in] estimator is used to estimate appropriate transaction fees.
      * @param[in] check_ratio is the ratio used to determine how often sanity checks will run.
      */
-    explicit CTxMemPool(CBlockPolicyEstimator* estimator = nullptr, int check_ratio = 0, std::optional<size_t> max_size = std::nullopt, std::optional<int64_t> expiry = std::nullopt);
+    explicit CTxMemPool(const Limits& limits, CBlockPolicyEstimator* estimator = nullptr, int check_ratio = 0, std::optional<size_t> max_size = std::nullopt, std::optional<int64_t> expiry = std::nullopt);
 
     /**
      * If sanity-checking is turned on, check makes sure the pool is
@@ -658,8 +676,7 @@ public:
      * @param[in] ancestor_count_limit     The maximum allowed number of
      *     transactions including the entry and its ancestors.
      */
-    void UpdateTransactionsFromBlock(const std::vector<uint256>& vHashesToUpdate,
-            uint64_t ancestor_size_limit, uint64_t ancestor_count_limit) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main) LOCKS_EXCLUDED(m_epoch);
+    void UpdateTransactionsFromBlock(const std::vector<uint256>& vHashesToUpdate) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main) LOCKS_EXCLUDED(m_epoch);
 
     /** Try to calculate all in-mempool ancestors of entry.
      *  (these are all calculated including the tx itself)
@@ -838,8 +855,7 @@ private:
      *     allowed for any descendant
      */
     void UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendants,
-                              const std::set<uint256>& setExclude, std::set<uint256>& descendants_to_remove,
-                              uint64_t ancestor_size_limit, uint64_t ancestor_count_limit) EXCLUSIVE_LOCKS_REQUIRED(cs);
+                              const std::set<uint256>& setExclude, std::set<uint256>& descendants_to_remove) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Update ancestors of hash to add/remove it as a descendant transaction. */
     void UpdateAncestorsOf(bool add, txiter hash, setEntries &setAncestors) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Set ancestor state for an entry */
