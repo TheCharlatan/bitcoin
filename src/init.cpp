@@ -1557,21 +1557,33 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             return InitError(*error);
         }
 
-        g_txindex = std::make_unique<TxIndex>(cache_sizes.tx_index, false, fReindex);
+        CDBWrapper::Options opts = {
+            .in_memory = false,
+            .wipe_existing = fReindex,
+        };
+        g_txindex = std::make_unique<TxIndex>(cache_sizes.tx_index, opts);
         if (!g_txindex->Start(chainman.ActiveChainstate())) {
             return false;
         }
     }
 
     for (const auto& filter_type : g_enabled_filter_types) {
-        InitBlockFilterIndex(filter_type, cache_sizes.filter_index, false, fReindex);
+        CDBWrapper::Options opts = {
+            .in_memory = false,
+            .wipe_existing = fReindex,
+        };
+        InitBlockFilterIndex(filter_type, cache_sizes.filter_index, opts);
         if (!GetBlockFilterIndex(filter_type)->Start(chainman.ActiveChainstate())) {
             return false;
         }
     }
 
     if (args.GetBoolArg("-coinstatsindex", DEFAULT_COINSTATSINDEX)) {
-        g_coin_stats_index = std::make_unique<CoinStatsIndex>(/* cache size */ 0, false, fReindex);
+        CDBWrapper::Options opts = {
+            .in_memory = false,
+            .wipe_existing = fReindex,
+        };
+        g_coin_stats_index = std::make_unique<CoinStatsIndex>(/* cache size */ 0, opts);
         if (!g_coin_stats_index->Start(chainman.ActiveChainstate())) {
             return false;
         }

@@ -56,7 +56,7 @@ protected:
 public:
     /** Constructs the index, which becomes available to be queried. */
     explicit BlockFilterIndex(BlockFilterType filter_type,
-                              size_t n_cache_size, bool f_memory = false, bool f_wipe = false);
+                              size_t n_cache_size, CDBWrapper::Options& db_opts);
 
     BlockFilterType GetFilterType() const { return m_filter_type; }
 
@@ -89,7 +89,7 @@ void ForEachBlockFilterIndex(std::function<void (BlockFilterIndex&)> fn);
  * a new index is created and false if one has already been initialized.
  */
 bool InitBlockFilterIndex(BlockFilterType filter_type,
-                          size_t n_cache_size, bool f_memory = false, bool f_wipe = false);
+                          size_t n_cache_size, CDBWrapper::Options opts);
 
 /**
  * Destroy the block filter index with the given type. Returns false if no such index exists. This

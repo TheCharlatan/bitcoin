@@ -94,7 +94,7 @@ struct DBHashKey {
 static std::map<BlockFilterType, BlockFilterIndex> g_filter_indexes;
 
 BlockFilterIndex::BlockFilterIndex(BlockFilterType filter_type,
-                                   size_t n_cache_size, bool f_memory, bool f_wipe)
+                                   size_t n_cache_size, CDBWrapper::Options& db_opts)
     : m_filter_type(filter_type)
 {
     const std::string& filter_name = BlockFilterTypeName(filter_type);
@@ -104,7 +104,7 @@ BlockFilterIndex::BlockFilterIndex(BlockFilterType filter_type,
     fs::create_directories(path);
 
     m_name = filter_name + " block filter index";
-    m_db = std::make_unique<BaseIndex::DB>(path / "db", n_cache_size, f_memory, f_wipe);
+    m_db = std::make_unique<BaseIndex::DB>(path / "db", n_cache_size, db_opts);
     m_filter_fileseq = std::make_unique<FlatFileSeq>(std::move(path), "fltr", FLTR_FILE_CHUNK_SIZE);
 }
 
@@ -463,12 +463,11 @@ void ForEachBlockFilterIndex(std::function<void (BlockFilterIndex&)> fn)
 }
 
 bool InitBlockFilterIndex(BlockFilterType filter_type,
-                          size_t n_cache_size, bool f_memory, bool f_wipe)
+                          size_t n_cache_size, CDBWrapper::Options opts)
 {
     auto result = g_filter_indexes.emplace(std::piecewise_construct,
                                            std::forward_as_tuple(filter_type),
-                                           std::forward_as_tuple(filter_type,
-                                                                 n_cache_size, f_memory, f_wipe));
+                                           std::forward_as_tuple(filter_type, n_cache_size, opts));
     return result.second;
 }
 

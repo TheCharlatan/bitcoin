@@ -19,7 +19,7 @@ std::unique_ptr<TxIndex> g_txindex;
 class TxIndex::DB : public BaseIndex::DB
 {
 public:
-    explicit DB(size_t n_cache_size, bool f_memory = false, bool f_wipe = false);
+    explicit DB(size_t n_cache_size, CDBWrapper::Options& db_opts);
 
     /// Read the disk location of the transaction data with the given hash. Returns false if the
     /// transaction hash is not indexed.
@@ -29,8 +29,8 @@ public:
     bool WriteTxs(const std::vector<std::pair<uint256, CDiskTxPos>>& v_pos);
 };
 
-TxIndex::DB::DB(size_t n_cache_size, bool f_memory, bool f_wipe) :
-    BaseIndex::DB(gArgs.GetDataDirNet() / "indexes" / "txindex", n_cache_size, f_memory, f_wipe)
+TxIndex::DB::DB(size_t n_cache_size, CDBWrapper::Options& db_opts) :
+    BaseIndex::DB(gArgs.GetDataDirNet() / "indexes" / "txindex", n_cache_size, db_opts)
 {}
 
 bool TxIndex::DB::ReadTxPos(const uint256 &txid, CDiskTxPos& pos) const
@@ -47,8 +47,8 @@ bool TxIndex::DB::WriteTxs(const std::vector<std::pair<uint256, CDiskTxPos>>& v_
     return WriteBatch(batch);
 }
 
-TxIndex::TxIndex(size_t n_cache_size, bool f_memory, bool f_wipe)
-    : m_db(std::make_unique<TxIndex::DB>(n_cache_size, f_memory, f_wipe))
+TxIndex::TxIndex(size_t n_cache_size, CDBWrapper::Options& db_opts)
+    : m_db(std::make_unique<TxIndex::DB>(n_cache_size, db_opts))
 {}
 
 TxIndex::~TxIndex() {}

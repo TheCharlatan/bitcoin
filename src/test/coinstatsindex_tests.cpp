@@ -18,7 +18,10 @@ BOOST_AUTO_TEST_SUITE(coinstatsindex_tests)
 
 BOOST_FIXTURE_TEST_CASE(coinstatsindex_initial_sync, TestChain100Setup)
 {
-    CoinStatsIndex coin_stats_index{1 << 20, true};
+    CDBWrapper::Options opts = {
+        .in_memory = true,
+    };
+    CoinStatsIndex coin_stats_index{1 << 20, opts};
 
     CCoinsStats coin_stats{};
     const CBlockIndex* block_index;

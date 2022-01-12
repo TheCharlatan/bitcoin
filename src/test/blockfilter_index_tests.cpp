@@ -109,7 +109,10 @@ bool BuildChainTestingSetup::BuildChain(const CBlockIndex* pindex,
 
 BOOST_FIXTURE_TEST_CASE(blockfilter_index_initial_sync, BuildChainTestingSetup)
 {
-    BlockFilterIndex filter_index(BlockFilterType::BASIC, 1 << 20, true);
+    CDBWrapper::Options opts = {
+        .in_memory = true,
+    };
+    BlockFilterIndex filter_index(BlockFilterType::BASIC, 1 << 20, opts);
 
     uint256 last_header;
 
@@ -278,14 +281,18 @@ BOOST_FIXTURE_TEST_CASE(blockfilter_index_init_destroy, BasicTestingSetup)
     filter_index = GetBlockFilterIndex(BlockFilterType::BASIC);
     BOOST_CHECK(filter_index == nullptr);
 
-    BOOST_CHECK(InitBlockFilterIndex(BlockFilterType::BASIC, 1 << 20, true, false));
+    CDBWrapper::Options opts = {
+        .in_memory = true,
+        .wipe_existing = false,
+    };
+    BOOST_CHECK(InitBlockFilterIndex(BlockFilterType::BASIC, 1 << 20, opts));
 
     filter_index = GetBlockFilterIndex(BlockFilterType::BASIC);
     BOOST_CHECK(filter_index != nullptr);
     BOOST_CHECK(filter_index->GetFilterType() == BlockFilterType::BASIC);
 
     // Initialize returns false if index already exists.
-    BOOST_CHECK(!InitBlockFilterIndex(BlockFilterType::BASIC, 1 << 20, true, false));
+    BOOST_CHECK(!InitBlockFilterIndex(BlockFilterType::BASIC, 1 << 20, opts));
 
     int iter_count = 0;
     ForEachBlockFilterIndex([&iter_count](BlockFilterIndex& _index) { iter_count++; });
@@ -300,7 +307,7 @@ BOOST_FIXTURE_TEST_CASE(blockfilter_index_init_destroy, BasicTestingSetup)
     BOOST_CHECK(filter_index == nullptr);
 
     // Reinitialize index.
-    BOOST_CHECK(InitBlockFilterIndex(BlockFilterType::BASIC, 1 << 20, true, false));
+    BOOST_CHECK(InitBlockFilterIndex(BlockFilterType::BASIC, 1 << 20, opts));
 
     DestroyAllBlockFilterIndexes();
 
