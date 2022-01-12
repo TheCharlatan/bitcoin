@@ -2225,7 +2225,7 @@ CoinsCacheSizeState CChainState::GetCoinsCacheSizeState()
     AssertLockHeld(::cs_main);
     return this->GetCoinsCacheSizeState(
         m_coinstip_cache_size_bytes,
-        m_mempool ? m_mempool->m_max_size : gArgs.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000); // XXXX?
+        m_mempool ? m_mempool->m_max_size : 0);
 }
 
 CoinsCacheSizeState CChainState::GetCoinsCacheSizeState(
