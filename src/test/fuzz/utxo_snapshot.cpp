@@ -53,7 +53,16 @@ FUZZ_TARGET_INIT(utxo_snapshot, initialize_chain)
         } catch (const std::ios_base::failure&) {
             return false;
         }
-        return chainman.ActivateSnapshot(infile, metadata, /*in_memory=*/true);
+
+        CCoinsViewDB::Options db_opts {
+            .in_memory = true,
+            .wipe_existing = false,
+        };
+        db_opts.do_compact = gArgs.GetBoolArg("-forcecompactdb", db_opts.do_compact);
+        db_opts.batch_write_size = gArgs.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
+        db_opts.simulate_write_crash_ratio = gArgs.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
+
+        return chainman.ActivateSnapshot(infile, metadata, /*in_memory=*/db_opts);
     }};
 
     if (fuzzed_data_provider.ConsumeBool()) {

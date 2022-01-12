@@ -939,7 +939,8 @@ public:
     //! - Move the new chainstate to `m_snapshot_chainstate` and make it our
     //!   ChainstateActive().
     [[nodiscard]] bool ActivateSnapshot(
-        CAutoFile& coins_file, const node::SnapshotMetadata& metadata, bool in_memory);
+        CAutoFile& coins_file, const node::SnapshotMetadata& metadata,
+        CCoinsViewDB::Options db_opts);
 
     //! The most-work chain.
     CChainState& ActiveChainstate() const;

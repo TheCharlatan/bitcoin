@@ -4687,7 +4687,7 @@ const AssumeutxoData* ExpectedAssumeutxo(
 bool ChainstateManager::ActivateSnapshot(
         CAutoFile& coins_file,
         const SnapshotMetadata& metadata,
-        bool in_memory)
+        CCoinsViewDB::Options db_opts)
 {
     uint256 base_blockhash = metadata.m_base_blockhash;
 
@@ -4734,14 +4734,6 @@ bool ChainstateManager::ActivateSnapshot(
 
     {
         LOCK(::cs_main);
-
-        CCoinsViewDB::Options db_opts {
-            .in_memory = in_memory,
-            .wipe_existing = false,
-        };
-        db_opts.do_compact = gArgs.GetBoolArg("-forcecompactdb", db_opts.do_compact);
-        db_opts.batch_write_size = gArgs.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
-        db_opts.simulate_write_crash_ratio = gArgs.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
 
         snapshot_chainstate->InitCoinsDB(
             static_cast<size_t>(current_coinsdb_cache_size * SNAPSHOT_CACHE_PERC),

@@ -48,7 +48,15 @@ CreateAndActivateUTXOSnapshot(node::NodeContext& node, const fs::path root, F ma
 
     malleation(auto_infile, metadata);
 
-    return node.chainman->ActivateSnapshot(auto_infile, metadata, /*in_memory=*/true);
+    CCoinsViewDB::Options db_opts {
+        .in_memory = true,
+        .wipe_existing = false,
+    };
+    db_opts.do_compact = gArgs.GetBoolArg("-forcecompactdb", db_opts.do_compact);
+    db_opts.batch_write_size = gArgs.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
+    db_opts.simulate_write_crash_ratio = gArgs.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
+
+    return node.chainman->ActivateSnapshot(auto_infile, metadata, db_opts);
 }
 
 
