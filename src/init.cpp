@@ -242,7 +242,7 @@ void Shutdown(NodeContext& node)
     node.addrman.reset();
 
     if (node.mempool && node.mempool->IsLoaded() && node.args->GetBoolArg("-persistmempool", DEFAULT_PERSIST_MEMPOOL)) {
-        DumpMempool(*node.mempool);
+        DumpMempool(*node.mempool, node.args->GetDataDirNet() / "mempool.dat");
     }
 
     // Drop transactions we were still watching, and record fee estimations.

@@ -2393,7 +2393,7 @@ static RPCHelpMan savemempool()
         throw JSONRPCError(RPC_MISC_ERROR, "The mempool was not loaded yet");
     }
 
-    if (!DumpMempool(mempool)) {
+    if (!DumpMempool(mempool, args.GetDataDirNet() / "mempool.dat")) {
         throw JSONRPCError(RPC_MISC_ERROR, "Unable to dump mempool to disk");
     }
 

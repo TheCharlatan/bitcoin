@@ -16,7 +16,6 @@
 #include <policy/settings.h>
 #include <reverse_iterator.h>
 #include <streams.h>
-#include <util/args.h>
 #include <util/moneystr.h>
 #include <util/system.h>
 #include <util/time.h>
@@ -1231,7 +1230,7 @@ void CTxMemPool::SetIsLoaded(bool loaded)
 
 #define MICRO 0.000001
 
-bool DumpMempool(const CTxMemPool& pool, FopenFn mockable_fopen_function, bool skip_file_commit)
+bool DumpMempool(const CTxMemPool& pool, const fs::path& dump_path, FopenFn mockable_fopen_function, bool skip_file_commit)
 {
     int64_t start = GetTimeMicros();
 
@@ -1254,7 +1253,7 @@ bool DumpMempool(const CTxMemPool& pool, FopenFn mockable_fopen_function, bool s
     int64_t mid = GetTimeMicros();
 
     try {
-        FILE* filestr{mockable_fopen_function(gArgs.GetDataDirNet() / "mempool.dat.new", "wb")};
+        FILE* filestr{mockable_fopen_function(dump_path + ".new", "wb")};
         if (!filestr) {
             return false;
         }
@@ -1280,7 +1279,7 @@ bool DumpMempool(const CTxMemPool& pool, FopenFn mockable_fopen_function, bool s
         if (!skip_file_commit && !FileCommit(file.Get()))
             throw std::runtime_error("FileCommit failed");
         file.fclose();
-        if (!RenameOver(gArgs.GetDataDirNet() / "mempool.dat.new", gArgs.GetDataDirNet() / "mempool.dat")) {
+        if (!RenameOver(dump_path + ".new", dump_path)) {
             throw std::runtime_error("Rename failed");
         }
         int64_t last = GetTimeMicros();
