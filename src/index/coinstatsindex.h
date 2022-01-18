@@ -55,7 +55,7 @@ protected:
 
 public:
     // Constructs the index, which becomes available to be queried.
-    explicit CoinStatsIndex(size_t n_cache_size, CDBWrapper::Options& db_opts);
+    explicit CoinStatsIndex(size_t n_cache_size, const fs::path& data_dir_net, CDBWrapper::Options& db_opts);
 
     // Look up stats for a specific block using CBlockIndex
     bool LookUpStats(const CBlockIndex* block_index, kernel::CCoinsStats& coins_stats) const;

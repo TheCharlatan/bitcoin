@@ -103,12 +103,12 @@ struct DBHashKey {
 
 std::unique_ptr<CoinStatsIndex> g_coin_stats_index;
 
-CoinStatsIndex::CoinStatsIndex(size_t n_cache_size, CDBWrapper::Options& db_opts)
+CoinStatsIndex::CoinStatsIndex(size_t n_cache_size, const fs::path& data_dir_net, CDBWrapper::Options& db_opts)
 {
-    fs::path path{gArgs.GetDataDirNet() / "indexes" / "coinstats"};
-    fs::create_directories(path);
+    const fs::path index_path{data_dir_net / "indexes" / "coinstats"};
+    fs::create_directories(index_path);
 
-    m_db = std::make_unique<CoinStatsIndex::DB>(path / "db", n_cache_size, db_opts);
+    m_db = std::make_unique<CoinStatsIndex::DB>(index_path / "db", n_cache_size, db_opts);
 }
 
 bool CoinStatsIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)

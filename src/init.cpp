@@ -1592,7 +1592,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             .in_memory = false,
             .wipe_existing = fReindex,
         };
-        g_coin_stats_index = std::make_unique<CoinStatsIndex>(/* cache size */ 0, opts);
+        g_coin_stats_index = std::make_unique<CoinStatsIndex>(/* cache size */ 0, gArgs.GetDataDirNet(), opts);
         if (!g_coin_stats_index->Start(chainman.ActiveChainstate())) {
             return false;
         }

@@ -21,7 +21,7 @@ BOOST_FIXTURE_TEST_CASE(coinstatsindex_initial_sync, TestChain100Setup)
     CDBWrapper::Options opts = {
         .in_memory = true,
     };
-    CoinStatsIndex coin_stats_index{1 << 20, opts};
+    CoinStatsIndex coin_stats_index{1 << 20, gArgs.GetDataDirNet(), opts};
 
     CCoinsStats coin_stats{};
     const CBlockIndex* block_index;
