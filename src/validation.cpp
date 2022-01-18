@@ -1422,7 +1422,7 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 
 CoinsViews::CoinsViews(const fs::path& ldb_path,
                        size_t cache_size_bytes,
-                       CCoinsViewDB::Options& opts)
+                       const CCoinsViewDB::Options& opts)
     : m_dbview(ldb_path, cache_size_bytes, opts),
       m_catcherview(&m_dbview) {}
 
@@ -1447,7 +1447,7 @@ CChainState::CChainState(
       m_from_snapshot_blockhash(from_snapshot_blockhash) {}
 
 void CChainState::InitCoinsDB(size_t cache_size_bytes,
-                              CCoinsViewDB::Options& opts,
+                              const CCoinsViewDB::Options& opts,
                               std::string leveldb_name)
 {
     if (m_from_snapshot_blockhash) {

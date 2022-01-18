@@ -5,6 +5,8 @@
 #ifndef BITCOIN_NODE_CHAINSTATE_H
 #define BITCOIN_NODE_CHAINSTATE_H
 
+#include <txdb.h>
+
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -70,7 +72,7 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
                                                      int64_t nCoinDBCache,
                                                      int64_t nCoinCacheUsage,
                                                      bool block_tree_db_in_memory,
-                                                     bool coins_db_in_memory,
+                                                     const CCoinsViewDB::Options& db_opts,
                                                      std::function<bool()> shutdown_requested = nullptr,
                                                      std::function<void()> coins_error_cb = nullptr);
 

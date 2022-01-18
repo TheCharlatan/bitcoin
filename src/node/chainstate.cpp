@@ -8,6 +8,7 @@
 #include <fs.h>
 #include <node/blockstorage.h>
 #include <util/args.h>
+#include <txdb.h>
 #include <validation.h>
 
 namespace node {
@@ -22,7 +23,7 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
                                                      int64_t nCoinDBCache,
                                                      int64_t nCoinCacheUsage,
                                                      bool block_tree_db_in_memory,
-                                                     bool coins_db_in_memory,
+                                                     const CCoinsViewDB::Options& db_opts,
                                                      std::function<bool()> shutdown_requested,
                                                      std::function<void()> coins_error_cb)
 {
@@ -89,14 +90,6 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
     // block tree into BlockIndex()!
 
     for (CChainState* chainstate : chainman.GetAll()) {
-        CCoinsViewDB::Options db_opts{
-            .in_memory = coins_db_in_memory,
-            .wipe_existing = fReset || fReindexChainState,
-        };
-        db_opts.do_compact = gArgs.GetBoolArg("-forcecompactdb", db_opts.do_compact);
-        db_opts.batch_write_size = gArgs.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
-        db_opts.simulate_write_crash_ratio = gArgs.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
-
         chainstate->InitCoinsDB(/* cache_size_bytes */ nCoinDBCache,
                                 /* opts */ db_opts);
 

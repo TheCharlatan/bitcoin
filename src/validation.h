@@ -429,7 +429,7 @@ public:
     //! All arguments forwarded onto CCoinsViewDB.
     CoinsViews(const fs::path& ldb_path,
                size_t cache_size_bytes,
-               CCoinsViewDB::Options& opts);
+               const CCoinsViewDB::Options& opts);
 
     //! Initialize the CCoinsViewCache member.
     void InitCache() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
@@ -524,7 +524,7 @@ public:
      * All parameters forwarded to CoinsViews.
      */
     void InitCoinsDB(size_t cache_size_bytes,
-                     CCoinsViewDB::Options& opts,
+                     const CCoinsViewDB::Options& opts,
                      std::string leveldb_name = "chainstate");
 
     //! Initialize the in-memory coins cache (to be done after the health of the on-disk database

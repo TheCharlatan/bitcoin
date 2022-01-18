@@ -212,6 +212,14 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
     // instead of unit tests, but for now we need these here.
     RegisterAllCoreRPCCommands(tableRPC);
 
+    CCoinsViewDB::Options db_opts{
+        .in_memory = true,
+        .wipe_existing = fReindex.load() || m_args.GetBoolArg("-reindex-chainstate", false),
+    };
+    db_opts.do_compact = gArgs.GetBoolArg("-forcecompactdb", db_opts.do_compact);
+    db_opts.batch_write_size = gArgs.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
+    db_opts.simulate_write_crash_ratio = gArgs.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
+
     auto maybe_load_error = LoadChainstate(fReindex.load(),
                                            *Assert(m_node.chainman.get()),
                                            Assert(m_node.mempool.get()),
@@ -223,7 +231,7 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
                                            m_cache_sizes.coins_db,
                                            m_cache_sizes.coins,
                                            /*block_tree_db_in_memory=*/true,
-                                           /*coins_db_in_memory=*/true);
+                                           /*db_opts=*/db_opts);
     assert(!maybe_load_error.has_value());
 
     auto maybe_verify_error = VerifyLoadedChainstate(

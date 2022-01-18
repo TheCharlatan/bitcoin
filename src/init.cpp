@@ -1426,6 +1426,15 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         uiInterface.InitMessage(_("Loading block index…").translated);
         const int64_t load_block_index_start_time = GetTimeMillis();
         std::optional<ChainstateLoadingError> maybe_load_error;
+
+        CCoinsViewDB::Options db_opts{
+            .in_memory = false,
+            .wipe_existing = fReset || fReindexChainState,
+        };
+        db_opts.do_compact = gArgs.GetBoolArg("-forcecompactdb", db_opts.do_compact);
+        db_opts.batch_write_size = gArgs.GetIntArg("-dbbatchsize", db_opts.batch_write_size);
+        db_opts.simulate_write_crash_ratio = gArgs.GetIntArg("-dbcrashratio", db_opts.simulate_write_crash_ratio);
+
         try {
             maybe_load_error = LoadChainstate(fReset,
                                               chainman,
@@ -1438,7 +1447,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                                               cache_sizes.coins_db,
                                               cache_sizes.coins,
                                               /*block_tree_db_in_memory=*/false,
-                                              /*coins_db_in_memory=*/false,
+                                              /*db_opts=*/db_opts,
                                               /*shutdown_requested=*/ShutdownRequested,
                                               /*coins_error_cb=*/[]() {
                                                   uiInterface.ThreadSafeMessageBox(

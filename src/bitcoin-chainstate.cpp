@@ -82,6 +82,10 @@ int main(int argc, char* argv[])
     };
     ChainstateManager chainman{opts};
 
+    CCoinsViewDB::Options db_opts{
+        .in_memory = false,
+    };
+
     auto rv = node::LoadChainstate(false,
                                    std::ref(chainman),
                                    nullptr,
@@ -93,7 +97,7 @@ int main(int argc, char* argv[])
                                    2 << 22,
                                    (450 << 20) - (2 << 20) - (2 << 22),
                                    false,
-                                   false,
+                                   /*db_opts=*/db_opts,
                                    []() { return false; });
     if (rv.has_value()) {
         std::cerr << "Failed to load Chain state from your datadir." << std::endl;
