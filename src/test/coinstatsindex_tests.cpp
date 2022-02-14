@@ -20,7 +20,7 @@ BOOST_FIXTURE_TEST_CASE(coinstatsindex_initial_sync, TestChain100Setup)
 {
     CoinStatsIndex coin_stats_index{1 << 20, true};
 
-    CCoinsStats coin_stats{CoinStatsHashType::MUHASH};
+    CCoinsStats coin_stats{};
     const CBlockIndex* block_index;
     {
         LOCK(cs_main);
@@ -62,7 +62,7 @@ BOOST_FIXTURE_TEST_CASE(coinstatsindex_initial_sync, TestChain100Setup)
     // Let the CoinStatsIndex to catch up again.
     BOOST_CHECK(coin_stats_index.BlockUntilSyncedToCurrentChain());
 
-    CCoinsStats new_coin_stats{CoinStatsHashType::MUHASH};
+    CCoinsStats new_coin_stats{};
     const CBlockIndex* new_block_index;
     {
         LOCK(cs_main);
