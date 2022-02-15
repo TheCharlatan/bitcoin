@@ -9,6 +9,7 @@
 #include <crypto/muhash.h>
 #include <hash.h>
 #include <index/coinstatsindex.h>
+#include <optional>
 #include <serialize.h>
 #include <uint256.h>
 #include <util/overflow.h>
@@ -207,9 +208,14 @@ static bool GetUTXOStats(CCoinsView* view, BlockManager& blockman, CCoinsStats& 
     return true;
 }
 
-bool GetUTXOStats(CCoinsView* view, BlockManager& blockman, CCoinsStats& stats, CoinStatsHashType hash_type, const std::function<void()>& interruption_point, const CBlockIndex* pindex, bool index_requested)
+std::optional<CCoinsStats> GetUTXOStats(CCoinsView* view, BlockManager& blockman, CoinStatsHashType hash_type, const std::function<void()>& interruption_point, const CBlockIndex* pindex, bool index_requested)
 {
+    CCoinsStats stats{};
     auto hasher = MakeUTXOHasher(hash_type);
-    return GetUTXOStats(view, blockman, stats, *hasher, interruption_point, pindex, hash_type, index_requested);
+
+    if (!GetUTXOStats(view, blockman, stats, *hasher, interruption_point, pindex, hash_type, index_requested)) {
+        return std::nullopt;
+    }
+    return stats;
 }
 } // namespace node

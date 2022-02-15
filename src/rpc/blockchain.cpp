@@ -1269,7 +1269,9 @@ static RPCHelpMan gettxoutsetinfo()
         }
     }
 
-    if (GetUTXOStats(coins_view, *blockman, stats, hash_type, node.rpc_interruption_point, pindex, index_requested)) {
+    const std::optional<CCoinsStats> maybe_stats = GetUTXOStats(coins_view, *blockman, hash_type, node.rpc_interruption_point, pindex, index_requested);
+    if (maybe_stats.has_value()) {
+        stats = maybe_stats.value();
         ret.pushKV("height", (int64_t)stats.nHeight);
         ret.pushKV("bestblock", stats.hashBlock.GetHex());
         ret.pushKV("txouts", (int64_t)stats.nTransactionOutputs);
@@ -1289,9 +1291,13 @@ static RPCHelpMan gettxoutsetinfo()
             ret.pushKV("total_unspendable_amount", ValueFromAmount(stats.total_unspendable_amount));
 
             CCoinsStats prev_stats{};
-
             if (pindex->nHeight > 0) {
-                GetUTXOStats(coins_view, *blockman, prev_stats, hash_type, node.rpc_interruption_point, pindex->pprev, index_requested);
+                const std::optional<CCoinsStats> maybe_prev_stats = GetUTXOStats(coins_view, *blockman, hash_type, node.rpc_interruption_point, pindex->pprev, index_requested);
+                if (maybe_prev_stats.has_value()) {
+                    prev_stats = maybe_prev_stats.value();
+                } else {
+                    throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
+                }
             }
 
             UniValue block_info(UniValue::VOBJ);
@@ -2779,8 +2785,11 @@ UniValue CreateUTXOSnapshot(
 
         chainstate.ForceFlushStateToDisk();
 
-        if (!GetUTXOStats(&chainstate.CoinsDB(), chainstate.m_blockman, stats, CoinStatsHashType::HASH_SERIALIZED, node.rpc_interruption_point)) {
+        const std::optional<CCoinsStats> maybe_stats = GetUTXOStats(&chainstate.CoinsDB(), chainstate.m_blockman, CoinStatsHashType::HASH_SERIALIZED, node.rpc_interruption_point);
+        if (!maybe_stats) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
+        } else {
+            stats = maybe_stats.value();
         }
 
         pcursor = chainstate.CoinsDB().Cursor();
