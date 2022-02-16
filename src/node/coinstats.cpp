@@ -37,47 +37,6 @@ CDataStream TxOutSer(const COutPoint& outpoint, const Coin& coin) {
     return ss;
 }
 
-//! Warning: be very careful when changing this! assumeutxo and UTXO snapshot
-//! validation commitments are reliant on the hash constructed by this
-//! function.
-//!
-//! If the construction of this hash is changed, it will invalidate
-//! existing UTXO snapshots. This will not result in any kind of consensus
-//! failure, but it will force clients that were expecting to make use of
-//! assumeutxo to do traditional IBD instead.
-//!
-//! It is also possible, though very unlikely, that a change in this
-//! construction could cause a previously invalid (and potentially malicious)
-//! UTXO snapshot to be considered valid.
-static void ApplyHash(CHashWriter& ss, const uint256& hash, const std::map<uint32_t, Coin>& outputs)
-{
-    for (auto it = outputs.begin(); it != outputs.end(); ++it) {
-        if (it == outputs.begin()) {
-            ss << hash;
-            ss << VARINT(it->second.nHeight * 2 + it->second.fCoinBase ? 1u : 0u);
-        }
-
-        ss << VARINT(it->first + 1);
-        ss << it->second.out.scriptPubKey;
-        ss << VARINT_MODE(it->second.out.nValue, VarIntMode::NONNEGATIVE_SIGNED);
-
-        if (it == std::prev(outputs.end())) {
-            ss << VARINT(0u);
-        }
-    }
-}
-
-static void ApplyHash(std::nullptr_t, const uint256& hash, const std::map<uint32_t, Coin>& outputs) {}
-
-static void ApplyHash(MuHash3072& muhash, const uint256& hash, const std::map<uint32_t, Coin>& outputs)
-{
-    for (auto it = outputs.begin(); it != outputs.end(); ++it) {
-        COutPoint outpoint = COutPoint(hash, it->first);
-        Coin coin = it->second;
-        muhash.Insert(MakeUCharSpan(TxOutSer(outpoint, coin)));
-    }
-}
-
 class UTXOHasher
 {
 public:
@@ -253,25 +212,4 @@ bool GetUTXOStats(CCoinsView* view, BlockManager& blockman, CCoinsStats& stats, 
     auto hasher = MakeUTXOHasher(hash_type);
     return GetUTXOStats(view, blockman, stats, *hasher, interruption_point, pindex, hash_type, index_requested);
 }
-
-// The legacy hash serializes the hashBlock
-static void PrepareHash(CHashWriter& ss, const CCoinsStats& stats)
-{
-    ss << stats.hashBlock;
-}
-// MuHash does not need the prepare step
-static void PrepareHash(MuHash3072& muhash, CCoinsStats& stats) {}
-static void PrepareHash(std::nullptr_t, CCoinsStats& stats) {}
-
-static void FinalizeHash(CHashWriter& ss, CCoinsStats& stats)
-{
-    stats.hashSerialized = ss.GetHash();
-}
-static void FinalizeHash(MuHash3072& muhash, CCoinsStats& stats)
-{
-    uint256 out;
-    muhash.Finalize(out);
-    stats.hashSerialized = out;
-}
-static void FinalizeHash(std::nullptr_t, CCoinsStats& stats) {}
 } // namespace node
