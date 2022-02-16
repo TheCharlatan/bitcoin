@@ -26,8 +26,8 @@
 #include <string>
 #include <vector>
 
-using node::CCoinsStats;
-using node::CoinStatsHashType;
+using kernel::CCoinsStats;
+using kernel::CoinStatsHashType;
 using node::GetUTXOStats;
 
 namespace {

@@ -18,7 +18,7 @@ namespace node {
 class BlockManager;
 } // namespace node
 
-namespace node {
+namespace kernel {
 enum class CoinStatsHashType {
     HASH_SERIALIZED,
     MUHASH,
@@ -80,6 +80,6 @@ public:
 std::unique_ptr<UTXOHasher> MakeUTXOHasher(const CoinStatsHashType& hash_type);
 
 std::optional<CCoinsStats> GetUTXOStatsWithHasher(UTXOHasher& hasher, CCoinsView* view, node::BlockManager& blockman, const std::function<void()>& interruption_point = {});
-} // namespace node
+} // namespace kernel
 
 #endif // BITCOIN_KERNEL_INCLUDE_COINSTATS_H

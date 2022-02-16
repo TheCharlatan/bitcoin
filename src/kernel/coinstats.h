@@ -9,8 +9,8 @@
 
 #include <chain.h>
 
-namespace node {
+namespace kernel {
 CCoinsStats MakeCoinStatsPrefilledWithBlockIndexInfo(const CBlockIndex* pindex);
-} // namespace node
+} // namespace kernel
 
 #endif // BITCOIN_KERNEL_COINSTATS_H

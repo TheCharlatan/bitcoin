@@ -11,9 +11,9 @@
 #include <validation.h>
 
 namespace node {
-std::optional<CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_index, const CBlockIndex* pindex)
+std::optional<kernel::CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_index, const CBlockIndex* pindex)
 {
-    CCoinsStats stats = MakeCoinStatsPrefilledWithBlockIndexInfo(pindex);
+    kernel::CCoinsStats stats = kernel::MakeCoinStatsPrefilledWithBlockIndexInfo(pindex);
 
     stats.index_used = true;
     if (!coin_stats_index.LookUpStats(pindex, stats)) {
@@ -23,7 +23,7 @@ std::optional<CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_inde
     return stats;
 }
 
-std::optional<CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_index, CCoinsView* view, BlockManager& blockman)
+std::optional<kernel::CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_index, CCoinsView* view, BlockManager& blockman)
 {
     CBlockIndex* pindex = WITH_LOCK(cs_main, return blockman.LookupBlockIndex(view->GetBestBlock()));
 
@@ -31,10 +31,10 @@ std::optional<CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_inde
 }
 
 //! Calculate statistics about the unspent transaction output set
-std::optional<CCoinsStats> GetUTXOStats(CCoinsView* view, BlockManager& blockman, CoinStatsHashType hash_type, const std::function<void()>& interruption_point, const CBlockIndex* pindex, bool index_requested)
+std::optional<kernel::CCoinsStats> GetUTXOStats(CCoinsView* view, BlockManager& blockman, kernel::CoinStatsHashType hash_type, const std::function<void()>& interruption_point, const CBlockIndex* pindex, bool index_requested)
 {
     // Use CoinStatsIndex if it is requested and available and a hash_type of Muhash or None was requested
-    if ((hash_type == CoinStatsHashType::MUHASH || hash_type == CoinStatsHashType::NONE) && g_coin_stats_index && index_requested) {
+    if ((hash_type == kernel::CoinStatsHashType::MUHASH || hash_type == kernel::CoinStatsHashType::NONE) && g_coin_stats_index && index_requested) {
         if (pindex) {
             return GetUTXOStatsWithIndex(*g_coin_stats_index, pindex);
         } else {
@@ -42,7 +42,7 @@ std::optional<CCoinsStats> GetUTXOStats(CCoinsView* view, BlockManager& blockman
         }
     }
 
-    auto hasher = MakeUTXOHasher(hash_type);
-    return GetUTXOStatsWithHasher(*hasher, view, blockman, interruption_point);
+    auto hasher = kernel::MakeUTXOHasher(hash_type);
+    return kernel::GetUTXOStatsWithHasher(*hasher, view, blockman, interruption_point);
 }
 } // namespace node

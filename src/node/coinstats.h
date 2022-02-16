@@ -24,11 +24,11 @@ class BlockManager;
 
 namespace node {
 //! Calculate statistics about the unspent transaction output set
-std::optional<CCoinsStats> GetUTXOStats(CCoinsView* view, node::BlockManager& blockman,
-                                        CoinStatsHashType hash_type,
-                                        const std::function<void()>& interruption_point = {},
-                                        const CBlockIndex* pindex = nullptr,
-                                        bool index_requested = true);
+std::optional<kernel::CCoinsStats> GetUTXOStats(CCoinsView* view, node::BlockManager& blockman,
+                                                kernel::CoinStatsHashType hash_type,
+                                                const std::function<void()>& interruption_point = {},
+                                                const CBlockIndex* pindex = nullptr,
+                                                bool index_requested = true);
 } // namespace node
 
 #endif // BITCOIN_NODE_COINSTATS_H

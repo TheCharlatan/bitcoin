@@ -15,7 +15,7 @@
 
 #include <map>
 
-namespace node {
+namespace kernel {
 // Database-independent metric indicating the UTXO set size
 uint64_t GetBogoSize(const CScript& script_pub_key)
 {
@@ -154,7 +154,7 @@ CCoinsStats MakeCoinStatsPrefilledWithBlockIndexInfo(const CBlockIndex* pindex)
     return stats;
 }
 
-static bool GetUTXOStatsWithHasher(UTXOHasher& hasher, CCoinsStats& stats, CCoinsView* view, BlockManager& blockman, const std::function<void()>& interruption_point)
+static bool GetUTXOStatsWithHasher(UTXOHasher& hasher, CCoinsStats& stats, CCoinsView* view, node::BlockManager& blockman, const std::function<void()>& interruption_point)
 {
     std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
     assert(pcursor);
@@ -193,7 +193,7 @@ static bool GetUTXOStatsWithHasher(UTXOHasher& hasher, CCoinsStats& stats, CCoin
     return true;
 }
 
-std::optional<CCoinsStats> GetUTXOStatsWithHasher(UTXOHasher& hasher, CCoinsView* view, BlockManager& blockman, const std::function<void()>& interruption_point)
+std::optional<CCoinsStats> GetUTXOStatsWithHasher(UTXOHasher& hasher, CCoinsView* view, node::BlockManager& blockman, const std::function<void()>& interruption_point)
 {
     CBlockIndex* pindex = WITH_LOCK(cs_main, return blockman.LookupBlockIndex(view->GetBestBlock()));
     CCoinsStats stats = MakeCoinStatsPrefilledWithBlockIndexInfo(pindex);
@@ -202,4 +202,4 @@ std::optional<CCoinsStats> GetUTXOStatsWithHasher(UTXOHasher& hasher, CCoinsView
 
     return stats;
 }
-} // namespace node
+} // namespace kernel
