@@ -197,8 +197,7 @@ static void ApplyStats(CCoinsStats& stats, const uint256& hash, const std::map<u
 }
 
 //! Calculate statistics about the unspent transaction output set
-template <typename T>
-static bool GetUTXOStats(CCoinsView* view, BlockManager& blockman, CCoinsStats& stats, T hash_obj, const std::function<void()>& interruption_point, const CBlockIndex* pindex, CoinStatsHashType& hash_type, bool index_requested)
+static bool GetUTXOStats(CCoinsView* view, BlockManager& blockman, CCoinsStats& stats, UTXOHasher& hasher, const std::function<void()>& interruption_point, const CBlockIndex* pindex, CoinStatsHashType& hash_type, bool index_requested)
 {
     std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
     assert(pcursor);
@@ -216,7 +215,7 @@ static bool GetUTXOStats(CCoinsView* view, BlockManager& blockman, CCoinsStats& 
         return g_coin_stats_index->LookUpStats(pindex, stats);
     }
 
-    PrepareHash(hash_obj, stats);
+    hasher.Prepare(stats.hashBlock);
 
     uint256 prevkey;
     std::map<uint32_t, Coin> outputs;
@@ -227,7 +226,7 @@ static bool GetUTXOStats(CCoinsView* view, BlockManager& blockman, CCoinsStats& 
         if (pcursor->GetKey(key) && pcursor->GetValue(coin)) {
             if (!outputs.empty() && key.hash != prevkey) {
                 ApplyStats(stats, prevkey, outputs);
-                ApplyHash(hash_obj, prevkey, outputs);
+                hasher.Apply(prevkey, outputs);
                 outputs.clear();
             }
             prevkey = key.hash;
@@ -240,10 +239,10 @@ static bool GetUTXOStats(CCoinsView* view, BlockManager& blockman, CCoinsStats& 
     }
     if (!outputs.empty()) {
         ApplyStats(stats, prevkey, outputs);
-        ApplyHash(hash_obj, prevkey, outputs);
+        hasher.Apply(prevkey, outputs);
     }
 
-    FinalizeHash(hash_obj, stats);
+    stats.hashSerialized = hasher.Finalize();
 
     stats.nDiskSize = view->EstimateSize();
     return true;
@@ -251,20 +250,8 @@ static bool GetUTXOStats(CCoinsView* view, BlockManager& blockman, CCoinsStats& 
 
 bool GetUTXOStats(CCoinsView* view, BlockManager& blockman, CCoinsStats& stats, CoinStatsHashType hash_type, const std::function<void()>& interruption_point, const CBlockIndex* pindex, bool index_requested)
 {
-    switch (hash_type) {
-    case(CoinStatsHashType::HASH_SERIALIZED): {
-        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-        return GetUTXOStats(view, blockman, stats, ss, interruption_point, pindex, hash_type, index_requested);
-    }
-    case(CoinStatsHashType::MUHASH): {
-        MuHash3072 muhash;
-        return GetUTXOStats(view, blockman, stats, muhash, interruption_point, pindex, hash_type, index_requested);
-    }
-    case(CoinStatsHashType::NONE): {
-        return GetUTXOStats(view, blockman, stats, nullptr, interruption_point, pindex, hash_type, index_requested);
-    }
-    } // no default case, so the compiler can warn about missing cases
-    assert(false);
+    auto hasher = MakeUTXOHasher(hash_type);
+    return GetUTXOStats(view, blockman, stats, *hasher, interruption_point, pindex, hash_type, index_requested);
 }
 
 // The legacy hash serializes the hashBlock
