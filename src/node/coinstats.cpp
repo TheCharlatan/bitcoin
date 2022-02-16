@@ -156,24 +156,20 @@ static void ApplyStats(CCoinsStats& stats, const uint256& hash, const std::map<u
     }
 }
 
-//! Calculate statistics about the unspent transaction output set
-static bool GetUTXOStats(CCoinsView* view, BlockManager& blockman, CCoinsStats& stats, UTXOHasher& hasher, const std::function<void()>& interruption_point, const CBlockIndex* pindex, CoinStatsHashType& hash_type, bool index_requested)
+static CCoinsStats MakeCoinStatsPrefilledWithBlockIndexInfo(const CBlockIndex* pindex)
 {
-    std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
-    assert(pcursor);
+    CCoinsStats stats{};
 
-    if (!pindex) {
-        LOCK(cs_main);
-        pindex = blockman.LookupBlockIndex(view->GetBestBlock());
-    }
     stats.nHeight = Assert(pindex)->nHeight;
     stats.hashBlock = pindex->GetBlockHash();
 
-    // Use CoinStatsIndex if it is requested and available and a hash_type of Muhash or None was requested
-    if ((hash_type == CoinStatsHashType::MUHASH || hash_type == CoinStatsHashType::NONE) && g_coin_stats_index && index_requested) {
-        stats.index_used = true;
-        return g_coin_stats_index->LookUpStats(pindex, stats);
-    }
+    return stats;
+}
+
+static bool GetUTXOStatsWithHasher(UTXOHasher& hasher, CCoinsStats& stats, CCoinsView* view, BlockManager& blockman, const std::function<void()>& interruption_point)
+{
+    std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
+    assert(pcursor);
 
     hasher.Prepare(stats.hashBlock);
 
@@ -205,17 +201,52 @@ static bool GetUTXOStats(CCoinsView* view, BlockManager& blockman, CCoinsStats& 
     stats.hashSerialized = hasher.Finalize();
 
     stats.nDiskSize = view->EstimateSize();
+
     return true;
 }
 
-std::optional<CCoinsStats> GetUTXOStats(CCoinsView* view, BlockManager& blockman, CoinStatsHashType hash_type, const std::function<void()>& interruption_point, const CBlockIndex* pindex, bool index_requested)
+std::optional<CCoinsStats> GetUTXOStatsWithHasher(UTXOHasher& hasher, CCoinsView* view, BlockManager& blockman, const std::function<void()>& interruption_point)
 {
-    CCoinsStats stats{};
-    auto hasher = MakeUTXOHasher(hash_type);
+    CBlockIndex* pindex = WITH_LOCK(cs_main, return blockman.LookupBlockIndex(view->GetBestBlock()));
+    CCoinsStats stats = MakeCoinStatsPrefilledWithBlockIndexInfo(pindex);
 
-    if (!GetUTXOStats(view, blockman, stats, *hasher, interruption_point, pindex, hash_type, index_requested)) {
+    GetUTXOStatsWithHasher(hasher, stats, view, blockman, interruption_point);
+
+    return stats;
+}
+
+std::optional<CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_index, const CBlockIndex* pindex)
+{
+    CCoinsStats stats = MakeCoinStatsPrefilledWithBlockIndexInfo(pindex);
+
+    stats.index_used = true;
+    if (!coin_stats_index.LookUpStats(pindex, stats)) {
         return std::nullopt;
     }
+
     return stats;
+}
+
+std::optional<CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_index, CCoinsView* view, BlockManager& blockman)
+{
+    CBlockIndex* pindex = WITH_LOCK(cs_main, return blockman.LookupBlockIndex(view->GetBestBlock()));
+
+    return GetUTXOStatsWithIndex(coin_stats_index, pindex);
+}
+
+//! Calculate statistics about the unspent transaction output set
+std::optional<CCoinsStats> GetUTXOStats(CCoinsView* view, BlockManager& blockman, CoinStatsHashType hash_type, const std::function<void()>& interruption_point, const CBlockIndex* pindex, bool index_requested)
+{
+    // Use CoinStatsIndex if it is requested and available and a hash_type of Muhash or None was requested
+    if ((hash_type == CoinStatsHashType::MUHASH || hash_type == CoinStatsHashType::NONE) && g_coin_stats_index && index_requested) {
+        if (pindex) {
+            return GetUTXOStatsWithIndex(*g_coin_stats_index, pindex);
+        } else {
+            return GetUTXOStatsWithIndex(*g_coin_stats_index, view, blockman);
+        }
+    }
+
+    auto hasher = MakeUTXOHasher(hash_type);
+    return GetUTXOStatsWithHasher(*hasher, view, blockman, interruption_point);
 }
 } // namespace node
