@@ -865,7 +865,6 @@ libbitcoinkernel_la_SOURCES = \
   hash.cpp \
   index/base.cpp \
   index/blockfilterindex.cpp \
-  index/coinstatsindex.cpp \
   init/common.cpp \
   kernel/coinstats.cpp \
   key.cpp \
@@ -873,7 +872,6 @@ libbitcoinkernel_la_SOURCES = \
   netaddress.cpp \
   node/blockstorage.cpp \
   node/chainstate.cpp \
-  node/coinstats.cpp \
   node/ui_interface.cpp \
   policy/feerate.cpp \
   policy/fees.cpp \
