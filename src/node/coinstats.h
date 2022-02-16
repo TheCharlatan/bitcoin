@@ -76,6 +76,21 @@ std::optional<CCoinsStats> GetUTXOStats(CCoinsView* view, node::BlockManager& bl
 uint64_t GetBogoSize(const CScript& script_pub_key);
 
 CDataStream TxOutSer(const COutPoint& outpoint, const Coin& coin);
+
+class UTXOHasher
+{
+public:
+    virtual void Prepare(const uint256& hash_block){};
+    virtual void Apply(const uint256& hash, const std::map<uint32_t, Coin>& outputs){};
+    virtual uint256 Finalize() = 0;
+    virtual ~UTXOHasher();
+};
+
+std::unique_ptr<UTXOHasher> MakeUTXOHasher(const CoinStatsHashType& hash_type);
+
+CCoinsStats MakeCoinStatsPrefilledWithBlockIndexInfo(const CBlockIndex* pindex);
+
+std::optional<CCoinsStats> GetUTXOStatsWithHasher(UTXOHasher& hasher, CCoinsView* view, BlockManager& blockman, const std::function<void()>& interruption_point = {});
 } // namespace node
 
 #endif // BITCOIN_NODE_COINSTATS_H
