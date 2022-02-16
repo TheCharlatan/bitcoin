@@ -78,6 +78,111 @@ static void ApplyHash(MuHash3072& muhash, const uint256& hash, const std::map<ui
     }
 }
 
+class UTXOHasher
+{
+public:
+    virtual void Prepare(const uint256& hash_block){};
+    virtual void Apply(const uint256& hash, const std::map<uint32_t, Coin>& outputs){};
+    virtual uint256 Finalize() = 0;
+    virtual ~UTXOHasher();
+};
+
+UTXOHasher::~UTXOHasher() = default;
+
+class NullHasher : public UTXOHasher {
+public:
+    uint256 Finalize() override {
+        return {};
+    }
+};
+
+std::unique_ptr<UTXOHasher> MakeNullHasher() {
+    return std::make_unique<NullHasher>();
+}
+
+class SHA256DHasher : public UTXOHasher
+{
+    CHashWriter ss{SER_GETHASH, PROTOCOL_VERSION};
+public:
+    // The legacy hash serializes the hashBlock
+    void Prepare(const uint256& hash_block) override {
+        ss << hash_block;
+    }
+
+    //! Warning: be very careful when changing this! assumeutxo and UTXO snapshot
+    //! validation commitments are reliant on the hash constructed by this
+    //! function.
+    //!
+    //! If the construction of this hash is changed, it will invalidate
+    //! existing UTXO snapshots. This will not result in any kind of consensus
+    //! failure, but it will force clients that were expecting to make use of
+    //! assumeutxo to do traditional IBD instead.
+    //!
+    //! It is also possible, though very unlikely, that a change in this
+    //! construction could cause a previously invalid (and potentially malicious)
+    //! UTXO snapshot to be considered valid.
+    void Apply(const uint256& hash, const std::map<uint32_t, Coin>& outputs) override {
+        for (auto it = outputs.begin(); it != outputs.end(); ++it) {
+            if (it == outputs.begin()) {
+                ss << hash;
+                ss << VARINT(it->second.nHeight * 2 + it->second.fCoinBase ? 1u : 0u);
+            }
+
+            ss << VARINT(it->first + 1);
+            ss << it->second.out.scriptPubKey;
+            ss << VARINT_MODE(it->second.out.nValue, VarIntMode::NONNEGATIVE_SIGNED);
+
+            if (it == std::prev(outputs.end())) {
+                ss << VARINT(0u);
+            }
+        }
+    }
+    uint256 Finalize() override {
+        return ss.GetHash();
+    }
+};
+
+std::unique_ptr<UTXOHasher> MakeSHA256DHasher() {
+    return std::make_unique<SHA256DHasher>();
+}
+
+class MuHashHasher : public UTXOHasher
+{
+    MuHash3072 muhash;
+public:
+    void Apply(const uint256& hash, const std::map<uint32_t, Coin>& outputs) override {
+        for (auto it = outputs.begin(); it != outputs.end(); ++it) {
+            COutPoint outpoint = COutPoint(hash, it->first);
+            Coin coin = it->second;
+            muhash.Insert(MakeUCharSpan(TxOutSer(outpoint, coin)));
+        }
+    }
+    uint256 Finalize() override {
+        uint256 out;
+        muhash.Finalize(out);
+        return out;
+    }
+};
+
+std::unique_ptr<UTXOHasher> MakeMuHashHasher() {
+    return std::make_unique<MuHashHasher>();
+}
+
+std::unique_ptr<UTXOHasher> MakeUTXOHasher(const CoinStatsHashType& hash_type)
+{
+    switch (hash_type) {
+    case(CoinStatsHashType::HASH_SERIALIZED): {
+        return MakeSHA256DHasher();
+    }
+    case(CoinStatsHashType::MUHASH): {
+        return MakeMuHashHasher();
+    }
+    case(CoinStatsHashType::NONE): {
+        return MakeNullHasher();
+    }
+    } // no default case, so the compiler can warn about missing cases
+}
+
 static void ApplyStats(CCoinsStats& stats, const uint256& hash, const std::map<uint32_t, Coin>& outputs)
 {
     assert(!outputs.empty());
