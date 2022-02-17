@@ -9,7 +9,11 @@
 #include <crypto/muhash.h>
 #include <flatfile.h>
 #include <index/base.h>
-#include <node/coinstats.h>
+#include <kernel/coinstats.h>
+
+namespace node {
+class BlockManager;
+} // namespace node
 
 /**
  * CoinStatsIndex maintains statistics on the UTXO set.
@@ -57,5 +61,8 @@ public:
 
 /// The global UTXO set hash object.
 extern std::unique_ptr<CoinStatsIndex> g_coin_stats_index;
+
+std::optional<kernel::CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_index, const CBlockIndex* pindex);
+std::optional<kernel::CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_index, CCoinsView* view, node::BlockManager& blockman);
 
 #endif // BITCOIN_INDEX_COINSTATSINDEX_H

@@ -11,25 +11,6 @@
 #include <validation.h>
 
 namespace node {
-std::optional<kernel::CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_index, const CBlockIndex* pindex)
-{
-    kernel::CCoinsStats stats = kernel::MakeCoinStatsPrefilledWithBlockIndexInfo(pindex);
-
-    stats.index_used = true;
-    if (!coin_stats_index.LookUpStats(pindex, stats)) {
-        return std::nullopt;
-    }
-
-    return stats;
-}
-
-std::optional<kernel::CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_index, CCoinsView* view, BlockManager& blockman)
-{
-    CBlockIndex* pindex = WITH_LOCK(cs_main, return blockman.LookupBlockIndex(view->GetBestBlock()));
-
-    return GetUTXOStatsWithIndex(coin_stats_index, pindex);
-}
-
 //! Calculate statistics about the unspent transaction output set
 std::optional<kernel::CCoinsStats> GetUTXOStats(CCoinsView* view, BlockManager& blockman, kernel::CoinStatsHashType hash_type, const std::function<void()>& interruption_point, const CBlockIndex* pindex, bool index_requested)
 {

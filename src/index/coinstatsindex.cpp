@@ -492,3 +492,22 @@ bool CoinStatsIndex::ReverseBlock(const CBlock& block, const CBlockIndex* pindex
 
     return m_db->Write(DB_MUHASH, m_muhash);
 }
+
+std::optional<kernel::CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_index, const CBlockIndex* pindex)
+{
+    kernel::CCoinsStats stats = kernel::MakeCoinStatsPrefilledWithBlockIndexInfo(pindex);
+
+    stats.index_used = true;
+    if (!coin_stats_index.LookUpStats(pindex, stats)) {
+        return std::nullopt;
+    }
+
+    return stats;
+}
+
+std::optional<kernel::CCoinsStats> GetUTXOStatsWithIndex(CoinStatsIndex& coin_stats_index, CCoinsView* view, node::BlockManager& blockman)
+{
+    CBlockIndex* pindex = WITH_LOCK(cs_main, return blockman.LookupBlockIndex(view->GetBestBlock()));
+
+    return GetUTXOStatsWithIndex(coin_stats_index, pindex);
+}
