@@ -19,11 +19,11 @@
 #include <hash.h>
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
+#include <kernel/coinstats.h>
 #include <logging/timer.h>
 #include <net.h>
 #include <net_processing.h>
 #include <node/blockstorage.h>
-#include <node/coinstats.h>
 #include <node/context.h>
 #include <node/utxo_snapshot.h>
 #include <policy/feerate.h>
@@ -60,7 +60,6 @@ using kernel::CCoinsStats;
 using kernel::CoinStatsHashType;
 
 using node::BlockManager;
-using node::GetUTXOStats;
 using node::IsBlockPruned;
 using node::NodeContext;
 using node::ReadBlockFromDisk;
@@ -1173,6 +1172,27 @@ CoinStatsHashType ParseHashType(const std::string& hash_type_input)
     } else {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("'%s' is not a valid hash_type", hash_type_input));
     }
+}
+
+//! Calculate statistics about the unspent transaction output set
+
+std::optional<kernel::CCoinsStats> GetUTXOStats(CCoinsView* view, node::BlockManager& blockman,
+                                                kernel::CoinStatsHashType hash_type,
+                                                const std::function<void()>& interruption_point = {},
+                                                const CBlockIndex* pindex = nullptr,
+                                                bool index_requested = true)
+{
+    // Use CoinStatsIndex if it is requested and available and a hash_type of Muhash or None was requested
+    if ((hash_type == kernel::CoinStatsHashType::MUHASH || hash_type == kernel::CoinStatsHashType::NONE) && g_coin_stats_index && index_requested) {
+        if (pindex) {
+            return GetUTXOStatsWithIndex(*g_coin_stats_index, pindex);
+        } else {
+            return GetUTXOStatsWithIndex(*g_coin_stats_index, view, blockman);
+        }
+    }
+
+    auto hasher = kernel::MakeUTXOHasher(hash_type);
+    return kernel::GetUTXOStatsWithHasher(*hasher, view, blockman, interruption_point);
 }
 
 static RPCHelpMan gettxoutsetinfo()
