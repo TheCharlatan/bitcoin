@@ -9,8 +9,8 @@
 #include <consensus/tx_check.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
+#include <kernel/coinstats.h>
 #include <key.h>
-#include <node/coinstats.h>
 #include <policy/policy.h>
 #include <primitives/transaction.h>
 #include <pubkey.h>
@@ -28,8 +28,6 @@
 
 using kernel::CCoinsStats;
 using kernel::CoinStatsHashType;
-
-using node::GetUTXOStats;
 
 namespace {
 const TestingSetup* g_setup;
@@ -273,7 +271,8 @@ FUZZ_TARGET_INIT(coins_view, initialize_coins_view)
             [&] {
                 bool expected_code_path = false;
                 try {
-                    (void)GetUTXOStats(&coins_view_cache, g_setup->m_node.chainman->m_blockman, CoinStatsHashType::HASH_SERIALIZED);
+                    auto hasher = MakeUTXOHasher(CoinStatsHashType::HASH_SERIALIZED);
+                    (void)GetUTXOStatsWithHasher(*hasher, &coins_view_cache, g_setup->m_node.chainman->m_blockman);
                 } catch (const std::logic_error&) {
                     expected_code_path = true;
                 }
