@@ -28,6 +28,7 @@
 
 using kernel::CCoinsStats;
 using kernel::CoinStatsHashType;
+
 using node::GetUTXOStats;
 
 namespace {
