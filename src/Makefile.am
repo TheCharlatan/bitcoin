@@ -866,7 +866,6 @@ libbitcoinkernel_la_SOURCES = \
   kernel/init/common.cpp \
   key.cpp \
   logging.cpp \
-  netaddress.cpp \
   node/blockstorage.cpp \
   node/chainstate.cpp \
   node/ui_interface.cpp \
@@ -894,11 +893,9 @@ libbitcoinkernel_la_SOURCES = \
   support/lockedpool.cpp \
   sync.cpp \
   threadinterrupt.cpp \
-  timedata.cpp \
   txdb.cpp \
   txmempool.cpp \
   uint256.cpp \
-  util/asmap.cpp \
   util/bytevectorhash.cpp \
   util/getuniquepath.cpp \
   util/hasher.cpp \
