@@ -15,10 +15,10 @@
 #include <interfaces/chain.h>
 #include <net.h>
 #include <net_processing.h>
-#include <node/miner.h>
-#include <noui.h>
 #include <node/blockstorage.h>
 #include <node/chainstate.h>
+#include <node/miner.h>
+#include <noui.h>
 #include <policy/fees.h>
 #include <pow.h>
 #include <rpc/blockchain.h>
@@ -28,6 +28,7 @@
 #include <script/sigcache.h>
 #include <shutdown.h>
 #include <streams.h>
+#include <timedata.h>
 #include <txdb.h>
 #include <util/strencodings.h>
 #include <util/string.h>
@@ -161,7 +162,7 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
 
     m_cache_sizes = CalculateCacheSizes(m_args);
 
-    m_node.chainman = std::make_unique<ChainstateManager>();
+    m_node.chainman = std::make_unique<ChainstateManager>(GetAdjustedTime);
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(m_cache_sizes.block_tree_db, true);
 
     // Start script-checking threads. Set g_parallel_script_checks to true so they are used.

@@ -288,7 +288,7 @@ PackageMempoolAcceptResult ProcessNewPackage(CChainState& active_chainstate, CTx
  *
  * See consensus/consensus.h for flag definitions.
  */
-bool CheckFinalTx(const CBlockIndex* active_chain_tip, const CTransaction &tx, int flags = -1) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+bool CheckFinalTx(const CBlockIndex* active_chain_tip, const CTransaction& tx, const std::function<int64_t()>& adjusted_time_callback, int flags = -1) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 /**
  * Check if transaction will be BIP68 final in the next block to be created on top of tip.
@@ -365,6 +365,7 @@ bool TestBlockValidity(BlockValidationState& state,
                        CChainState& chainstate,
                        const CBlock& block,
                        CBlockIndex* pindexPrev,
+                       const std::function<int64_t()>& adjusted_time_callback,
                        bool fCheckPOW = true,
                        bool fCheckMerkleRoot = true) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
@@ -510,6 +511,8 @@ public:
     //! necessary so that this instance can check whether it is the active
     //! chainstate within deeply nested method calls.
     ChainstateManager& m_chainman;
+
+    const std::function<int64_t()> m_adjusted_time_callback;
 
     explicit CChainState(
         CTxMemPool* mempool,
@@ -862,6 +865,12 @@ private:
     friend CChainState;
 
 public:
+    const std::function<int64_t()> m_adjusted_time_callback;
+
+    explicit ChainstateManager(const std::function<int64_t()>& adjusted_time_callback)
+        : m_adjusted_time_callback(adjusted_time_callback)
+    {};
+
     std::thread m_load_block;
     //! A single BlockManager instance is shared across each constructed
     //! chainstate to avoid duplicating block metadata.

@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
 
 
     // SETUP: Chainstate
-    ChainstateManager chainman;
+    ChainstateManager chainman{static_cast<int64_t(*)()>(GetTime)};
 
     auto rv = node::LoadChainstate(false,
                                    std::ref(chainman),
