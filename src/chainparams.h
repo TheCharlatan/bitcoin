@@ -8,9 +8,11 @@
 
 #include <chainparamsbase.h>
 #include <consensus/params.h>
+#include <cstdint>
 #include <netaddress.h>
 #include <primitives/block.h>
 #include <protocol.h>
+#include <unordered_map>
 #include <util/hash_type.h>
 
 #include <memory>
@@ -133,6 +135,24 @@ public:
             "178.128.221.177",
             "v7ajjeirttkbnt32wpy3c6w3emwnfr3fkla7hpxcfokr3ysd3kqtzmqd.onion:38333"
         };
+    };
+
+    /**
+     * VersionBitsParameters holds activation parameters
+     */
+    struct VersionBitsParameters {
+        int64_t start_time;
+        int64_t timeout;
+        int min_activation_height;
+    };
+
+    /**
+     * RegTestOptions holds configurations for creating a regtest CChainParams.
+     */
+    struct RegTestOptions {
+        std::unordered_map<Consensus::DeploymentPos, VersionBitsParameters> version_bits_parameters{};
+        std::unordered_map<Consensus::BuriedDeployment, int> activation_heights{};
+        bool fastprune{false};
     };
 
 protected:
