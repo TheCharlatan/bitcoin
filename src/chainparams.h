@@ -146,6 +146,16 @@ protected:
     ChainTxData chainTxData;
 };
 
+struct SigNetOptions {
+    const std::vector<uint8_t> challenge;
+    std::vector<std::string> seeds;
+};
+
+SigNetOptions GetDefaultSignetOptions();
+
+std::unique_ptr<const CChainParams> CreateSignetChainParams(const SigNetOptions& options = GetDefaultSignetOptions());
+std::unique_ptr<const CChainParams> CreateSignetChainParams(const ArgsManager& args);
+
 /**
  * Creates and returns a std::unique_ptr<CChainParams> of the chosen chain.
  * @returns a CChainParams* of the chosen chain.
