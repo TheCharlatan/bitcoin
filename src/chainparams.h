@@ -122,6 +122,19 @@ public:
     const MapAssumeutxo& Assumeutxo() const { return m_assumeutxo_data; }
 
     const ChainTxData& TxData() const { return chainTxData; }
+
+    /**
+     * SigNetOptions holds configurations for creating a signet CChainParams.
+     */
+    struct SigNetOptions {
+        std::vector<uint8_t> challenge;
+        std::vector<std::string> seeds = {
+            "seed.signet.bitcoin.sprovoost.nl.",
+            "178.128.221.177",
+            "v7ajjeirttkbnt32wpy3c6w3emwnfr3fkla7hpxcfokr3ysd3kqtzmqd.onion:38333"
+        };
+    };
+
 protected:
     CChainParams() {}
 

@@ -277,18 +277,12 @@ public:
  */
 class SigNetParams : public CChainParams {
 public:
-    explicit SigNetParams(const ArgsManager& args) {
-        std::vector<uint8_t> bin;
+    explicit SigNetParams(const SigNetOptions& options)
+    {
         vSeeds.clear();
+        vSeeds = options.seeds;
 
-        if (!args.IsArgSet("-signetchallenge")) {
-            bin = ParseHex("512103ad5e0edad18cb1f0fc0d28a3d4f1f3e445640337489abb10404f2d1e086be430210359ef5021964fe22d6f8e05b2463c9540ce96883fe3b278760f048f5189f2e6c452ae");
-            vSeeds.emplace_back("seed.signet.bitcoin.sprovoost.nl.");
-
-            // Hardcoded nodes can be removed once there are more DNS seeds
-            vSeeds.emplace_back("178.128.221.177");
-            vSeeds.emplace_back("v7ajjeirttkbnt32wpy3c6w3emwnfr3fkla7hpxcfokr3ysd3kqtzmqd.onion:38333");
-
+        if (options.challenge.empty()) {
             consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000000001291fc22898");
             consensus.defaultAssumeValid = uint256S("0x000000d1a0e224fa4679d2fb2187ba55431c284fa1b74cbc8cfda866fd4d2c09"); // 105495
             m_assumed_blockchain_size = 1;
@@ -299,13 +293,8 @@ public:
                 .nTxCount = 1903567,
                 .dTxRate  = 0.02336701143027275,
             };
+            consensus.signet_challenge = ParseHex("512103ad5e0edad18cb1f0fc0d28a3d4f1f3e445640337489abb10404f2d1e086be430210359ef5021964fe22d6f8e05b2463c9540ce96883fe3b278760f048f5189f2e6c452ae");
         } else {
-            const auto signet_challenge = args.GetArgs("-signetchallenge");
-            if (signet_challenge.size() != 1) {
-                throw std::runtime_error(strprintf("%s: -signetchallenge cannot be multiple values.", __func__));
-            }
-            bin = ParseHex(signet_challenge[0]);
-
             consensus.nMinimumChainWork = uint256{};
             consensus.defaultAssumeValid = uint256{};
             m_assumed_blockchain_size = 0;
@@ -315,16 +304,12 @@ public:
                 0,
                 0,
             };
-            LogPrintf("Signet with challenge %s\n", signet_challenge[0]);
-        }
-
-        if (args.IsArgSet("-signetseednode")) {
-            vSeeds = args.GetArgs("-signetseednode");
+            LogPrintf("Signet with challenge %s\n", HexStr(options.challenge));
+            consensus.signet_challenge.assign(options.challenge.begin(), options.challenge.end());
         }
 
         strNetworkID = CBaseChainParams::SIGNET;
         consensus.signet_blocks = true;
-        consensus.signet_challenge.assign(bin.begin(), bin.end());
         consensus.nSubsidyHalvingInterval = 210000;
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256{};
@@ -382,11 +367,25 @@ public:
     }
 };
 
+void ReadSigNetArgs(const ArgsManager& args, CChainParams::SigNetOptions& options) {
+    if (args.IsArgSet("-signetseednode")) {
+        options.seeds = args.GetArgs("-signetseednode");
+    }
+    if (args.IsArgSet("-signetchallenge")) {
+        const auto signet_challenge = args.GetArgs("-signetchallenge");
+        if (signet_challenge.size() != 1) {
+            throw std::runtime_error(strprintf("%s: -signetchallenge cannot be multiple values.", __func__));
+        }
+        options.challenge = ParseHex(signet_challenge[0]);
+    }
+}
+
 /**
  * Regression test: intended for private networks only. Has minimal difficulty to ensure that
  * blocks can be found instantly.
  */
-class CRegTestParams : public CChainParams {
+class CRegTestParams : public CChainParams
+{
 public:
     explicit CRegTestParams(const ArgsManager& args) {
         strNetworkID =  CBaseChainParams::REGTEST;
@@ -570,7 +569,9 @@ std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, c
     } else if (chain == CBaseChainParams::TESTNET) {
         return std::unique_ptr<CChainParams>(new CTestNetParams());
     } else if (chain == CBaseChainParams::SIGNET) {
-        return std::unique_ptr<CChainParams>(new SigNetParams(args));
+        auto opts = CChainParams::SigNetOptions{};
+        ReadSigNetArgs(args, opts);
+        return std::make_unique<const SigNetParams>(opts);
     } else if (chain == CBaseChainParams::REGTEST) {
         return std::unique_ptr<CChainParams>(new CRegTestParams(args));
     }
