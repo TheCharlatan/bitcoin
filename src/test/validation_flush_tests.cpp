@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(getcoinscachesizestate)
     limits.descendant_size = gArgs.GetIntArg("-limitdescendantsize", limits.descendant_size);
 
     CTxMemPool mempool{limits};
-    BlockManager blockman{m_node.args->GetBlocksDirPath(), m_node.args->GetBoolArg("-fastprune", false)};
+    BlockManager blockman{Params().GetConsensus(), m_node.args->GetBlocksDirPath(), m_node.args->GetBoolArg("-fastprune", false)};
     CChainState chainstate{&mempool, blockman, *Assert(m_node.chainman)};
 
     CCoinsViewDB::Options db_opts {

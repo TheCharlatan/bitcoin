@@ -34,6 +34,7 @@ static FILE* OpenUndoFile(const fs::path& blocks_dir, const FlatFilePos& pos, bo
 static FlatFileSeq BlockFileSeq(const fs::path& blocks_dir, bool fast_prune);
 static FlatFileSeq UndoFileSeq(const fs::path& blocks_dir);
 
+
 CBlockIndex* BlockManager::LookupBlockIndex(const uint256& hash) const
 {
     AssertLockHeld(cs_main);
@@ -369,7 +370,7 @@ bool BlockManager::WriteBlockIndexDB()
 
 bool BlockManager::LoadBlockIndexDB(ChainstateManager& chainman)
 {
-    if (!LoadBlockIndex(::Params().GetConsensus(), chainman)) {
+    if (!LoadBlockIndex(m_consensus_params, chainman)) {
         return false;
     }
 

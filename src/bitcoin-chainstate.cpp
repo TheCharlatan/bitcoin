@@ -74,6 +74,7 @@ int main(int argc, char* argv[])
 
     // SETUP: Chainstate
     ChainstateManager::Options opts{
+        .chainparams = chainparams,
         .datadir_net = gArgs.GetDataDirNet(),
         .adjusted_time_callback = static_cast<int64_t (*)()>(GetTime),
         .stop_at_height = 0,

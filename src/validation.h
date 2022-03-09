@@ -13,6 +13,7 @@
 #include <arith_uint256.h>
 #include <attributes.h>
 #include <chain.h>
+#include <chainparams.h>
 #include <consensus/amount.h>
 #include <fs.h>
 #include <node/blockstorage.h>
@@ -859,6 +860,7 @@ private:
 public:
 
     struct Options {
+        CChainParams chainparams;
         fs::path datadir_net;
         std::function<int64_t()> adjusted_time_callback;
         int stop_at_height;
@@ -866,15 +868,17 @@ public:
         bool fast_prune;
     };
 
+    const CChainParams m_chainparams;
     const fs::path m_datadir_net;
     const std::function<int64_t()> m_adjusted_time_callback;
     const int m_stop_at_height;
 
     explicit ChainstateManager(const Options& opts)
-        : m_datadir_net(opts.datadir_net),
+        : m_chainparams(opts.chainparams),
+          m_datadir_net(opts.datadir_net),
           m_adjusted_time_callback(opts.adjusted_time_callback),
           m_stop_at_height(opts.stop_at_height),
-          m_blockman{opts.blocks_dir, opts.fast_prune} {};
+          m_blockman{m_chainparams.GetConsensus(), opts.blocks_dir, opts.fast_prune} {};
 
     std::thread m_load_block;
     //! A single BlockManager instance is shared across each constructed

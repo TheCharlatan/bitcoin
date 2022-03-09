@@ -172,6 +172,7 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     m_cache_sizes = CalculateCacheSizes(m_args);
 
     ChainstateManager::Options opts{
+        .chainparams = Params(),
         .datadir_net = m_args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
         .stop_at_height = static_cast<int>(m_args.GetIntArg("-stopatheight", DEFAULT_STOPATHEIGHT)),

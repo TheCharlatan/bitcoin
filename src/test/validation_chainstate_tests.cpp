@@ -24,6 +24,7 @@ BOOST_FIXTURE_TEST_SUITE(validation_chainstate_tests, TestingSetup)
 BOOST_AUTO_TEST_CASE(validation_chainstate_resize_caches)
 {
     ChainstateManager::Options opts{
+        .chainparams = Params(),
         .datadir_net = m_args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
         .stop_at_height = static_cast<int>(m_args.GetIntArg("-stopatheight", DEFAULT_STOPATHEIGHT)),

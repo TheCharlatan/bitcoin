@@ -116,12 +116,14 @@ private:
     /** Dirty block file entries. */
     std::set<int> m_dirty_fileinfo;
 
+    const Consensus::Params& m_consensus_params;
     const fs::path m_blocks_dir;
     bool m_fast_prune;
 public:
-    BlockManager(const fs::path& blocks_dir, bool fast_prune)
-        : m_blocks_dir(blocks_dir),
-          m_fast_prune(fast_prune) {};
+    BlockManager(const Consensus::Params& consensus_params, const fs::path& blocks_dir, bool fast_prune)
+        : m_consensus_params(consensus_params),
+          m_blocks_dir(blocks_dir),
+          m_fast_prune(fast_prune){};
 
     BlockMap m_block_index GUARDED_BY(cs_main);
 

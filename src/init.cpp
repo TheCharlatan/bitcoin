@@ -1277,6 +1277,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     assert(!node.chainman);
     ChainstateManager::Options opts{
+        .chainparams = chainparams,
         .datadir_net = args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
         .stop_at_height = static_cast<int>(args.GetIntArg("-stopatheight", DEFAULT_STOPATHEIGHT)),
