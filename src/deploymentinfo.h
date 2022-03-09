@@ -8,6 +8,7 @@
 #include <consensus/params.h>
 
 #include <string>
+#include <optional>
 
 struct VBDeploymentInfo {
     /** Deployment name */
@@ -25,5 +26,7 @@ inline std::string DeploymentName(Consensus::DeploymentPos pos)
     assert(Consensus::ValidDeployment(pos));
     return VersionBitsDeploymentInfo[pos].name;
 }
+
+std::optional<Consensus::BuriedDeployment> GetBuriedDeployment(const std::string& deployment_name);
 
 #endif // BITCOIN_DEPLOYMENTINFO_H

@@ -34,3 +34,18 @@ std::string DeploymentName(Consensus::BuriedDeployment dep)
     } // no default case, so the compiler can warn about missing cases
     return "";
 }
+
+std::optional<Consensus::BuriedDeployment> GetBuriedDeployment(const std::string& deployment_name) {
+    if (deployment_name == "segwit") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_SEGWIT;
+    } else if (deployment_name == "bip34") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_HEIGHTINCB;
+    } else if (deployment_name == "dersig") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_DERSIG;
+    } else if (deployment_name == "cltv") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_CLTV;
+    } else if (deployment_name == "csv") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_CSV;
+    }
+    return std::nullopt;
+}
