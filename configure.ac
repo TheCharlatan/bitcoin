@@ -143,6 +143,7 @@ AC_PATH_PROG([XGETTEXT], [xgettext])
 AC_PATH_PROG([HEXDUMP], [hexdump])
 AC_PATH_TOOL([OBJCOPY], [objcopy])
 AC_PATH_PROG([DOXYGEN], [doxygen])
+AC_PATH_PROG([CLANGTIDY], [clang-tidy])
 AM_CONDITIONAL([HAVE_DOXYGEN], [test -n "$DOXYGEN"])
 
 AC_ARG_VAR([PYTHONPATH], [Augments the default search path for python module files])
@@ -320,6 +321,11 @@ AC_ARG_WITH([sanitizers],
                     [comma separated list of extra sanitizers to build with (default is none enabled)])],
     [use_sanitizers=$withval])
 
+AC_ARG_WITH([clang-tidy-plugins],
+    [AS_HELP_STRING([--with-clang-tidy-plugins],
+                    [comma separated list of plugins to use with clang-tidy (default is none enabled)])],
+    [use_clang_tidy_plugins=$withval])
+
 dnl Enable gprof profiling
 AC_ARG_ENABLE([gprof],
     [AS_HELP_STRING([--enable-gprof],
@@ -425,6 +431,12 @@ if test "$use_sanitizers" != ""; then
     extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) { return 0; }
     __attribute__((weak)) // allow for libFuzzer linking
     ]],[[]])])
+fi
+
+
+if test "x$use_clang_tidy_plugins" != "x"; then
+  CLANG_TIDY_USE_PLUGINS=-load="${use_clang_tidy_plugins}"
+  AC_SUBST(CLANG_TIDY_USE_PLUGINS)
 fi
 
 ERROR_CXXFLAGS=
