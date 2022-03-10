@@ -985,6 +985,8 @@ libbitcoinkernel_la_SOURCES = \
   versionbits.cpp \
   warnings.cpp
 
+
+bitcoin-kernel-tidy: FORCE $(libbitcoinkernel_la_SOURCES:%.cpp=%.cpp.tidy)
 # Required for obj/build.h to be generated first.
 # More details: https://www.gnu.org/software/automake/manual/html_node/Built-Sources-Example.html
 libbitcoinkernel_la-clientversion.l$(OBJEXT): obj/build.h
@@ -1049,6 +1051,10 @@ clean-local:
 	-rm -f leveldb/*/*.gcda leveldb/*/*.gcno leveldb/helpers/memenv/*.gcda leveldb/helpers/memenv/*.gcno
 	-rm -f config.h
 	-rm -rf test/__pycache__
+
+%.cpp.tidy: %.cpp FORCE
+	@echo clang-tidy: $<
+	$(AM_V_at)$(CLANGTIDY) $(CLANG_TIDY_USE_PLUGINS) -checks='$(CLANG_TIDY_CHECKS)' $< -- -std=c++17 $(DEFS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
 
 .rc.o:
 	@test -f $(WINDRES) || (echo "windres $(WINDRES) not found, but is required to compile windows resource files"; exit 1)
