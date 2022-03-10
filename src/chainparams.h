@@ -151,6 +151,30 @@ public:
         bool fastprune{false};
     };
 
+    /**
+     * Creates and returns a std::unique_ptr<CChainParams> for regtest.
+     * @return std::unique_ptr<const CChainParams>
+     */
+    static std::unique_ptr<const CChainParams> RegTest(const RegTestOptions& options);
+
+    /**
+     * Creates and returns a std::unique_ptr<CChainParams> for signet.
+     * @return std::unique_ptr<const CChainParams>
+     */
+    static std::unique_ptr<const CChainParams> SigNet(const SigNetOptions& options);
+
+    /**
+     * Creates and returns a std::unique_ptr<CChainParams> for mainnet.
+     * @return std::unique_ptr<const CChainParams>
+     */
+    static std::unique_ptr<const CChainParams> Main();
+
+    /**
+     * Creates and returns a std::unique_ptr<CChainParams> for testnet.
+     * @return std::unique_ptr<const CChainParams>
+     */
+    static std::unique_ptr<const CChainParams> TestNet();
+
 protected:
     CChainParams() {}
 
