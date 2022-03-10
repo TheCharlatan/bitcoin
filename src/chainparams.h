@@ -181,6 +181,9 @@ struct RegTestOptions {
 std::unique_ptr<const CChainParams> CreateRegTestChainParams(const RegTestOptions& options = RegTestOptions{});
 std::unique_ptr<const CChainParams> CreateRegTestChainParams(const ArgsManager& args);
 
+std::unique_ptr<const CChainParams> CreateMainChainParams();
+std::unique_ptr<const CChainParams> CreateTestNetChainParams();
+
 /**
  * Creates and returns a std::unique_ptr<CChainParams> of the chosen chain.
  * @returns a CChainParams* of the chosen chain.
