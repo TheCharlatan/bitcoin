@@ -86,6 +86,11 @@ if test -z "$enable_hardening" && test -n "@no_harden@"; then
   enable_hardening=no
 fi
 
+if test -z "$with_clang_tidy_plugins" && test -n "@clang_tidy_plugins@"; then
+  with_clang_tidy_plugins=${depends_prefix}/native/lib/libbitcoin-tidy-experiments.so
+  CLANGTIDY=${depends_prefix}/native/bin/clang-tidy
+fi
+
 PKG_CONFIG="$(which pkg-config) --static"
 
 PKG_CONFIG_PATH="${depends_prefix}/share/pkgconfig:${depends_prefix}/lib/pkgconfig"
