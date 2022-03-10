@@ -42,7 +42,9 @@
 #include <txmempool.h>
 #include <uint256.h>
 #include <undo.h>
+#if !BITCOINKERNEL
 #include <util/args.h>
+#endif
 #include <util/check.h> // For NDEBUG compile time check
 #include <util/hasher.h>
 #include <util/moneystr.h>
@@ -1493,7 +1495,7 @@ bool CChainState::IsInitialBlockDownload() const
 static void AlertNotify(const std::string& strMessage)
 {
     uiInterface.NotifyAlertChanged();
-#if HAVE_SYSTEM
+#if HAVE_SYSTEM && !BITCOINKERNEL
     std::string strCmd = gArgs.GetArg("-alertnotify", "");
     if (strCmd.empty()) return;
 
