@@ -11,6 +11,7 @@
 //
 // It is part of the libbitcoinkernel project.
 
+#include <kernel/chainparams.h>
 #include <kernel/chainparamsbase.h>
 #include <kernel/checks.h>
 #include <kernel/context.h>
@@ -53,7 +54,8 @@ int main(int argc, char* argv[])
 
     // SETUP: Misc Globals
     SelectParams(CBaseChainParams::MAIN);
-    const CChainParams& chainparams = Params();
+    auto chainparams_ptr = CChainParams::Main();
+    const CChainParams& chainparams = *chainparams_ptr;
 
     kernel::Context kernel_context{};
     // We can't use a goto here, but we can use an assert since none of the
