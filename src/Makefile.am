@@ -642,6 +642,7 @@ libbitcoin_util_a_SOURCES = \
   interfaces/echo.cpp \
   interfaces/handler.cpp \
   interfaces/init.cpp \
+  kernel/chainparamsbase.cpp \
   logging.cpp \
   random.cpp \
   randomenv.cpp \
@@ -863,6 +864,7 @@ libbitcoinkernel_la_SOURCES = \
   flatfile.cpp \
   fs.cpp \
   hash.cpp \
+  kernel/chainparamsbase.cpp \
   kernel/coinstats.cpp \
   kernel/init/common.cpp \
   key.cpp \
