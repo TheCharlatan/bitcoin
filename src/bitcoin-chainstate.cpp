@@ -23,7 +23,7 @@
 #include <node/chainstate.h>
 #include <scheduler.h>
 #include <script/sigcache.h>
-#include <util/args.h>
+#include <util/system.h>
 #include <util/thread.h>
 #include <validation.h>
 #include <validationinterface.h>
@@ -47,7 +47,9 @@ int main(int argc, char* argv[])
     }
     std::filesystem::path abs_datadir = std::filesystem::absolute(argv[1]);
     std::filesystem::create_directories(abs_datadir);
-    gArgs.ForceSetArg("-datadir", abs_datadir.string());
+
+    std::filesystem::path abs_blocksdir = abs_datadir / "blocks";
+    std::filesystem::create_directories(abs_blocksdir);
 
 
     // SETUP: Misc Globals
@@ -115,7 +117,7 @@ int main(int argc, char* argv[])
     // Main program logic starts here
     std::cout
         << "Hello! I'm going to print out some information about your datadir." << std::endl
-        << "\t" << "Path: " << gArgs.GetDataDirNet() << std::endl;
+        << "\t" << "Path: " << abs_datadir << std::endl;
     {
         LOCK(chainman.GetMutex());
         std::cout
