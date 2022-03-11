@@ -13,7 +13,7 @@
 
 #include <kernel/init/common.h>
 
-#include <chainparams.h>
+#include <kernel/chainparams.h>
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <node/blockstorage.h>
@@ -49,8 +49,8 @@ int main(int argc, char* argv[])
 
 
     // SETUP: Misc Globals
-    SelectParams(CBaseChainParams::MAIN);
-    const CChainParams& chainparams = Params();
+    auto chainparams_ptr = CreateMainChainParams();
+    const CChainParams& chainparams = *chainparams_ptr;
 
     init::SetGlobals(); // ECC_Start, etc.
 
