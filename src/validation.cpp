@@ -10,7 +10,6 @@
 
 #include <arith_uint256.h>
 #include <chain.h>
-#include <chainparams.h>
 #include <checkqueue.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
@@ -22,6 +21,7 @@
 #include <flatfile.h>
 #include <fs.h>
 #include <hash.h>
+#include <kernel/chainparams.h>
 #include <kernel/mempool_entry.h>
 #include <logging.h>
 #include <logging/timer.h>
