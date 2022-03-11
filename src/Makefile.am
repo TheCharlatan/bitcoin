@@ -899,7 +899,6 @@ libbitcoinkernel_la_SOURCES = \
   txdb.cpp \
   txmempool.cpp \
   uint256.cpp \
-  util/args.cpp \
   util/bytevectorhash.cpp \
   util/getuniquepath.cpp \
   util/hasher.cpp \

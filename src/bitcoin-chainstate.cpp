@@ -20,7 +20,6 @@
 #include <node/chainstate.h>
 #include <scheduler.h>
 #include <script/sigcache.h>
-#include <util/args.h>
 #include <util/thread.h>
 #include <validation.h>
 #include <validationinterface.h>
@@ -45,7 +44,9 @@ int main(int argc, char* argv[])
     }
     std::filesystem::path abs_datadir = std::filesystem::absolute(argv[1]);
     std::filesystem::create_directories(abs_datadir);
-    gArgs.ForceSetArg("-datadir", abs_datadir.string());
+
+    std::filesystem::path abs_blocksdir = abs_datadir / "blocks";
+    std::filesystem::create_directories(abs_blocksdir);
 
 
     // SETUP: Misc Globals
@@ -75,10 +76,10 @@ int main(int argc, char* argv[])
     // SETUP: Chainstate
     ChainstateManager::Options opts{
         .chainparams = chainparams,
-        .datadir_net = gArgs.GetDataDirNet(),
+        .datadir_net = abs_datadir,
         .adjusted_time_callback = static_cast<int64_t (*)()>(GetTime),
         .stop_at_height = 0,
-        .blocks_dir = gArgs.GetBlocksDirPath(),
+        .blocks_dir = abs_blocksdir,
         .fast_prune = false,
     };
     ChainstateManager chainman{opts};
@@ -93,7 +94,7 @@ int main(int argc, char* argv[])
                                    false,
                                    chainparams.GetConsensus(),
                                    false,
-                                   gArgs.GetDataDirNet(),
+                                   abs_datadir,
                                    2 << 20,
                                    2 << 22,
                                    (450 << 20) - (2 << 20) - (2 << 22),
@@ -128,7 +129,7 @@ int main(int argc, char* argv[])
     // Main program logic starts here
     std::cout
         << "Hello! I'm going to print out some information about your datadir." << std::endl
-        << "\t" << "Path: " << gArgs.GetDataDirNet() << std::endl
+        << "\t" << "Path: " << abs_datadir << std::endl
         << "\t" << "Reindexing: " << std::boolalpha << node::fReindex.load() << std::noboolalpha << std::endl
         << "\t" << "Snapshot Active: " << std::boolalpha << chainman.IsSnapshotActive() << std::noboolalpha << std::endl
         << "\t" << "Active Height: " << chainman.ActiveHeight() << std::endl
