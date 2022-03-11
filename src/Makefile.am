@@ -631,6 +631,7 @@ libbitcoin_common_a_SOURCES = \
   deploymentinfo.cpp \
   external_signer.cpp \
   init/common.cpp \
+  kernel/chainparams.cpp \
   key.cpp \
   key_io.cpp \
   merkleblock.cpp \
@@ -895,6 +896,7 @@ libbitcoinkernel_la_SOURCES = \
   hash.cpp \
   kernel/chain.cpp \
   kernel/checks.cpp \
+  kernel/chainparams.cpp \
   kernel/chainparamsbase.cpp \
   kernel/coinstats.cpp \
   kernel/context.cpp \
