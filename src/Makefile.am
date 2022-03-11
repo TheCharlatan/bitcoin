@@ -843,7 +843,6 @@ libbitcoinkernel_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -fvisibility=default
 
 libbitcoinkernel_la_SOURCES = \
   arith_uint256.cpp \
-  blockfilter.cpp \
   chain.cpp \
   chainparamsbase.cpp \
   chainparams.cpp \
@@ -861,8 +860,6 @@ libbitcoinkernel_la_SOURCES = \
   flatfile.cpp \
   fs.cpp \
   hash.cpp \
-  index/base.cpp \
-  index/blockfilterindex.cpp \
   init/common.cpp \
   kernel/coinstats.cpp \
   key.cpp \
