@@ -5,6 +5,7 @@
 
 #include <chainparamsbase.h>
 
+#include <kernel/chainparamsbase.h>
 #include <tinyformat.h>
 #include <util/system.h>
 

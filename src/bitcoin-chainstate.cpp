@@ -11,6 +11,7 @@
 //
 // It is part of the libbitcoinkernel project.
 
+#include <kernel/chainparamsbase.h>
 #include <kernel/checks.h>
 #include <kernel/context.h>
 #include <kernel/validation_cache_sizes.h>
