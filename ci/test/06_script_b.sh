@@ -148,9 +148,12 @@ if [ "$RUN_FUNCTIONAL_TESTS" = "true" ]; then
 fi
 
 if [ "${RUN_TIDY}" = "true" ]; then
+  cmake -B "${DIR_CORE_TIDY}"/build -DLLVM_DIR=/usr/lib/llvm-16/cmake -DCMAKE_BUILD_TYPE=Release -S "${BASE_ROOT_DIR}"/contrib/devtools/bitcoin-tidy
+  cmake --build "${DIR_CORE_TIDY}"/build "$MAKEJOBS"
+
   set -eo pipefail
   cd "${BASE_BUILD_DIR}/bitcoin-$HOST/src/"
-  ( run-clang-tidy-16 -quiet "${MAKEJOBS}" ) | grep -C5 "error"
+  ( run-clang-tidy-16 -quiet -load="${DIR_CORE_TIDY}/build/libbitcoin-tidy.so" "${MAKEJOBS}" ) | grep -C5 "error"
   # Filter out files by regex here, because regex may not be
   # accepted in src/.bear-tidy-config
   # Filter out:
