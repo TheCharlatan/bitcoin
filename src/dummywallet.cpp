@@ -5,12 +5,8 @@
 #include <util/args.h>
 #include <walletinitinterface.h>
 
-class ArgsManager;
-
 namespace interfaces {
 class Chain;
-class Handler;
-class Wallet;
 class WalletLoader;
 }
 
