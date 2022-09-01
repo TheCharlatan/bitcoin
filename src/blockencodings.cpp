@@ -5,7 +5,7 @@
 #include <blockencodings.h>
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
-#include <chainparams.h>
+#include <kernel/chainparams.h>
 #include <crypto/sha256.h>
 #include <crypto/siphash.h>
 #include <random.h>
@@ -197,7 +197,7 @@ ReadStatus PartiallyDownloadedBlock::FillBlock(CBlock& block, const std::vector<
         return READ_STATUS_INVALID;
 
     BlockValidationState state;
-    if (!CheckBlock(block, state, Params().GetConsensus())) {
+    if (!CheckBlock(block, state, Consensus::Params())) {
         // TODO: We really want to just check merkle tree manually here,
         // but that is expensive, and CheckBlock caches a block's
         // "checked-status" (in the CBlock?). CBlock should be able to
