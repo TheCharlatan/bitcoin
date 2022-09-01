@@ -895,6 +895,7 @@ libbitcoinkernel_la_SOURCES = \
   kernel/chain.cpp \
   kernel/checks.cpp \
   kernel/chainparams.cpp \
+  kernel/chainparams.h \
   kernel/chainparamsbase.cpp \
   kernel/coinstats.cpp \
   kernel/context.cpp \
