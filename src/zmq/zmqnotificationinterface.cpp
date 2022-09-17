@@ -9,7 +9,7 @@
 #include <zmq.h>
 
 #include <primitives/block.h>
-#include <util/system.h>
+#include <util/args.h>
 
 CZMQNotificationInterface::CZMQNotificationInterface() : pcontext(nullptr)
 {

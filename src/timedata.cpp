@@ -12,7 +12,7 @@
 #include <node/interface_ui.h>
 #include <sync.h>
 #include <tinyformat.h>
-#include <util/system.h>
+#include <util/args.h>
 #include <util/translation.h>
 #include <warnings.h>
 

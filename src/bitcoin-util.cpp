@@ -14,8 +14,9 @@
 #include <compat/compat.h>
 #include <core_io.h>
 #include <streams.h>
-#include <util/system.h>
+#include <util/args.h>
 #include <util/translation.h>
+#include <util/system.h>
 #include <version.h>
 
 #include <atomic>

@@ -11,9 +11,9 @@
 
 #include <boost/test/unit_test.hpp>
 #include <univalue.h>
+#include <util/args.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <util/system.h>
 
 #include <fstream>
 #include <map>

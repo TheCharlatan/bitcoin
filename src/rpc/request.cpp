@@ -9,8 +9,9 @@
 
 #include <random.h>
 #include <rpc/protocol.h>
-#include <util/system.h>
+#include <util/args.h>
 #include <util/strencodings.h>
+#include <util/system.h>
 
 #include <fstream>
 #include <stdexcept>

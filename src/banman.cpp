@@ -8,7 +8,7 @@
 #include <netaddress.h>
 #include <node/interface_ui.h>
 #include <sync.h>
-#include <util/system.h>
+#include <util/args.h>
 #include <util/time.h>
 #include <util/translation.h>
 

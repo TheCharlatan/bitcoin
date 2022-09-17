@@ -66,6 +66,7 @@
 #include <txdb.h>
 #include <txmempool.h>
 #include <txorphanage.h>
+#include <util/args.h>
 #include <util/asmap.h>
 #include <util/check.h>
 #include <util/moneystr.h>

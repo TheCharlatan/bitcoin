@@ -10,7 +10,7 @@
 #include <fs.h>
 #include <serialize.h>
 #include <streams.h>
-#include <util/system.h>
+#include <util/args.h>
 #include <wallet/db.h>
 
 #include <atomic>

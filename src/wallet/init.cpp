@@ -12,9 +12,9 @@
 #include <node/interface_ui.h>
 #include <outputtype.h>
 #include <univalue.h>
+#include <util/args.h>
 #include <util/check.h>
 #include <util/moneystr.h>
-#include <util/system.h>
 #include <util/translation.h>
 #ifdef USE_BDB
 #include <wallet/bdb.h>
