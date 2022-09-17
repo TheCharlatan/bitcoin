@@ -2402,7 +2402,7 @@ bool Chainstate::FlushStateToDisk(
         // Write blocks and block index to disk.
         if (fDoFullFlush || fPeriodicWrite) {
             // Ensure we can write block index
-            if (!CheckDiskSpace(gArgs.GetBlocksDirPath())) {
+            if (!CheckDiskSpace(m_chainman.m_options.blocks_dir)) {
                 return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
             }
             {

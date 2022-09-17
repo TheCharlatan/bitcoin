@@ -49,6 +49,8 @@ int main(int argc, char* argv[])
     std::filesystem::create_directories(abs_datadir);
     gArgs.ForceSetArg("-datadir", abs_datadir.string());
 
+    std::filesystem::path abs_blocksdir = abs_datadir / "blocks";
+    std::filesystem::create_directories(abs_blocksdir);
 
     // SETUP: Misc Globals
     SelectParams(CBaseChainParams::MAIN);
@@ -83,6 +85,7 @@ int main(int argc, char* argv[])
     const ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
         .datadir_net = abs_datadir,
+        .blocks_dir = abs_blocksdir,
         .adjusted_time_callback = NodeClock::now,
     };
     ChainstateManager chainman{chainman_opts};

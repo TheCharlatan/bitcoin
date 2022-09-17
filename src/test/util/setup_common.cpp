@@ -194,6 +194,7 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     const ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
         .datadir_net = m_args.GetDataDirNet(),
+        .blocks_dir = m_args.GetBlocksDirPath(),
         .adjusted_time_callback = GetAdjustedTime,
     };
     m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts);
