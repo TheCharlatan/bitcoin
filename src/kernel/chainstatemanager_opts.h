@@ -21,6 +21,7 @@ namespace kernel {
  */
 struct ChainstateManagerOpts {
     const CChainParams& chainparams;
+    const fs::path datadir_net;
     const std::function<NodeClock::time_point()> adjusted_time_callback{nullptr};
 };
 

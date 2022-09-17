@@ -1420,6 +1420,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
         const ChainstateManager::Options chainman_opts{
             .chainparams = chainparams,
+            .datadir_net = args.GetDataDirNet(),
             .adjusted_time_callback = GetAdjustedTime,
         };
         node.chainman = std::make_unique<ChainstateManager>(chainman_opts);
