@@ -69,6 +69,7 @@ $(1)_prefixbin:=$($($(1)_type)_prefix)/bin/
 $(1)_cached:=$(BASE_CACHE)/$(host)/$(1)/$(1)-$($(1)_version)-$($(1)_build_id).tar.gz
 $(1)_build_log:=$(BASEDIR)/$(1)-$($(1)_version)-$($(1)_build_id).log
 $(1)_all_sources=$($(1)_file_name) $($(1)_extra_sources)
+$(1)_install:=$(BASE_CACHE)/$(host)/$(1)/$(1)-$($(1)_version)-$($(1)_build_id).tar.gz.hash
 
 #stamps
 $(1)_fetched=$(SOURCES_PATH)/download-stamps/.stamp_fetched-$(1)-$($(1)_file_name).hash
@@ -242,14 +243,21 @@ $($(1)_cached): | $($(1)_dependencies) $($(1)_postprocessed)
 	if test -f $($(1)_build_log); then mv $($(1)_build_log) $$(@D); fi
 $($(1)_cached_checksum): $($(1)_cached)
 	cd $$(@D); $(build_SHA256SUM) $$(<F) > $$(@)
+$($(1)_install): | $($(1)_cached)
+	echo installing $(1) in directory $(host)
+	rm -rf $(host)
+	mkdir -p $(host)
+	echo copying packages: $(1)
+	echo to: $(host)
+	cd $(host); $(foreach package,$(1), $(build_TAR) xf $($(package)_cached); )
 
 .PHONY: $(1)
 $(1): | $($(1)_cached_checksum)
-.SECONDARY: $($(1)_cached) $($(1)_postprocessed) $($(1)_staged) $($(1)_built) $($(1)_configured) $($(1)_preprocessed) $($(1)_extracted) $($(1)_fetched)
+.SECONDARY: $($(1)_cached) $($(1)_postprocessed) $($(1)_staged) $($(1)_built) $($(1)_configured) $($(1)_preprocessed) $($(1)_extracted) $($(1)_fetched) $($(1)_install)
 
 endef
 
-stages = fetched extracted preprocessed configured built staged postprocessed cached cached_checksum
+stages = fetched extracted preprocessed configured built staged postprocessed cached cached_checksum install
 
 define ext_add_stages
 $(foreach stage,$(stages),
