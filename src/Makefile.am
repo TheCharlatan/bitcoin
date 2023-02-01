@@ -124,6 +124,7 @@ BITCOIN_CORE_H = \
   banman.h \
   base58.h \
   bech32.h \
+  bitcoin-chainstate-wrapper.h \
   blockencodings.h \
   blockfilter.h \
   chain.h \
@@ -917,6 +918,7 @@ libbitcoinkernel_la_SOURCES = \
   kernel/context.cpp \
   kernel/cs_main.cpp \
   kernel/mempool_persist.cpp \
+  bitcoin-chainstate-wrapper.cpp \
   key.cpp \
   logging.cpp \
   node/blockstorage.cpp \
