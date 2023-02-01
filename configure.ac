@@ -1668,6 +1668,10 @@ fi
 
 AM_CONDITIONAL([BUILD_BITCOIN_KERNEL_LIB], [test "$build_experimental_kernel_lib" != "no" && ( test "$build_experimental_kernel_lib" = "yes" || test "$build_bitcoin_chainstate" = "yes" )])
 
+if test "$build_bitcoin_kernel_lib" = "yes"; then
+  AC_CONFIG_FILES([libbitcoinkernel.pc:libbitcoinkernel.pc.in])
+fi
+
 AC_MSG_RESULT($build_bitcoin_libs)
 
 AC_LANG_POP

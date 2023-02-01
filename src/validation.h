@@ -944,6 +944,8 @@ public:
      */
     void CheckBlockIndex();
 
+    bool healthy() const { return true; }
+
     /**
      * Alias for ::cs_main.
      * Should be used in new code to make it easier to make ::cs_main a member
