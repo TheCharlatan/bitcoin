@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <functional>
 #include <iosfwd>
+#include <iostream>
 
 #include <bitcoin-chainstate-wrapper.h>
 
