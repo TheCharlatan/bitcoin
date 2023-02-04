@@ -24,7 +24,7 @@
 #include <bitcoin-chainstate-wrapper.h>
 
 extern "C" {
-    CScheduler* c_scheduler_new() {
+    void* c_scheduler_new() {
         // SETUP: Scheduling and Background Signals
         CScheduler* scheduler = new CScheduler();
         // Start the lightweight task scheduler thread
@@ -37,7 +37,7 @@ extern "C" {
         return scheduler;
     }
 
-    ChainstateManager* c_chainstate_manager_create(const char* data_dir) {
+    void* c_chainstate_manager_create(const char* data_dir) {
         // SETUP: Argument parsing and handling
         std::filesystem::path abs_datadir = std::filesystem::absolute(data_dir);
         std::filesystem::create_directories(abs_datadir);
@@ -112,11 +112,16 @@ extern "C" {
         return chainman;
     }
 
-    void c_chainstate_manager_validate_block(ChainstateManager* chainman, const char* raw_c_block) {
+    int c_chainstate_manager_validate_block(void* chainman_, const char* raw_c_block) {
+        if (!chainman_) {
+            std::cerr << "Received invalid chainman pointer";
+            return -1;
+        }
+        ChainstateManager* chainman = static_cast<ChainstateManager*>(chainman_);
         std::string raw_block(raw_c_block);
         if (raw_block.empty()) {
             std::cerr << "Empty line found" << std::endl;
-            return;
+            return 1;
         }
 
         std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>();
@@ -124,12 +129,12 @@ extern "C" {
 
         if (!DecodeHexBlk(block, raw_block)) {
             std::cerr << "Block decode failed" << std::endl;
-            return;
+            return 1;
         }
 
         if (block.vtx.empty() || !block.vtx[0]->IsCoinBase()) {
             std::cerr << "Block does not start with a coinbase" << std::endl;
-            return;
+            return 1;
         }
 
         uint256 hash = block.GetHash();
@@ -139,11 +144,11 @@ extern "C" {
             if (pindex) {
                 if (pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
                     std::cerr << "duplicate" << std::endl;
-                    return;
+                    return 1;
                 }
                 if (pindex->nStatus & BLOCK_FAILED_MASK) {
                     std::cerr << "duplicate-invalid" << std::endl;
-                    return;
+                    return 1;
                 }
             }
         }
@@ -183,51 +188,57 @@ extern "C" {
         UnregisterSharedValidationInterface(sc);
         if (!new_block && accepted) {
             std::cerr << "duplicate" << std::endl;
-            return;
+            return 1;
         }
         if (!sc->found) {
             std::cerr << "inconclusive" << std::endl;
-            return;
+            return 1;
         }
         std::cout << sc->state.ToString() << std::endl;
         switch (sc->state.GetResult()) {
         case BlockValidationResult::BLOCK_RESULT_UNSET:
             std::cerr << "initial value. Block has not yet been rejected" << std::endl;
-            return;
+            return 1;
         case BlockValidationResult::BLOCK_HEADER_LOW_WORK:
             std::cerr << "the block header may be on a too-little-work chain" << std::endl;
-            return;
+            return 1;
         case BlockValidationResult::BLOCK_CONSENSUS:
             std::cerr << "invalid by consensus rules (excluding any below reasons)" << std::endl;
-            return;
+            return 1;
         case BlockValidationResult::BLOCK_RECENT_CONSENSUS_CHANGE:
             std::cerr << "Invalid by a change to consensus rules more recent than SegWit." << std::endl;
-            return;
+            return 1;
         case BlockValidationResult::BLOCK_CACHED_INVALID:
             std::cerr << "this block was cached as being invalid and we didn't store the reason why" << std::endl;
-            return;
+            return 1;
         case BlockValidationResult::BLOCK_INVALID_HEADER:
             std::cerr << "invalid proof of work or time too old" << std::endl;
-            return;
+            return 1;
         case BlockValidationResult::BLOCK_MUTATED:
             std::cerr << "the block's data didn't match the data committed to by the PoW" << std::endl;
-            return;
+            return 1;
         case BlockValidationResult::BLOCK_MISSING_PREV:
             std::cerr << "We don't have the previous block the checked one is built on" << std::endl;
-            return;
+            return 1;
         case BlockValidationResult::BLOCK_INVALID_PREV:
             std::cerr << "A block this one builds on is invalid" << std::endl;
-            return;
+            return 1;
         case BlockValidationResult::BLOCK_TIME_FUTURE:
             std::cerr << "block timestamp was > 2 hours in the future (or our clock is bad)" << std::endl;
-            return;
+            return 1;
         case BlockValidationResult::BLOCK_CHECKPOINT:
             std::cerr << "the block failed to meet one of our checkpoints" << std::endl;
-            return;
+            return 1;
         }
     }
 
-    void c_chainstate_manager_delete(ChainstateManager* chainman, CScheduler* scheduler) {
+    int c_chainstate_manager_delete(void* chainman_, void* scheduler_) {
+        if (!chainman_ || !scheduler_) {
+            std::cerr << "Received invalid chainman pointer";
+            return -1;
+        }
+        ChainstateManager* chainman = static_cast<ChainstateManager *>(chainman_);
+        CScheduler* scheduler = static_cast<CScheduler *>(scheduler_);
         // Without this precise shutdown sequence, there will be a lot of nullptr
         // dereferencing and UB.
         scheduler->stop();
@@ -245,5 +256,6 @@ extern "C" {
             }
         }
         GetMainSignals().UnregisterBackgroundSignalScheduler();
+        return 0;
     }
 }
