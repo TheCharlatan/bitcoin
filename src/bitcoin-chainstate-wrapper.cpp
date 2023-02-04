@@ -113,7 +113,7 @@ extern "C" {
     }
 
     int c_chainstate_manager_validate_block(void* chainman_, const char* raw_c_block) {
-        if (!chainman_) {
+        if (!chainman_ || !(static_cast<ChainstateManager *>(chainman_))->healthy() ) {
             std::cerr << "Received invalid chainman pointer";
             return -1;
         }
@@ -233,12 +233,16 @@ extern "C" {
     }
 
     int c_chainstate_manager_delete(void* chainman_, void* scheduler_) {
-        if (!chainman_ || !scheduler_) {
+        if (!chainman_ || !(static_cast<ChainstateManager *>(chainman_))->healthy() ) {
             std::cerr << "Received invalid chainman pointer";
             return -1;
         }
-        ChainstateManager* chainman = static_cast<ChainstateManager *>(chainman_);
-        CScheduler* scheduler = static_cast<CScheduler *>(scheduler_);
+        if (!scheduler_ || !(static_cast<CScheduler *>(scheduler_))->healthy() ) {
+            std::cerr << "Received invalid scheduler pointer";
+            return -1;
+        }
+        ChainstateManager* chainman = static_cast<ChainstateManager*>(chainman_);
+        CScheduler* scheduler = static_cast<CScheduler*>(scheduler_);
         // Without this precise shutdown sequence, there will be a lot of nullptr
         // dereferencing and UB.
         scheduler->stop();

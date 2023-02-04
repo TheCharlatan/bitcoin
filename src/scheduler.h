@@ -45,6 +45,8 @@ public:
 
     typedef std::function<void()> Function;
 
+    bool healthy() const { return true; }
+
     /** Call func at/after time t */
     void schedule(Function f, std::chrono::steady_clock::time_point t) EXCLUSIVE_LOCKS_REQUIRED(!newTaskMutex);
 
