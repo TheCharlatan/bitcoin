@@ -21,18 +21,27 @@
 #include <iosfwd>
 #include <iostream>
 
+#include <chrono>
+#include <thread>
+
 #include <bitcoin-chainstate-wrapper.h>
 
 void* c_scheduler_new() {
     // SETUP: Scheduling and Background Signals
     CScheduler* scheduler = new CScheduler();
+    std::cerr << "created new scheduler\n";
     // Start the lightweight task scheduler thread
     scheduler->m_service_thread = std::thread(util::TraceThread, "scheduler", [&] { scheduler->serviceQueue(); });
+    std::cerr << "created task scheduler\n";
 
     // Gather some entropy once per minute.
     scheduler->scheduleEvery(RandAddPeriodic, std::chrono::minutes{1});
+    std::cerr << "scheduler task\n";
 
     GetMainSignals().RegisterBackgroundSignalScheduler(*scheduler);
+    std::cout << "register background\n";
+    std::cout << "sleeping for 1ms\n";
+    std::this_thread::sleep_for(1ms);
     return scheduler;
 }
 

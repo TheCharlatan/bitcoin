@@ -43,7 +43,7 @@ LIBBITCOINCONSENSUS=libbitcoinconsensus.la
 endif
 if BUILD_BITCOIN_KERNEL_LIB
 LIBBITCOINKERNEL=libbitcoinkernel.la
-LIBBITCOINKERNELWRAPPER=libbitcoinkernelwrapper.la
+# LIBBITCOINKERNELWRAPPER=libbitcoinkernelwrapper.la
 endif
 if ENABLE_WALLET
 LIBBITCOIN_WALLET=libbitcoin_wallet.a
@@ -865,14 +865,15 @@ bitcoin_util_LDADD = \
 # bitcoin-chainstate C binary #
 bitcoin_chainstate_c_SOURCES = bitcoin-chainstate.c
 bitcoin_chainstate_c_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
-bitcoin_chainstate_c_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)
-bitcoin_chainstate_c_LDADD = $(LIBBITCOINKERNELWRAPPER)
+bitcoin_chainstate_c_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+bitcoin_chainstate_c_LDFLAGS = $(RELDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)
+bitcoin_chainstate_c_LDADD = $(LIBBITCOINKERNEL)
 
-libbitcoinkernelwrapper_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(PTHREAD_FLAGS)
-libbitcoinkernelwrapper_la_LIBADD = $(LIBBITCOINKERNEL)
-libbitcoinkernelwrapper_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT)
-libbitcoinkernelwrapper_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -fvisibility=default
-libbitcoinkernelwrapper_la_SOURCES = bitcoin-chainstate-wrapper.cpp
+# libbitcoinkernelwrapper_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(PTHREAD_FLAGS)
+# libbitcoinkernelwrapper_la_LIBADD = $(LIBBITCOINKERNEL)
+# libbitcoinkernelwrapper_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT)
+# libbitcoinkernelwrapper_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -fvisibility=default
+# libbitcoinkernelwrapper_la_SOURCES = bitcoin-chainstate-wrapper.cpp
 
 # bitcoin-chainstate binary #
 bitcoin_chainstate_SOURCES = bitcoin-chainstate.cpp
@@ -890,7 +891,7 @@ bitcoin_chainstate_LDADD += $(LIBSECP256K1)
 # bitcoinkernel library #
 if BUILD_BITCOIN_KERNEL_LIB
 lib_LTLIBRARIES += $(LIBBITCOINKERNEL)
-lib_LTLIBRARIES += $(LIBBITCOINKERNELWRAPPER)
+# lib_LTLIBRARIES += $(LIBBITCOINKERNELWRAPPER)
 
 libbitcoinkernel_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(PTHREAD_FLAGS)
 libbitcoinkernel_la_LIBADD = $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(LIBSECP256K1)
