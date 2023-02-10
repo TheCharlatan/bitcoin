@@ -6,9 +6,17 @@ int main(int argc, char* argv[]) {
     // TODO: Using the scheduler here results in an uncaught exception
     printf("Creating bitcoin scheduler\n");
     void* scheduler = c_scheduler_new();
+    if (scheduler == NULL) {
+        printf("Failed to create scheduler\n");
+        return -1;
+    }
     printf("Bitcoin scheduler launched\n");
-    printf("creating chainstate manager");
-    void* chainman = c_chainstate_manager_create("/home/drgrid/.bitcoin");
+    printf("creating chainstate manager\n");
+    void* chainman = c_chainstate_manager_create("/home/drgrid/.bitcoin", scheduler);
+    if (chainman == NULL) {
+        printf("Failed to create chainstate manager\n");
+        return -1;
+    }
     printf("Bitcoin chainstate manager created\n");
     c_chainstate_manager_validate_block(chainman, "deadbeef");
     printf("Validating invalid Bitcoin block\n");
@@ -17,4 +25,6 @@ int main(int argc, char* argv[]) {
 
     c_chainstate_manager_delete(chainman, scheduler);
     printf("Freeing chainstate resources\n");
+
+    return 0;
 }

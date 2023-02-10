@@ -45,11 +45,12 @@ void* c_scheduler_new() {
     return scheduler;
 }
 
-void* c_chainstate_manager_create(const char* data_dir) {
+void* c_chainstate_manager_create(const char* data_dir, void* scheduler_) {
     // SETUP: Argument parsing and handling
     std::filesystem::path abs_datadir = std::filesystem::absolute(data_dir);
     std::filesystem::create_directories(abs_datadir);
     gArgs.ForceSetArg("-datadir", abs_datadir.string());
+
 
     // SETUP: Misc Globals
     SelectParams(CBaseChainParams::MAIN);
@@ -71,9 +72,10 @@ void* c_chainstate_manager_create(const char* data_dir) {
     // SETUP: Chainstate
     const ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
+        .datadir = gArgs.GetDataDirNet(),
         .adjusted_time_callback = NodeClock::now,
     };
-    ChainstateManager* chainman = new ChainstateManager(chainman_opts);
+    ChainstateManager* chainman = new ChainstateManager(chainman_opts, {});
 
     node::CacheSizes cache_sizes;
     cache_sizes.block_tree_db = 2 << 20;
@@ -84,12 +86,14 @@ void* c_chainstate_manager_create(const char* data_dir) {
     auto [status, error] = node::LoadChainstate(*chainman, cache_sizes, options);
     if (status != node::ChainstateLoadStatus::SUCCESS) {
         std::cerr << "Failed to load Chain state from your datadir." << std::endl;
-        // goto epilogue;
+        c_chainstate_manager_delete(chainman, scheduler_);
+        return nullptr;
     } else {
         std::tie(status, error) = node::VerifyLoadedChainstate(*chainman, options);
         if (status != node::ChainstateLoadStatus::SUCCESS) {
             std::cerr << "Failed to verify loaded Chain state from your datadir." << std::endl;
-            // goto epilogue;
+            c_chainstate_manager_delete(chainman, scheduler_);
+            return nullptr;
         }
     }
 
@@ -97,7 +101,8 @@ void* c_chainstate_manager_create(const char* data_dir) {
         BlockValidationState state;
         if (!chainstate->ActivateBestChain(state, nullptr)) {
             std::cerr << "Failed to connect best block (" << state.ToString() << ")" << std::endl;
-            // goto epilogue;
+            c_chainstate_manager_delete(chainman, scheduler_);
+            return nullptr;
         }
     }
 

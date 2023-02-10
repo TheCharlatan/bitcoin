@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 void* c_scheduler_new();
-void* c_chainstate_manager_create(const char* data_dir);
+void* c_chainstate_manager_create(const char* data_dir, void* scheduler_);
 int c_chainstate_manager_validate_block(void* chainman_, const char* raw_block);
 int c_chainstate_manager_delete(void* chainman_, void* scheduler_);
 
