@@ -138,7 +138,12 @@ private:
      */
     std::unordered_map<std::string, PruneLockInfo> m_prune_locks GUARDED_BY(::cs_main);
 
+    const fs::path& m_blocks_dir;
+
 public:
+    BlockManager(const fs::path& blocks_dir)
+        : m_blocks_dir(blocks_dir){};
+
     BlockMap m_block_index GUARDED_BY(cs_main);
 
     std::vector<CBlockIndex*> GetAllBlockIndices() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
@@ -201,26 +206,28 @@ public:
 
     //! Create or update a prune lock identified by its name
     void UpdatePruneLock(const std::string& name, const PruneLockInfo& lock_info) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    void CleanupBlockRevFiles();
+
+    /**
+     *  Actually unlink the specified files
+     */
+    void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune);
+
+    fs::path BlocksDirPath();
 };
 
-void CleanupBlockRevFiles();
-
 /** Open a block file (blk?????.dat) */
-FILE* OpenBlockFile(const FlatFilePos& pos, bool fReadOnly = false);
+FILE* OpenBlockFile(const fs::path& blocks_dir, const FlatFilePos& pos, bool fReadOnly = false);
 /** Translation to a filesystem path */
-fs::path GetBlockPosFilename(const FlatFilePos& pos);
-
-/**
- *  Actually unlink the specified files
- */
-void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune);
+fs::path GetBlockPosFilename(const fs::path& blocks_dir, const FlatFilePos& pos);
 
 /** Functions for disk access for blocks */
-bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
-bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
-bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start);
+bool ReadBlockFromDisk(const fs::path& blocks_dir, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
+bool ReadBlockFromDisk(const fs::path& blocks_dir, CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
+bool ReadRawBlockFromDisk(const fs::path& blocks_dir, std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start);
 
-bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex);
+bool UndoReadFromDisk(const fs::path& blocks_dir, CBlockUndo& blockundo, const CBlockIndex* pindex);
 
 void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const ArgsManager& args, const fs::path& mempool_path);
 } // namespace node

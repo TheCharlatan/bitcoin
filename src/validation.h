@@ -725,6 +725,8 @@ public:
 
     std::string ToString() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
+    fs::path BlocksDirPath() {return m_blockman.BlocksDirPath();}
+
 private:
     bool ActivateBestChainStep(BlockValidationState& state, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
     bool ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
@@ -1059,6 +1061,10 @@ public:
     //! previously.
     Chainstate& ActivateExistingSnapshot(CTxMemPool* mempool, uint256 base_blockhash)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    fs::path BlocksDirPath() {
+        return m_blockman.BlocksDirPath();
+    }
 
     ~ChainstateManager();
 };
