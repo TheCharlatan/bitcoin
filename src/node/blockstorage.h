@@ -216,20 +216,19 @@ public:
      */
     void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune);
 
+    /** Translation to a filesystem path */
+    fs::path GetBlockPosFilename(const FlatFilePos& pos);
+
     /** Functions for disk access for blocks */
     bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex);
     bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
     bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
     bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start);
-
-    const fs::path& BlocksDirPath();
-    bool FastPrune();
+    FILE* OpenBlockFile(const FlatFilePos& pos, bool fReadOnly);
 };
 
 /** Open a block file (blk?????.dat) */
 FILE* OpenBlockFile(const fs::path& blocks_dir, const bool fast_prune, const FlatFilePos& pos, bool fReadOnly = false);
-/** Translation to a filesystem path */
-fs::path GetBlockPosFilename(const fs::path& blocks_dir, const FlatFilePos& pos);
 
 /** Functions for disk access for blocks */
 bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);

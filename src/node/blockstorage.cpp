@@ -352,7 +352,7 @@ bool BlockManager::LoadBlockIndexDB(const Consensus::Params& consensus_params)
     }
     for (std::set<int>::iterator it = setBlkDataFiles.begin(); it != setBlkDataFiles.end(); it++) {
         FlatFilePos pos(*it, 0);
-        if (AutoFile{OpenBlockFile(m_blocks_dir, m_fast_prune, pos, true)}.IsNull()) {
+        if (AutoFile{OpenBlockFile(pos, true)}.IsNull()) {
             return false;
         }
     }
@@ -573,6 +573,11 @@ static FlatFileSeq UndoFileSeq(const fs::path& blocks_dir)
     return FlatFileSeq(blocks_dir, "rev", UNDOFILE_CHUNK_SIZE);
 }
 
+FILE* BlockManager::OpenBlockFile(const FlatFilePos& pos, bool fReadOnly)
+{
+    return ::node::OpenBlockFile(m_blocks_dir, m_fast_prune, pos, fReadOnly);
+}
+
 FILE* OpenBlockFile(const fs::path& blocks_dir, const bool fast_prune, const FlatFilePos& pos, bool fReadOnly)
 {
     return BlockFileSeq(blocks_dir, fast_prune).Open(pos, fReadOnly);
@@ -584,9 +589,9 @@ static FILE* OpenUndoFile(const fs::path& blocks_dir, const FlatFilePos& pos, bo
     return UndoFileSeq(blocks_dir).Open(pos, fReadOnly);
 }
 
-fs::path GetBlockPosFilename(const fs::path& blocks_dir, const bool fast_prune, const FlatFilePos& pos)
+fs::path BlockManager::GetBlockPosFilename(const FlatFilePos& pos)
 {
-    return BlockFileSeq(blocks_dir, fast_prune).FileName(pos);
+    return BlockFileSeq(m_blocks_dir, m_fast_prune).FileName(pos);
 }
 
 bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigned int nHeight, CChain& active_chain, uint64_t nTime, bool fKnown)
@@ -664,14 +669,6 @@ bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFileP
     }
 
     return true;
-}
-
-const fs::path& BlockManager::BlocksDirPath() {
-    return m_blocks_dir;
-}
-
-bool BlockManager::FastPrune() {
-    return m_fast_prune;
 }
 
 static bool WriteBlockToDisk(const fs::path& blocks_dir, const bool fast_prune, const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
@@ -785,7 +782,7 @@ bool BlockManager::ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatF
 {
     FlatFilePos hpos = pos;
     hpos.nPos -= 8; // Seek back 8 bytes for meta header
-    AutoFile filein{OpenBlockFile(m_blocks_dir, m_fast_prune, hpos, true)};
+    AutoFile filein{OpenBlockFile(hpos, true)};
     if (filein.IsNull()) {
         return error("%s: OpenBlockFile failed for %s", __func__, pos.ToString());
     }
@@ -872,10 +869,10 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
             std::multimap<uint256, FlatFilePos> blocks_with_unknown_parent;
             while (true) {
                 FlatFilePos pos(nFile, 0);
-                if (!fs::exists(GetBlockPosFilename(chainman.BlocksDirPath(), chainman.FastPrune(), pos))) {
+                if (!fs::exists(chainman.m_blockman.GetBlockPosFilename(pos))) {
                     break; // No block files left to reindex
                 }
-                FILE* file = OpenBlockFile(chainman.BlocksDirPath(), chainman.FastPrune(), pos, true);
+                FILE* file = chainman.m_blockman.OpenBlockFile(pos, true);
                 if (!file) {
                     break; // This error is logged in OpenBlockFile
                 }
