@@ -20,6 +20,7 @@
 #include <kernel/mempool_entry.h>
 #include <net.h>
 #include <net_processing.h>
+#include <node/blockmanager_args.h>
 #include <node/blockstorage.h>
 #include <node/chainstate.h>
 #include <node/context.h>
@@ -60,6 +61,7 @@
 using kernel::ValidationCacheSizes;
 using node::ApplyArgsManOptions;
 using node::BlockAssembler;
+using node::BlockManager;
 using node::CalculateCacheSizes;
 using node::LoadChainstate;
 using node::RegenerateCommitments;
@@ -182,9 +184,13 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
         .chainparams = chainparams,
         .adjusted_time_callback = GetAdjustedTime,
         .check_block_index = true,
+    };
+    BlockManager::Options blockman_opts{
         .blocks_dir = m_args.GetBlocksDirPath(),
     };
-    m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts);
+    node::ApplyArgsManOptions(m_args, blockman_opts);
+
+    m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(m_cache_sizes.block_tree_db, true);
 
     constexpr int script_check_threads = 2;

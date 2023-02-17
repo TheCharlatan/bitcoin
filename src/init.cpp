@@ -37,6 +37,7 @@
 #include <net_processing.h>
 #include <netbase.h>
 #include <netgroup.h>
+#include <node/blockmanager_args.h>
 #include <node/blockstorage.h>
 #include <node/caches.h>
 #include <node/chainstate.h>
@@ -109,13 +110,13 @@
 
 using kernel::DumpMempool;
 using kernel::ValidationCacheSizes;
+using kernel::DEFAULT_STOPAFTERBLOCKIMPORT;
 
 using node::ApplyArgsManOptions;
 using node::CacheSizes;
 using node::CalculateCacheSizes;
 using node::DEFAULT_PERSIST_MEMPOOL;
 using node::DEFAULT_PRINTPRIORITY;
-using node::DEFAULT_STOPAFTERBLOCKIMPORT;
 using node::LoadChainstate;
 using node::MempoolPath;
 using node::ShouldPersistMempool;
@@ -1046,7 +1047,6 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
     {
         ChainstateManager::Options chainman_opts_dummy{
             .chainparams = chainparams,
-            .blocks_dir = gArgs.GetBlocksDirPath(),
         };
         if (const auto error{ApplyArgsManOptions(args, chainman_opts_dummy)}) {
             return InitError(*error);
@@ -1446,9 +1446,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
         .adjusted_time_callback = GetAdjustedTime,
-        .blocks_dir = gArgs.GetBlocksDirPath(),
     };
     Assert(!ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
+    node::BlockManager::Options blockman_opts {
+        .blocks_dir = gArgs.GetBlocksDirPath(),
+    };
+    ApplyArgsManOptions(args, blockman_opts);
 
     // cache size calculations
     CacheSizes cache_sizes = CalculateCacheSizes(args, g_enabled_filter_types.size());
@@ -1485,7 +1488,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     for (bool fLoaded = false; !fLoaded && !ShutdownRequested();) {
         node.mempool = std::make_unique<CTxMemPool>(mempool_opts);
 
-        node.chainman = std::make_unique<ChainstateManager>(chainman_opts);
+        node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
         ChainstateManager& chainman = *node.chainman;
 
         node::ChainstateLoadOptions options;

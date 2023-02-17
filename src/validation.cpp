@@ -5309,7 +5309,7 @@ static ChainstateManager::Options&& Flatten(ChainstateManager::Options&& opts)
     return std::move(opts);
 }
 
-ChainstateManager::ChainstateManager(Options options) : m_options{Flatten(std::move(options))}, m_blockman{options.blocks_dir, options.fast_prune} {}
+ChainstateManager::ChainstateManager(Options options, BlockManager::Options blockman_options) : m_options{Flatten(std::move(options))}, m_blockman{blockman_options} {}
 
 ChainstateManager::~ChainstateManager()
 {

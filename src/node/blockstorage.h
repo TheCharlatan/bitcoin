@@ -9,6 +9,7 @@
 #include <chain.h>
 #include <fs.h>
 #include <kernel/cs_main.h>
+#include <kernel/blockmanager_opts.h>
 #include <protocol.h>
 #include <sync.h>
 #include <txdb.h>
@@ -34,7 +35,6 @@ struct Params;
 }
 
 namespace node {
-static constexpr bool DEFAULT_STOPAFTERBLOCKIMPORT{false};
 
 /** The pre-allocation chunk size for blk?????.dat files (since 0.8) */
 static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
@@ -138,13 +138,13 @@ private:
      */
     std::unordered_map<std::string, PruneLockInfo> m_prune_locks GUARDED_BY(::cs_main);
 
-    const fs::path& m_blocks_dir;
-    const bool m_fast_prune;
-
 public:
-    BlockManager(const fs::path& blocks_dir, const bool fast_prune)
-        : m_blocks_dir(blocks_dir),
-        m_fast_prune(fast_prune){};
+    using Options = kernel::BlockManagerOpts;
+
+    BlockManager(const Options options)
+        : m_options(options){};
+
+    const Options m_options;
 
     BlockMap m_block_index GUARDED_BY(cs_main);
 

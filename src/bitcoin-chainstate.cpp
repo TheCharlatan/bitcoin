@@ -83,9 +83,11 @@ int main(int argc, char* argv[])
     const ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
         .adjusted_time_callback = NodeClock::now,
+    };
+    const node::BlockManager::Options blockman_opts{
         .blocks_dir = abs_datadir / "blocks",
     };
-    ChainstateManager chainman{chainman_opts};
+    ChainstateManager chainman{chainman_opts, blockman_opts};
 
     node::CacheSizes cache_sizes;
     cache_sizes.block_tree_db = 2 << 20;
