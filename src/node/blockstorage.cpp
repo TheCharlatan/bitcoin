@@ -727,6 +727,16 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
     return true;
 }
 
+bool BlockManager::ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams)
+{
+    return ::node::ReadBlockFromDisk(m_blocks_dir, m_fast_prune, block, pindex, consensusParams);
+}
+
+bool BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)
+{
+    return ::node::ReadBlockFromDisk(m_blocks_dir, m_fast_prune, block, pos, consensusParams);
+}
+
 bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)
 {
     block.SetNull();
@@ -771,11 +781,11 @@ bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock
     return true;
 }
 
-bool ReadRawBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start)
+bool BlockManager::ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start)
 {
     FlatFilePos hpos = pos;
     hpos.nPos -= 8; // Seek back 8 bytes for meta header
-    AutoFile filein{OpenBlockFile(blocks_dir, fast_prune, hpos, true)};
+    AutoFile filein{OpenBlockFile(m_blocks_dir, m_fast_prune, hpos, true)};
     if (filein.IsNull()) {
         return error("%s: OpenBlockFile failed for %s", __func__, pos.ToString());
     }

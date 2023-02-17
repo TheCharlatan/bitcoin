@@ -218,6 +218,9 @@ public:
 
     /** Functions for disk access for blocks */
     bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex);
+    bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
+    bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
+    bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start);
 
     const fs::path& BlocksDirPath();
     bool FastPrune();
@@ -231,7 +234,6 @@ fs::path GetBlockPosFilename(const fs::path& blocks_dir, const FlatFilePos& pos)
 /** Functions for disk access for blocks */
 bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
 bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
-bool ReadRawBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start);
 
 void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const ArgsManager& args, const fs::path& mempool_path);
 } // namespace node

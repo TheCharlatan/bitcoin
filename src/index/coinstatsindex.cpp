@@ -18,8 +18,6 @@ using kernel::CCoinsStats;
 using kernel::GetBogoSize;
 using kernel::TxOutSer;
 
-using node::ReadBlockFromDisk;
-
 static constexpr uint8_t DB_BLOCK_HASH{'s'};
 static constexpr uint8_t DB_BLOCK_HEIGHT{'t'};
 static constexpr uint8_t DB_MUHASH{'M'};
@@ -285,7 +283,7 @@ bool CoinStatsIndex::CustomRewind(const interfaces::BlockKey& current_tip, const
         do {
             CBlock block;
 
-            if (!ReadBlockFromDisk(m_chainstate->BlocksDirPath(), m_chainstate->FastPrune(), block, iter_tip, consensus_params)) {
+            if (!m_chainstate->m_blockman.ReadBlockFromDisk(block, iter_tip, consensus_params)) {
                 return error("%s: Failed to read block %s from disk",
                              __func__, iter_tip->GetBlockHash().ToString());
             }

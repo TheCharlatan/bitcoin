@@ -7,14 +7,12 @@
 #include <chainparams.h>
 #include <validation.h>
 
-using node::ReadBlockFromDisk;
-
 bool ComputeFilter(node::BlockManager& blockman, BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter)
 {
     LOCK(::cs_main);
 
     CBlock block;
-    if (!ReadBlockFromDisk(blockman.BlocksDirPath(), blockman.FastPrune(), block, block_index->GetBlockPos(), Params().GetConsensus())) {
+    if (!blockman.ReadBlockFromDisk(block, block_index->GetBlockPos(), Params().GetConsensus())) {
         return false;
     }
 

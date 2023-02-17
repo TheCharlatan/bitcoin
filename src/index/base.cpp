@@ -21,8 +21,6 @@
 #include <string>
 #include <utility>
 
-using node::ReadBlockFromDisk;
-
 constexpr uint8_t DB_BEST_BLOCK{'B'};
 
 constexpr auto SYNC_LOG_INTERVAL{30s};
@@ -199,7 +197,7 @@ void BaseIndex::ThreadSync()
 
             CBlock block;
             interfaces::BlockInfo block_info = kernel::MakeBlockInfo(pindex);
-            if (!ReadBlockFromDisk(m_chainstate->BlocksDirPath(), m_chainstate->FastPrune(), block, pindex, consensus_params)) {
+            if (!m_chainstate->m_blockman.ReadBlockFromDisk(block, pindex, consensus_params)) {
                 FatalError("%s: Failed to read block %s from disk",
                            __func__, pindex->GetBlockHash().ToString());
                 return;
