@@ -37,6 +37,7 @@ struct ChainstateManagerOpts {
     //! If the tip is older than this, the node is considered to be in initial block download.
     std::chrono::seconds max_tip_age{DEFAULT_MAX_TIP_AGE};
     const fs::path& blocks_dir;
+    const bool fast_prune;
 };
 
 } // namespace kernel

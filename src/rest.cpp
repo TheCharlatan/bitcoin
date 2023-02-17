@@ -307,7 +307,7 @@ static bool rest_block(const std::any& context,
 
     }
 
-    if (!ReadBlockFromDisk(chainman.BlocksDirPath(), block, pblockindex, chainman.GetParams().GetConsensus())) {
+    if (!ReadBlockFromDisk(chainman.BlocksDirPath(), chainman.FastPrune(), block, pblockindex, chainman.GetParams().GetConsensus())) {
         return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
     }
 
@@ -685,7 +685,7 @@ static bool rest_tx(const std::any& context, HTTPRequest* req, const std::string
     const NodeContext* const node = GetNodeContext(context, req);
     if (!node) return false;
     uint256 hashBlock = uint256();
-    const CTransactionRef tx = GetTransaction(/*block_index=*/nullptr, node->mempool.get(), hash, Params().GetConsensus(), hashBlock, node->chainman->BlocksDirPath());
+    const CTransactionRef tx = GetTransaction(/*block_index=*/nullptr, node->mempool.get(), hash, Params().GetConsensus(), hashBlock, node->chainman->BlocksDirPath(), node->chainman->FastPrune());
     if (!tx) {
         return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
     }

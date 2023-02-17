@@ -10,6 +10,6 @@
 
 class CBlockIndex;
 
-bool ComputeFilter(const fs::path& blocks_dir, BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter);
+bool ComputeFilter(const fs::path& blocks_dir, const bool fast_prune, BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter);
 
 #endif // BITCOIN_TEST_UTIL_BLOCKFILTER_H

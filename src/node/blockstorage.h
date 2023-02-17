@@ -139,10 +139,12 @@ private:
     std::unordered_map<std::string, PruneLockInfo> m_prune_locks GUARDED_BY(::cs_main);
 
     const fs::path& m_blocks_dir;
+    const bool m_fast_prune;
 
 public:
-    BlockManager(const fs::path& blocks_dir)
-        : m_blocks_dir(blocks_dir){};
+    BlockManager(const fs::path& blocks_dir, const bool fast_prune)
+        : m_blocks_dir(blocks_dir),
+        m_fast_prune(fast_prune){};
 
     BlockMap m_block_index GUARDED_BY(cs_main);
 
@@ -214,18 +216,19 @@ public:
      */
     void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune);
 
-    fs::path BlocksDirPath();
+    const fs::path& BlocksDirPath();
+    bool FastPrune();
 };
 
 /** Open a block file (blk?????.dat) */
-FILE* OpenBlockFile(const fs::path& blocks_dir, const FlatFilePos& pos, bool fReadOnly = false);
+FILE* OpenBlockFile(const fs::path& blocks_dir, const bool fast_prune, const FlatFilePos& pos, bool fReadOnly = false);
 /** Translation to a filesystem path */
 fs::path GetBlockPosFilename(const fs::path& blocks_dir, const FlatFilePos& pos);
 
 /** Functions for disk access for blocks */
-bool ReadBlockFromDisk(const fs::path& blocks_dir, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
-bool ReadBlockFromDisk(const fs::path& blocks_dir, CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
-bool ReadRawBlockFromDisk(const fs::path& blocks_dir, std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start);
+bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
+bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
+bool ReadRawBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start);
 
 bool UndoReadFromDisk(const fs::path& blocks_dir, CBlockUndo& blockundo, const CBlockIndex* pindex);
 

@@ -2654,7 +2654,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     // Read block from disk.
     std::shared_ptr<CBlock> pblock = std::make_shared<CBlock>();
     CBlock& block = *pblock;
-    if (!ReadBlockFromDisk(m_blockman.m_blocks_dir, block, pindexDelete, m_chainman.GetConsensus())) {
+    if (!ReadBlockFromDisk(m_blockman.BlocksDirPath(), m_blockman.FastPrune(), block, pindexDelete, m_chainman.GetConsensus())) {
         return error("DisconnectTip(): Failed to read block");
     }
     // Apply the block atomically to the chain state.
@@ -2771,7 +2771,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     std::shared_ptr<const CBlock> pthisBlock;
     if (!pblock) {
         std::shared_ptr<CBlock> pblockNew = std::make_shared<CBlock>();
-        if (!ReadBlockFromDisk(m_blockman.m_blocks_dir, *pblockNew, pindexNew, m_chainman.GetConsensus())) {
+        if (!ReadBlockFromDisk(m_blockman.BlocksDirPath(), m_blockman.FastPrune(), *pblockNew, pindexNew, m_chainman.GetConsensus())) {
             return AbortNode(state, "Failed to read block");
         }
         pthisBlock = pblockNew;
@@ -4104,7 +4104,7 @@ bool CVerifyDB::VerifyDB(
         }
         CBlock block;
         // check level 0: read from disk
-        if (!ReadBlockFromDisk(chainstate.BlocksDirPath(), block, pindex, consensus_params)) {
+        if (!ReadBlockFromDisk(chainstate.BlocksDirPath(), chainstate.FastPrune(), block, pindex, consensus_params)) {
             return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         }
         // check level 1: verify block validity
@@ -4164,7 +4164,7 @@ bool CVerifyDB::VerifyDB(
             uiInterface.ShowProgress(_("Verifying blocks…").translated, percentageDone, false);
             pindex = chainstate.m_chain.Next(pindex);
             CBlock block;
-            if (!ReadBlockFromDisk(chainstate.BlocksDirPath(), block, pindex, consensus_params))
+            if (!ReadBlockFromDisk(chainstate.BlocksDirPath(), chainstate.FastPrune(), block, pindex, consensus_params))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
             if (!chainstate.ConnectBlock(block, state, pindex, coins)) {
                 return error("VerifyDB(): *** found unconnectable block at %d, hash=%s (%s)", pindex->nHeight, pindex->GetBlockHash().ToString(), state.ToString());
@@ -4184,7 +4184,7 @@ bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& in
     AssertLockHeld(cs_main);
     // TODO: merge with ConnectBlock
     CBlock block;
-    if (!ReadBlockFromDisk(m_blockman.m_blocks_dir, block, pindex, m_chainman.GetConsensus())) {
+    if (!ReadBlockFromDisk(m_blockman.BlocksDirPath(), m_blockman.FastPrune(), block, pindex, m_chainman.GetConsensus())) {
         return error("ReplayBlock(): ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
     }
 
@@ -4236,7 +4236,7 @@ bool Chainstate::ReplayBlocks()
     while (pindexOld != pindexFork) {
         if (pindexOld->nHeight > 0) { // Never disconnect the genesis block.
             CBlock block;
-            if (!ReadBlockFromDisk(m_blockman.m_blocks_dir, block, pindexOld, m_chainman.GetConsensus())) {
+            if (!ReadBlockFromDisk(m_blockman.BlocksDirPath(), m_blockman.FastPrune(), block, pindexOld, m_chainman.GetConsensus())) {
                 return error("RollbackBlock(): ReadBlockFromDisk() failed at %d, hash=%s", pindexOld->nHeight, pindexOld->GetBlockHash().ToString());
             }
             LogPrintf("Rolling back %s (%i)\n", pindexOld->GetBlockHash().ToString(), pindexOld->nHeight);
@@ -4525,7 +4525,7 @@ void Chainstate::LoadExternalBlockFile(
                     while (range.first != range.second) {
                         std::multimap<uint256, FlatFilePos>::iterator it = range.first;
                         std::shared_ptr<CBlock> pblockrecursive = std::make_shared<CBlock>();
-                        if (ReadBlockFromDisk(m_blockman.m_blocks_dir, *pblockrecursive, it->second, params.GetConsensus())) {
+                        if (ReadBlockFromDisk(m_blockman.BlocksDirPath(), m_blockman.FastPrune(), *pblockrecursive, it->second, params.GetConsensus())) {
                             LogPrint(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, pblockrecursive->GetHash().ToString(),
                                     head.ToString());
                             LOCK(cs_main);
@@ -5311,7 +5311,7 @@ static ChainstateManager::Options&& Flatten(ChainstateManager::Options&& opts)
     return std::move(opts);
 }
 
-ChainstateManager::ChainstateManager(Options options) : m_options{Flatten(std::move(options))}, m_blockman{options.blocks_dir} {}
+ChainstateManager::ChainstateManager(Options options) : m_options{Flatten(std::move(options))}, m_blockman{options.blocks_dir, options.fast_prune} {}
 
 ChainstateManager::~ChainstateManager()
 {

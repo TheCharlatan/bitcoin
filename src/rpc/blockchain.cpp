@@ -586,7 +586,7 @@ static CBlock GetBlockChecked(BlockManager& blockman, const CBlockIndex* pblocki
         }
     }
 
-    if (!ReadBlockFromDisk(blockman.BlocksDirPath(), block, pblockindex, Params().GetConsensus())) {
+    if (!ReadBlockFromDisk(blockman.BlocksDirPath(), blockman.FastPrune(), block, pblockindex, Params().GetConsensus())) {
         // Block not found on disk. This could be because we have the block
         // header in our index but not yet have the block or did not accept the
         // block. Or if the block was pruned right after we released the lock above.

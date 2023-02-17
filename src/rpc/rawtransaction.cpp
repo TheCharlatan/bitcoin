@@ -277,7 +277,7 @@ static RPCHelpMan getrawtransaction()
     }
 
     uint256 hash_block;
-    const CTransactionRef tx = GetTransaction(blockindex, node.mempool.get(), hash, chainman.GetConsensus(), hash_block, chainman.BlocksDirPath());
+    const CTransactionRef tx = GetTransaction(blockindex, node.mempool.get(), hash, chainman.GetConsensus(), hash_block, chainman.BlocksDirPath(), chainman.FastPrune());
     if (!tx) {
         std::string errmsg;
         if (blockindex) {
@@ -321,7 +321,7 @@ static RPCHelpMan getrawtransaction()
 
     if (tx->IsCoinBase() ||
         !blockindex || is_block_pruned ||
-        !(UndoReadFromDisk(chainman.BlocksDirPath(), blockUndo, blockindex) && ReadBlockFromDisk(chainman.BlocksDirPath(), block, blockindex, Params().GetConsensus()))) {
+        !(UndoReadFromDisk(chainman.BlocksDirPath(), blockUndo, blockindex) && ReadBlockFromDisk(chainman.BlocksDirPath(), chainman.FastPrune(), block, blockindex, Params().GetConsensus()))) {
         TxToJSON(*tx, hash_block, result, chainman.ActiveChainstate());
         return result;
     }

@@ -11,12 +11,12 @@
 using node::ReadBlockFromDisk;
 using node::UndoReadFromDisk;
 
-bool ComputeFilter(const fs::path& blocks_dir, BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter)
+bool ComputeFilter(const fs::path& blocks_dir, const bool fast_prune, BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter)
 {
     LOCK(::cs_main);
 
     CBlock block;
-    if (!ReadBlockFromDisk(blocks_dir, block, block_index->GetBlockPos(), Params().GetConsensus())) {
+    if (!ReadBlockFromDisk(blocks_dir, fast_prune, block, block_index->GetBlockPos(), Params().GetConsensus())) {
         return false;
     }
 
