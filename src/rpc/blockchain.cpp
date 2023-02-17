@@ -60,7 +60,6 @@ using node::BlockManager;
 using node::NodeContext;
 using node::ReadBlockFromDisk;
 using node::SnapshotMetadata;
-using node::UndoReadFromDisk;
 
 struct CUpdatedBlock
 {
@@ -183,7 +182,7 @@ UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIn
         case TxVerbosity::SHOW_DETAILS_AND_PREVOUT:
             CBlockUndo blockUndo;
             const bool is_not_pruned{WITH_LOCK(::cs_main, return !blockman.IsBlockPruned(blockindex))};
-            const bool have_undo{is_not_pruned && UndoReadFromDisk(blockman.BlocksDirPath(), blockUndo, blockindex)};
+            const bool have_undo{is_not_pruned && blockman.UndoReadFromDisk(blockUndo, blockindex)};
 
             for (size_t i = 0; i < block.vtx.size(); ++i) {
                 const CTransactionRef& tx = block.vtx.at(i);
@@ -610,7 +609,7 @@ static CBlockUndo GetUndoChecked(BlockManager& blockman, const CBlockIndex* pblo
         }
     }
 
-    if (!UndoReadFromDisk(blockman.BlocksDirPath(), blockUndo, pblockindex)) {
+    if (!blockman.UndoReadFromDisk(blockUndo, pblockindex)) {
         throw JSONRPCError(RPC_MISC_ERROR, "Can't read undo data from disk");
     }
 

@@ -19,6 +19,7 @@
 #include <streams.h>
 #include <sync.h>
 #include <uint256.h>
+#include <util/system.h>
 #include <version.h>
 #include <zmq/zmqutil.h>
 
@@ -250,7 +251,7 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     const Consensus::Params& consensusParams = Params().GetConsensus();
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags());
     CBlock block;
-    if (!ReadBlockFromDisk(block, pindex, consensusParams)) {
+    if (!ReadBlockFromDisk(gArgs.GetBlocksDirPath(), gArgs.GetBoolArg("-fastprune", false), block, pindex, consensusParams)) {
         zmqError("Can't read block from disk");
         return false;
     }

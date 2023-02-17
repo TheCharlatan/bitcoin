@@ -479,7 +479,7 @@ static bool UndoWriteToDisk(const fs::path blocks_dir, const CBlockUndo& blockun
     return true;
 }
 
-bool UndoReadFromDisk(const fs::path& blocks_dir, CBlockUndo& blockundo, const CBlockIndex* pindex)
+bool BlockManager::UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
 {
     const FlatFilePos pos{WITH_LOCK(::cs_main, return pindex->GetUndoPos())};
 
@@ -488,7 +488,7 @@ bool UndoReadFromDisk(const fs::path& blocks_dir, CBlockUndo& blockundo, const C
     }
 
     // Open history file to read
-    AutoFile filein{OpenUndoFile(blocks_dir, pos, true)};
+    AutoFile filein{OpenUndoFile(m_blocks_dir, pos, true)};
     if (filein.IsNull()) {
         return error("%s: OpenUndoFile failed", __func__);
     }

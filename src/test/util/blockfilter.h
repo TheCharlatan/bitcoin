@@ -6,10 +6,11 @@
 #define BITCOIN_TEST_UTIL_BLOCKFILTER_H
 
 #include <blockfilter.h>
+#include <node/blockstorage.h>
 #include <fs.h>
 
 class CBlockIndex;
 
-bool ComputeFilter(const fs::path& blocks_dir, const bool fast_prune, BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter);
+bool ComputeFilter(node::BlockManager& blockman, BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter);
 
 #endif // BITCOIN_TEST_UTIL_BLOCKFILTER_H

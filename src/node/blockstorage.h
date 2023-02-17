@@ -216,6 +216,9 @@ public:
      */
     void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune);
 
+    /** Functions for disk access for blocks */
+    bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex);
+
     const fs::path& BlocksDirPath();
     bool FastPrune();
 };
@@ -229,8 +232,6 @@ fs::path GetBlockPosFilename(const fs::path& blocks_dir, const FlatFilePos& pos)
 bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
 bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
 bool ReadRawBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start);
-
-bool UndoReadFromDisk(const fs::path& blocks_dir, CBlockUndo& blockundo, const CBlockIndex* pindex);
 
 void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const ArgsManager& args, const fs::path& mempool_path);
 } // namespace node
