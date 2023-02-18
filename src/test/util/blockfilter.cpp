@@ -9,7 +9,6 @@
 #include <validation.h>
 
 using node::BlockManager;
-using node::UndoReadFromDisk;
 
 bool ComputeFilter(BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter, const BlockManager& blockman)
 {
@@ -21,7 +20,7 @@ bool ComputeFilter(BlockFilterType filter_type, const CBlockIndex* block_index, 
     }
 
     CBlockUndo block_undo;
-    if (block_index->nHeight > 0 && !UndoReadFromDisk(block_undo, block_index)) {
+    if (block_index->nHeight > 0 && !blockman.UndoReadFromDisk(block_undo, block_index)) {
         return false;
     }
 
