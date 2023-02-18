@@ -623,7 +623,7 @@ bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigne
         unsigned int max_blockfile_size{MAX_BLOCKFILE_SIZE};
         // Use smaller blockfiles in test-only -fastprune mode - but avoid
         // the possibility of having a block not fit into the block file.
-        if (gArgs.GetBoolArg("-fastprune", false)) {
+        if (m_opts.fast_prune) {
             max_blockfile_size = 0x10000; // 64kiB
             if (nAddSize >= max_blockfile_size) {
                 // dynamically adjust the blockfile size to be larger than the added size
