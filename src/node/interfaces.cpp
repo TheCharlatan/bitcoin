@@ -392,7 +392,7 @@ public:
     NodeContext* m_context{nullptr};
 };
 
-bool FillBlock(const CBlockIndex* index, const FoundBlock& block, UniqueLock<RecursiveMutex>& lock, const CChain& active, BlockManager& blockman)
+bool FillBlock(const CBlockIndex* index, const FoundBlock& block, UniqueLock<RecursiveMutex>& lock, const CChain& active, const BlockManager& blockman)
 {
     if (!index) return false;
     if (block.m_hash) *block.m_hash = index->GetBlockHash();

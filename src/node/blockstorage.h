@@ -209,22 +209,22 @@ public:
     //! Create or update a prune lock identified by its name
     void UpdatePruneLock(const std::string& name, const PruneLockInfo& lock_info) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    void CleanupBlockRevFiles();
+    void CleanupBlockRevFiles() const;
 
     /**
      *  Actually unlink the specified files
      */
-    void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune);
+    void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune) const;
 
     /** Translation to a filesystem path */
-    fs::path GetBlockPosFilename(const FlatFilePos& pos);
+    fs::path GetBlockPosFilename(const FlatFilePos& pos) const;
 
     /** Functions for disk access for blocks */
-    bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex);
-    bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
-    bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
-    bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start);
-    FILE* OpenBlockFile(const FlatFilePos& pos, bool fReadOnly);
+    bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex) const;
+    bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams) const;
+    bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams) const;
+    bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start) const;
+    FILE* OpenBlockFile(const FlatFilePos& pos, bool fReadOnly) const;
 };
 
 /** Open a block file (blk?????.dat) */

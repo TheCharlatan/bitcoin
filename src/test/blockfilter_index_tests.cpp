@@ -28,7 +28,7 @@ struct BuildChainTestingSetup : public TestChain100Setup {
     bool BuildChain(const CBlockIndex* pindex, const CScript& coinbase_script_pub_key, size_t length, std::vector<std::shared_ptr<CBlock>>& chain);
 };
 
-static bool CheckFilterLookups(node::BlockManager& blockman, BlockFilterIndex& filter_index, const CBlockIndex* block_index,
+static bool CheckFilterLookups(const node::BlockManager& blockman, BlockFilterIndex& filter_index, const CBlockIndex* block_index,
                                uint256& last_header)
 {
     BlockFilter expected_filter;

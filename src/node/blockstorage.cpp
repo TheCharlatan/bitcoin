@@ -407,7 +407,7 @@ const CBlockIndex* BlockManager::GetFirstStoredBlock(const CBlockIndex& start_bl
 // rev files since they'll be rewritten by the reindex anyway.  This ensures that m_blockfile_info
 // is in sync with what's actually on disk by the time we start downloading, so that pruning
 // works correctly.
-void BlockManager::CleanupBlockRevFiles()
+void BlockManager::CleanupBlockRevFiles() const
 {
     std::map<std::string, fs::path> mapBlockFiles;
 
@@ -479,7 +479,7 @@ static bool UndoWriteToDisk(const fs::path blocks_dir, const CBlockUndo& blockun
     return true;
 }
 
-bool BlockManager::UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
+bool BlockManager::UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex) const
 {
     const FlatFilePos pos{WITH_LOCK(::cs_main, return pindex->GetUndoPos())};
 
@@ -553,7 +553,7 @@ uint64_t BlockManager::CalculateCurrentUsage()
     return retval;
 }
 
-void BlockManager::UnlinkPrunedFiles(const std::set<int>& setFilesToPrune)
+void BlockManager::UnlinkPrunedFiles(const std::set<int>& setFilesToPrune) const
 {
     for (std::set<int>::iterator it = setFilesToPrune.begin(); it != setFilesToPrune.end(); ++it) {
         FlatFilePos pos(*it, 0);
@@ -573,7 +573,7 @@ static FlatFileSeq UndoFileSeq(const fs::path& blocks_dir)
     return FlatFileSeq(blocks_dir, "rev", UNDOFILE_CHUNK_SIZE);
 }
 
-FILE* BlockManager::OpenBlockFile(const FlatFilePos& pos, bool fReadOnly)
+FILE* BlockManager::OpenBlockFile(const FlatFilePos& pos, bool fReadOnly) const
 {
     return ::node::OpenBlockFile(m_options.blocks_dir, m_options.fast_prune, pos, fReadOnly);
 }
@@ -589,7 +589,7 @@ static FILE* OpenUndoFile(const fs::path& blocks_dir, const FlatFilePos& pos, bo
     return UndoFileSeq(blocks_dir).Open(pos, fReadOnly);
 }
 
-fs::path BlockManager::GetBlockPosFilename(const FlatFilePos& pos)
+fs::path BlockManager::GetBlockPosFilename(const FlatFilePos& pos) const
 {
     return BlockFileSeq(m_options.blocks_dir, m_options.fast_prune).FileName(pos);
 }
@@ -724,12 +724,12 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
     return true;
 }
 
-bool BlockManager::ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams)
+bool BlockManager::ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams) const
 {
     return ::node::ReadBlockFromDisk(m_options.blocks_dir, m_options.fast_prune, block, pindex, consensusParams);
 }
 
-bool BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)
+bool BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams) const
 {
     return ::node::ReadBlockFromDisk(m_options.blocks_dir, m_options.fast_prune, block, pos, consensusParams);
 }
@@ -778,7 +778,7 @@ bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock
     return true;
 }
 
-bool BlockManager::ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start)
+bool BlockManager::ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start) const
 {
     FlatFilePos hpos = pos;
     hpos.nPos -= 8; // Seek back 8 bytes for meta header
