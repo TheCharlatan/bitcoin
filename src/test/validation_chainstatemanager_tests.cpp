@@ -384,8 +384,10 @@ struct SnapshotTestSetup : TestChain100Setup {
                 .datadir = m_args.GetDataDirNet(),
                 .adjusted_time_callback = GetAdjustedTime,
             };
-            BlockManager::Options blockman_opts{};
-            ApplyArgsManOptions(gArgs, blockman_opts);
+            BlockManager::Options blockman_opts{
+                .blocks_dir = m_args.GetBlocksDirPath(),
+            };
+            ApplyArgsManOptions(m_args, blockman_opts);
             m_node.blockman = std::make_unique<BlockManager>(blockman_opts);
             // For robustness, ensure the old manager is destroyed before creating a
             // new one.

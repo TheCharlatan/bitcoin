@@ -94,8 +94,12 @@ private:
     bool FindUndoPos(BlockValidationState& state, int nFile, FlatFilePos& pos, unsigned int nAddSize);
 
     FlatFileSeq BlockFileSeq() const;
+    FlatFileSeq UndoFileSeq() const;
+
+    FILE* OpenUndoFile(const FlatFilePos& pos, bool fReadOnly = false) const;
 
     bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart) const;
+    bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart) const;
 
     /* Calculate the block/rev files to delete based on height specified by user with RPC command pruneblockchain */
     void FindFilesToPruneManual(std::set<int>& setFilesToPrune, int nManualPruneHeight, int chain_tip_height);
@@ -236,11 +240,11 @@ public:
     bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams) const;
     bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams) const;
     bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start) const;
+
+    bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex) const;
+
+    void CleanupBlockRevFiles() const;
 };
-
-void CleanupBlockRevFiles();
-
-bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex);
 
 void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const ArgsManager& args, const fs::path& mempool_path);
 } // namespace node

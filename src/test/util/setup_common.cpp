@@ -187,7 +187,9 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
         .adjusted_time_callback = GetAdjustedTime,
         .check_block_index = true,
     };
-    BlockManager::Options blockman_opts{};
+    BlockManager::Options blockman_opts{
+        .blocks_dir = m_args.GetBlocksDirPath(),
+    };
     ApplyArgsManOptions(m_args, blockman_opts);
     m_node.blockman = std::make_unique<BlockManager>(blockman_opts);
     m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, *m_node.blockman);
