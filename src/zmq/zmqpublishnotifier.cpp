@@ -251,7 +251,7 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     const Consensus::Params& consensusParams = Params().GetConsensus();
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags());
     CBlock block;
-    if (!ReadBlockFromDisk(gArgs.GetBoolArg("-fastprune", false), block, pindex, consensusParams)) {
+    if (!ReadBlockFromDisk(gArgs.GetBlocksDirPath(), gArgs.GetBoolArg("-fastprune", false), block, pindex, consensusParams)) {
         zmqError("Can't read block from disk");
         return false;
     }
