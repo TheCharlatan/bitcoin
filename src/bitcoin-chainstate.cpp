@@ -85,7 +85,9 @@ int main(int argc, char* argv[])
         .datadir = gArgs.GetDataDirNet(),
         .adjusted_time_callback = NodeClock::now,
     };
-    const node::BlockManager::Options blockman_opts{};
+    node::BlockManager::Options blockman_opts{
+        .blocks_dir = gArgs.GetBlocksDirPath(),
+    };
     ChainstateManager chainman{chainman_opts, blockman_opts};
 
     node::CacheSizes cache_sizes;

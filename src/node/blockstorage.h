@@ -225,18 +225,18 @@ public:
     bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams) const;
     bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams) const;
     bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start) const;
+
+    bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex) const;
+
+    void CleanupBlockRevFiles() const;
 };
 
-void CleanupBlockRevFiles();
-
 /** Open a block file (blk?????.dat) */
-FILE* OpenBlockFile(const bool fast_prune, const FlatFilePos& pos, bool fReadOnly = false);
+FILE* OpenBlockFile(const fs::path& blocks_dir, const bool fast_prune, const FlatFilePos& pos, bool fReadOnly = false);
 
 /** Functions for disk access for blocks */
-bool ReadBlockFromDisk(const bool fast_prune, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
-bool ReadBlockFromDisk(const bool fast_prune, CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
-
-bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex);
+bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
+bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
 
 void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const ArgsManager& args, const fs::path& mempool_path);
 } // namespace node
