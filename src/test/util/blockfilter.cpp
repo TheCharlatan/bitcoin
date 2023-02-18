@@ -8,15 +8,15 @@
 #include <node/blockstorage.h>
 #include <validation.h>
 
-using node::ReadBlockFromDisk;
+using node::BlockManager;
 using node::UndoReadFromDisk;
 
-bool ComputeFilter(BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter)
+bool ComputeFilter(BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter, const BlockManager& blockman)
 {
     LOCK(::cs_main);
 
     CBlock block;
-    if (!ReadBlockFromDisk(block, block_index->GetBlockPos(), Params().GetConsensus())) {
+    if (!blockman.ReadBlockFromDisk(block, block_index->GetBlockPos(), Params().GetConsensus())) {
         return false;
     }
 
