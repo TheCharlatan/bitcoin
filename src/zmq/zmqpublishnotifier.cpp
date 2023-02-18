@@ -11,6 +11,7 @@
 #include <logging.h>
 #include <netaddress.h>
 #include <netbase.h>
+#include <node/blockmanager_args.h>
 #include <node/blockstorage.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
@@ -19,6 +20,7 @@
 #include <streams.h>
 #include <sync.h>
 #include <uint256.h>
+#include <util/system.h>
 #include <version.h>
 #include <zmq/zmqutil.h>
 
@@ -39,7 +41,9 @@ namespace Consensus {
 struct Params;
 }
 
-using node::ReadBlockFromDisk;
+using kernel::BlockManagerOpts;
+using node::ApplyArgsManOptions;
+using node::BlockManager;
 
 static std::multimap<std::string, CZMQAbstractPublishNotifier*> mapPublishNotifiers;
 
@@ -248,9 +252,12 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     LogPrint(BCLog::ZMQ, "Publish rawblock %s to %s\n", pindex->GetBlockHash().GetHex(), this->address);
 
     const Consensus::Params& consensusParams = Params().GetConsensus();
+    BlockManagerOpts blockman_opts{};
+    ApplyArgsManOptions(gArgs, blockman_opts);
+    BlockManager blockman{blockman_opts};
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags());
     CBlock block;
-    if (!ReadBlockFromDisk(block, pindex, consensusParams)) {
+    if (!blockman.ReadBlockFromDisk(block, pindex, consensusParams)) {
         zmqError("Can't read block from disk");
         return false;
     }
