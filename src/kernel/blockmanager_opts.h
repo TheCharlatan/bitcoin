@@ -5,6 +5,8 @@
 #ifndef BITCOIN_KERNEL_BLOCKMANAGER_OPTS_H
 #define BITCOIN_KERNEL_BLOCKMANAGER_OPTS_H
 
+#include <util/fs.h>
+
 #include <cstdint>
 
 namespace kernel {
@@ -16,6 +18,7 @@ namespace kernel {
 struct BlockManagerOpts {
     uint64_t prune_target{0};
     bool fast_prune{false};
+    const fs::path blocks_dir;
 };
 
 } // namespace kernel

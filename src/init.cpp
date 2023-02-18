@@ -114,18 +114,19 @@ using kernel::DumpMempool;
 using kernel::ValidationCacheSizes;
 
 using node::ApplyArgsManOptions;
+using node::BlockManager;
 using node::CacheSizes;
 using node::CalculateCacheSizes;
 using node::DEFAULT_PERSIST_MEMPOOL;
 using node::DEFAULT_PRINTPRIORITY;
 using node::DEFAULT_STOPAFTERBLOCKIMPORT;
+using node::fReindex;
 using node::LoadChainstate;
 using node::MempoolPath;
-using node::ShouldPersistMempool;
 using node::NodeContext;
+using node::ShouldPersistMempool;
 using node::ThreadImport;
 using node::VerifyLoadedChainstate;
-using node::fReindex;
 
 static constexpr bool DEFAULT_PROXYRANDOMIZE{true};
 static constexpr bool DEFAULT_REST_ENABLE{false};
@@ -1035,7 +1036,9 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
         if (const auto error{ApplyArgsManOptions(args, chainman_opts_dummy)}) {
             return InitError(*error);
         }
-        node::BlockManager::Options blockman_opts_dummy{};
+        BlockManager::Options blockman_opts_dummy{
+            .blocks_dir = args.GetBlocksDirPath(),
+        };
         if (const auto error{ApplyArgsManOptions(args, blockman_opts_dummy)}) {
             return InitError(*error);
         }
@@ -1442,7 +1445,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     };
     Assert(!ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
-    node::BlockManager::Options blockman_opts{};
+    BlockManager::Options blockman_opts{
+        .blocks_dir = args.GetBlocksDirPath(),
+    };
     Assert(!ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
     // cache size calculations
