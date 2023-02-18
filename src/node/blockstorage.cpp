@@ -52,9 +52,6 @@ bool CBlockIndexHeightOnlyComparator::operator()(const CBlockIndex* pa, const CB
     return pa->nHeight < pb->nHeight;
 }
 
-static FILE* OpenUndoFile(const FlatFilePos& pos, bool fReadOnly = false);
-static FlatFileSeq UndoFileSeq();
-
 std::vector<CBlockIndex*> BlockManager::GetAllBlockIndices()
 {
     AssertLockHeld(cs_main);
@@ -421,7 +418,7 @@ const CBlockIndex* BlockManager::GetFirstStoredBlock(const CBlockIndex& start_bl
 // rev files since they'll be rewritten by the reindex anyway.  This ensures that m_blockfile_info
 // is in sync with what's actually on disk by the time we start downloading, so that pruning
 // works correctly.
-void CleanupBlockRevFiles()
+void BlockManager::CleanupBlockRevFiles() const
 {
     std::map<std::string, fs::path> mapBlockFiles;
 
@@ -429,8 +426,7 @@ void CleanupBlockRevFiles()
     // Remove the rev files immediately and insert the blk file paths into an
     // ordered map keyed by block file index.
     LogPrintf("Removing unusable blk?????.dat and rev?????.dat files for -reindex with -prune\n");
-    const fs::path& blocksdir = gArgs.GetBlocksDirPath();
-    for (fs::directory_iterator it(blocksdir); it != fs::directory_iterator(); it++) {
+    for (fs::directory_iterator it(m_opts.blocks_dir); it != fs::directory_iterator(); it++) {
         const std::string path = fs::PathToString(it->path().filename());
         if (fs::is_regular_file(*it) &&
             path.length() == 12 &&
@@ -465,7 +461,7 @@ CBlockFileInfo* BlockManager::GetBlockFileInfo(size_t n)
     return &m_blockfile_info.at(n);
 }
 
-static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart)
+bool BlockManager::UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart) const
 {
     // Open history file to append
     AutoFile fileout{OpenUndoFile(pos)};
@@ -494,7 +490,7 @@ static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const
     return true;
 }
 
-bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
+bool BlockManager::UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex) const
 {
     const FlatFilePos pos{WITH_LOCK(::cs_main, return pindex->GetUndoPos())};
 
@@ -586,9 +582,9 @@ FlatFileSeq BlockManager::BlockFileSeq() const
     return FlatFileSeq(gArgs.GetBlocksDirPath(), "blk", m_opts.fast_prune ? 0x4000 /* 16kb */ : BLOCKFILE_CHUNK_SIZE);
 }
 
-static FlatFileSeq UndoFileSeq()
+FlatFileSeq BlockManager::UndoFileSeq() const
 {
-    return FlatFileSeq(gArgs.GetBlocksDirPath(), "rev", UNDOFILE_CHUNK_SIZE);
+    return FlatFileSeq(m_opts.blocks_dir, "rev", UNDOFILE_CHUNK_SIZE);
 }
 
 FILE* BlockManager::OpenBlockFile(const FlatFilePos& pos, bool fReadOnly) const
@@ -597,7 +593,7 @@ FILE* BlockManager::OpenBlockFile(const FlatFilePos& pos, bool fReadOnly) const
 }
 
 /** Open an undo file (rev?????.dat) */
-static FILE* OpenUndoFile(const FlatFilePos& pos, bool fReadOnly)
+FILE* BlockManager::OpenUndoFile(const FlatFilePos& pos, bool fReadOnly) const
 {
     return UndoFileSeq().Open(pos, fReadOnly);
 }
