@@ -246,7 +246,6 @@ public:
     void CleanupBlockRevFiles() const;
 };
 
-
 void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const ArgsManager& args, const fs::path& mempool_path);
 } // namespace node
 

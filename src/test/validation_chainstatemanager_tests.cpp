@@ -384,7 +384,9 @@ struct SnapshotTestSetup : TestChain100Setup {
                 .datadir = m_args.GetDataDirNet(),
                 .adjusted_time_callback = GetAdjustedTime,
             };
-            BlockManager::Options blockman_opts{};
+            BlockManager::Options blockman_opts{
+                .blocks_dir = m_args.GetBlocksDirPath(),
+            };
             ApplyArgsManOptions(gArgs, blockman_opts);
             // For robustness, ensure the old manager is destroyed before creating a
             // new one.
