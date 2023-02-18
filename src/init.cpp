@@ -1423,7 +1423,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     g_zmq_notification_interface = CZMQNotificationInterface::Create(
         [&chainman = node.chainman](CBlock& block, const CBlockIndex* index) {
             assert(chainman);
-            return node::ReadBlockFromDisk(block, index, chainman->GetConsensus());
+            return chainman->m_blockman.ReadBlockFromDisk(block, index, chainman->GetConsensus());
         });
 
     if (g_zmq_notification_interface) {
