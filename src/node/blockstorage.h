@@ -216,24 +216,32 @@ public:
 
     //! Create or update a prune lock identified by its name
     void UpdatePruneLock(const std::string& name, const PruneLockInfo& lock_info) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    /** Open a block file (blk?????.dat) */
+    FILE* OpenBlockFile(const FlatFilePos& pos, bool fReadOnly = false) const;
+
+    /** Translation to a filesystem path */
+    fs::path GetBlockPosFilename(const FlatFilePos& pos) const;
+
+    /**
+     *  Actually unlink the specified files
+     */
+    void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune) const;
+
+    /** Functions for disk access for blocks */
+    bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams) const;
+    bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams) const;
+    bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start) const;
 };
 
 void CleanupBlockRevFiles();
 
 /** Open a block file (blk?????.dat) */
-FILE* OpenBlockFile(const FlatFilePos& pos, bool fReadOnly = false);
-/** Translation to a filesystem path */
-fs::path GetBlockPosFilename(const FlatFilePos& pos);
-
-/**
- *  Actually unlink the specified files
- */
-void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune);
+FILE* OpenBlockFile(const bool fast_prune, const FlatFilePos& pos, bool fReadOnly = false);
 
 /** Functions for disk access for blocks */
-bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
-bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
-bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start);
+bool ReadBlockFromDisk(const bool fast_prune, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
+bool ReadBlockFromDisk(const bool fast_prune, CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
 
 bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex);
 
