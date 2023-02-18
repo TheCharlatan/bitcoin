@@ -4,6 +4,7 @@
 //
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <node/blockmanager_args.h>
 #include <node/utxo_snapshot.h>
 #include <random.h>
 #include <rpc/blockchain.h>
@@ -22,6 +23,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+using node::ApplyArgsManOptions;
+using node::BlockManager;
 using node::SnapshotMetadata;
 
 BOOST_FIXTURE_TEST_SUITE(validation_chainstatemanager_tests, ChainTestingSetup)
@@ -378,10 +381,12 @@ struct SnapshotTestSetup : TestChain100Setup {
                 .datadir = m_args.GetDataDirNet(),
                 .adjusted_time_callback = GetAdjustedTime,
             };
+            BlockManager::Options blockman_opts{};
+            ApplyArgsManOptions(gArgs, blockman_opts);
             // For robustness, ensure the old manager is destroyed before creating a
             // new one.
             m_node.chainman.reset();
-            m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, node::BlockManager::Options{});
+            m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
         }
         return *Assert(m_node.chainman);
     }
