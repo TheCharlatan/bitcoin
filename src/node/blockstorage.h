@@ -8,6 +8,7 @@
 #include <attributes.h>
 #include <chain.h>
 #include <fs.h>
+#include <kernel/blockmanager_opts.h>
 #include <kernel/cs_main.h>
 #include <protocol.h>
 #include <sync.h>
@@ -139,6 +140,13 @@ private:
     std::unordered_map<std::string, PruneLockInfo> m_prune_locks GUARDED_BY(::cs_main);
 
 public:
+    using Options = kernel::BlockManagerOpts;
+
+    BlockManager(const Options options)
+        : m_options(options){};
+
+    const Options m_options;
+
     BlockMap m_block_index GUARDED_BY(cs_main);
 
     std::vector<CBlockIndex*> GetAllBlockIndices() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
