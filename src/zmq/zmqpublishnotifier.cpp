@@ -12,6 +12,7 @@
 #include <netaddress.h>
 #include <netbase.h>
 #include <node/blockstorage.h>
+#include <node/context.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <rpc/server.h>
@@ -38,8 +39,6 @@
 namespace Consensus {
 struct Params;
 }
-
-using node::ReadBlockFromDisk;
 
 static std::multimap<std::string, CZMQAbstractPublishNotifier*> mapPublishNotifiers;
 
@@ -250,7 +249,7 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     const Consensus::Params& consensusParams = Params().GetConsensus();
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags());
     CBlock block;
-    if (!ReadBlockFromDisk(block, pindex, consensusParams)) {
+    if (!m_node.GetBlockManager().ReadBlockFromDisk(block, pindex, consensusParams)) {
         zmqError("Can't read block from disk");
         return false;
     }
