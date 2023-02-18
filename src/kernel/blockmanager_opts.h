@@ -5,6 +5,8 @@
 #ifndef BITCOIN_KERNEL_BLOCKMANAGER_OPTS_H
 #define BITCOIN_KERNEL_BLOCKMANAGER_OPTS_H
 
+#include <cstdint>
+
 namespace kernel {
 
 /**
@@ -13,6 +15,7 @@ namespace kernel {
  */
 struct BlockManagerOpts {
     uint64_t prune_target{0};
+    bool fast_prune{false};
 };
 
 } // namespace kernel

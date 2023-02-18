@@ -61,6 +61,7 @@
 using kernel::ValidationCacheSizes;
 using node::ApplyArgsManOptions;
 using node::BlockAssembler;
+using node::BlockManager;
 using node::CalculateCacheSizes;
 using node::LoadChainstate;
 using node::RegenerateCommitments;
@@ -185,7 +186,8 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
         .adjusted_time_callback = GetAdjustedTime,
         .check_block_index = true,
     };
-    m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, node::BlockManager::Options{});
+    const BlockManager::Options blockman_opts{};
+    m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(DBParams{
         .path = m_args.GetDataDirNet() / "blocks" / "index",
         .cache_bytes = static_cast<size_t>(m_cache_sizes.block_tree_db),
