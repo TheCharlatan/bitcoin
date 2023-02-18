@@ -621,7 +621,7 @@ bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigne
 
     bool finalize_undo = false;
     if (!fKnown) {
-        while (m_blockfile_info[nFile].nSize + nAddSize >= (gArgs.GetBoolArg("-fastprune", false) ? 0x10000 /* 64kb */ : MAX_BLOCKFILE_SIZE)) {
+        while (m_blockfile_info[nFile].nSize + nAddSize >= (m_options.fast_prune ? 0x10000 /* 64kb */ : MAX_BLOCKFILE_SIZE)) {
             // when the undo file is keeping up with the block file, we want to flush it explicitly
             // when it is lagging behind (more blocks arrive than are being connected), we let the
             // undo block write case handle it

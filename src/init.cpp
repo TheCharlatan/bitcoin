@@ -37,6 +37,7 @@
 #include <net_processing.h>
 #include <netbase.h>
 #include <netgroup.h>
+#include <node/blockmanager_args.h>
 #include <node/blockstorage.h>
 #include <node/caches.h>
 #include <node/chainstate.h>
@@ -1450,6 +1451,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     };
     Assert(!ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
+    node::BlockManager::Options blockman_opts{};
+    ApplyArgsManOptions(args, blockman_opts);
+
     // cache size calculations
     CacheSizes cache_sizes = CalculateCacheSizes(args, g_enabled_filter_types.size());
 
@@ -1485,7 +1489,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     for (bool fLoaded = false; !fLoaded && !ShutdownRequested();) {
         node.mempool = std::make_unique<CTxMemPool>(mempool_opts);
 
-        node.chainman = std::make_unique<ChainstateManager>(chainman_opts);
+        node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
         ChainstateManager& chainman = *node.chainman;
 
         node::ChainstateLoadOptions options;
