@@ -51,7 +51,6 @@ using node::FindCoins;
 using node::GetTransaction;
 using node::NodeContext;
 using node::PSBTAnalysis;
-using node::UndoReadFromDisk;
 
 static void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry,
                      Chainstate& active_chainstate, const CTxUndo* txundo = nullptr,
@@ -320,7 +319,7 @@ static RPCHelpMan getrawtransaction()
 
     if (tx->IsCoinBase() ||
         !blockindex || is_block_pruned ||
-        !(UndoReadFromDisk(blockUndo, blockindex) && chainman.m_blockman.ReadBlockFromDisk(block, blockindex, Params().GetConsensus()))) {
+        !(chainman.m_blockman.UndoReadFromDisk(blockUndo, blockindex) && chainman.m_blockman.ReadBlockFromDisk(block, blockindex, Params().GetConsensus()))) {
         TxToJSON(*tx, hash_block, result, chainman.ActiveChainstate());
         return result;
     }
