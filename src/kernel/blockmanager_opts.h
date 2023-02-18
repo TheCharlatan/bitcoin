@@ -13,6 +13,7 @@ namespace kernel {
  */
 struct BlockManagerOpts {
     uint64_t prune_target{0};
+    bool fast_prune{false};
 };
 
 } // namespace kernel
