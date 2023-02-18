@@ -54,9 +54,9 @@ bool CBlockIndexHeightOnlyComparator::operator()(const CBlockIndex* pa, const CB
     return pa->nHeight < pb->nHeight;
 }
 
-static FILE* OpenUndoFile(const FlatFilePos& pos, bool fReadOnly = false);
-static FlatFileSeq BlockFileSeq(const bool fast_prune);
-static FlatFileSeq UndoFileSeq();
+static FILE* OpenUndoFile(const fs::path& blocks_dir, const FlatFilePos& pos, bool fReadOnly = false);
+static FlatFileSeq BlockFileSeq(const fs::path& blocks_dir, const bool fast_prune);
+static FlatFileSeq UndoFileSeq(const fs::path& blocks_dir);
 
 std::vector<CBlockIndex*> BlockManager::GetAllBlockIndices()
 {
@@ -407,7 +407,7 @@ const CBlockIndex* BlockManager::GetFirstStoredBlock(const CBlockIndex& start_bl
 // rev files since they'll be rewritten by the reindex anyway.  This ensures that m_blockfile_info
 // is in sync with what's actually on disk by the time we start downloading, so that pruning
 // works correctly.
-void CleanupBlockRevFiles()
+void BlockManager::CleanupBlockRevFiles() const
 {
     std::map<std::string, fs::path> mapBlockFiles;
 
@@ -415,8 +415,7 @@ void CleanupBlockRevFiles()
     // Remove the rev files immediately and insert the blk file paths into an
     // ordered map keyed by block file index.
     LogPrintf("Removing unusable blk?????.dat and rev?????.dat files for -reindex with -prune\n");
-    const fs::path& blocksdir = gArgs.GetBlocksDirPath();
-    for (fs::directory_iterator it(blocksdir); it != fs::directory_iterator(); it++) {
+    for (fs::directory_iterator it(m_options.blocks_dir); it != fs::directory_iterator(); it++) {
         const std::string path = fs::PathToString(it->path().filename());
         if (fs::is_regular_file(*it) &&
             path.length() == 12 &&
@@ -451,10 +450,10 @@ CBlockFileInfo* BlockManager::GetBlockFileInfo(size_t n)
     return &m_blockfile_info.at(n);
 }
 
-static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart)
+static bool UndoWriteToDisk(const fs::path& blocks_dir, const CBlockUndo& blockundo, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart)
 {
     // Open history file to append
-    AutoFile fileout{OpenUndoFile(pos)};
+    AutoFile fileout{OpenUndoFile(blocks_dir, pos)};
     if (fileout.IsNull()) {
         return error("%s: OpenUndoFile failed", __func__);
     }
@@ -480,7 +479,7 @@ static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const
     return true;
 }
 
-bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
+bool BlockManager::UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex) const
 {
     const FlatFilePos pos{WITH_LOCK(::cs_main, return pindex->GetUndoPos())};
 
@@ -489,7 +488,7 @@ bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
     }
 
     // Open history file to read
-    AutoFile filein{OpenUndoFile(pos, true)};
+    AutoFile filein{OpenUndoFile(m_options.blocks_dir, pos, true)};
     if (filein.IsNull()) {
         return error("%s: OpenUndoFile failed", __func__);
     }
@@ -516,7 +515,7 @@ bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
 void BlockManager::FlushUndoFile(int block_file, bool finalize)
 {
     FlatFilePos undo_pos_old(block_file, m_blockfile_info[block_file].nUndoSize);
-    if (!UndoFileSeq().Flush(undo_pos_old, finalize)) {
+    if (!UndoFileSeq(m_options.blocks_dir).Flush(undo_pos_old, finalize)) {
         AbortNode("Flushing undo file to disk failed. This is likely the result of an I/O error.");
     }
 }
@@ -535,7 +534,7 @@ void BlockManager::FlushBlockFile(bool fFinalize, bool finalize_undo)
     assert(static_cast<int>(m_blockfile_info.size()) > m_last_blockfile);
 
     FlatFilePos block_pos_old(m_last_blockfile, m_blockfile_info[m_last_blockfile].nSize);
-    if (!BlockFileSeq(m_options.fast_prune).Flush(block_pos_old, fFinalize)) {
+    if (!BlockFileSeq(m_options.blocks_dir, m_options.fast_prune).Flush(block_pos_old, fFinalize)) {
         AbortNode("Flushing block file to disk failed. This is likely the result of an I/O error.");
     }
     // we do not always flush the undo file, as the chain tip may be lagging behind the incoming blocks,
@@ -558,41 +557,41 @@ void BlockManager::UnlinkPrunedFiles(const std::set<int>& setFilesToPrune) const
 {
     for (std::set<int>::iterator it = setFilesToPrune.begin(); it != setFilesToPrune.end(); ++it) {
         FlatFilePos pos(*it, 0);
-        fs::remove(BlockFileSeq(m_options.fast_prune).FileName(pos));
-        fs::remove(UndoFileSeq().FileName(pos));
+        fs::remove(BlockFileSeq(m_options.blocks_dir, m_options.fast_prune).FileName(pos));
+        fs::remove(UndoFileSeq(m_options.blocks_dir).FileName(pos));
         LogPrint(BCLog::BLOCKSTORE, "Prune: %s deleted blk/rev (%05u)\n", __func__, *it);
     }
 }
 
-static FlatFileSeq BlockFileSeq(const bool fast_prune)
+static FlatFileSeq BlockFileSeq(const fs::path& blocks_dir, const bool fast_prune)
 {
-    return FlatFileSeq(gArgs.GetBlocksDirPath(), "blk", fast_prune ? 0x4000 /* 16kb */ : BLOCKFILE_CHUNK_SIZE);
+    return FlatFileSeq(blocks_dir, "blk", fast_prune ? 0x4000 /* 16kb */ : BLOCKFILE_CHUNK_SIZE);
 }
 
-static FlatFileSeq UndoFileSeq()
+static FlatFileSeq UndoFileSeq(const fs::path& blocks_dir)
 {
-    return FlatFileSeq(gArgs.GetBlocksDirPath(), "rev", UNDOFILE_CHUNK_SIZE);
+    return FlatFileSeq(blocks_dir, "rev", UNDOFILE_CHUNK_SIZE);
 }
 
 FILE* BlockManager::OpenBlockFile(const FlatFilePos& pos, bool fReadOnly) const
 {
-    return ::node::OpenBlockFile(m_options.fast_prune, pos, fReadOnly);
+    return ::node::OpenBlockFile(m_options.blocks_dir, m_options.fast_prune, pos, fReadOnly);
 }
 
-FILE* OpenBlockFile(const bool fast_prune, const FlatFilePos& pos, bool fReadOnly)
+FILE* OpenBlockFile(const fs::path& blocks_dir, const bool fast_prune, const FlatFilePos& pos, bool fReadOnly)
 {
-    return BlockFileSeq(fast_prune).Open(pos, fReadOnly);
+    return BlockFileSeq(blocks_dir, fast_prune).Open(pos, fReadOnly);
 }
 
 /** Open an undo file (rev?????.dat) */
-static FILE* OpenUndoFile(const FlatFilePos& pos, bool fReadOnly)
+static FILE* OpenUndoFile(const fs::path& blocks_dir, const FlatFilePos& pos, bool fReadOnly)
 {
-    return UndoFileSeq().Open(pos, fReadOnly);
+    return UndoFileSeq(blocks_dir).Open(pos, fReadOnly);
 }
 
 fs::path BlockManager::GetBlockPosFilename(const FlatFilePos& pos) const
 {
-    return BlockFileSeq(m_options.fast_prune).FileName(pos);
+    return BlockFileSeq(m_options.blocks_dir, m_options.fast_prune).FileName(pos);
 }
 
 bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigned int nHeight, CChain& active_chain, uint64_t nTime, bool fKnown)
@@ -637,7 +636,7 @@ bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigne
 
     if (!fKnown) {
         bool out_of_space;
-        size_t bytes_allocated = BlockFileSeq(m_options.fast_prune).Allocate(pos, nAddSize, out_of_space);
+        size_t bytes_allocated = BlockFileSeq(m_options.blocks_dir, m_options.fast_prune).Allocate(pos, nAddSize, out_of_space);
         if (out_of_space) {
             return AbortNode("Disk space is too low!", _("Disk space is too low!"));
         }
@@ -661,7 +660,7 @@ bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFileP
     m_dirty_fileinfo.insert(nFile);
 
     bool out_of_space;
-    size_t bytes_allocated = UndoFileSeq().Allocate(pos, nAddSize, out_of_space);
+    size_t bytes_allocated = UndoFileSeq(m_options.blocks_dir).Allocate(pos, nAddSize, out_of_space);
     if (out_of_space) {
         return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
     }
@@ -672,10 +671,10 @@ bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFileP
     return true;
 }
 
-static bool WriteBlockToDisk(const bool fast_prune, const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
+static bool WriteBlockToDisk(const fs::path& blocks_dir, const bool fast_prune, const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {
     // Open history file to append
-    CAutoFile fileout(OpenBlockFile(fast_prune, pos), SER_DISK, CLIENT_VERSION);
+    CAutoFile fileout(OpenBlockFile(blocks_dir, fast_prune, pos), SER_DISK, CLIENT_VERSION);
     if (fileout.IsNull()) {
         return error("WriteBlockToDisk: OpenBlockFile failed");
     }
@@ -704,7 +703,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
         if (!FindUndoPos(state, pindex->nFile, _pos, ::GetSerializeSize(blockundo, CLIENT_VERSION) + 40)) {
             return error("ConnectBlock(): FindUndoPos failed");
         }
-        if (!UndoWriteToDisk(blockundo, _pos, pindex->pprev->GetBlockHash(), chainparams.MessageStart())) {
+        if (!UndoWriteToDisk(m_options.blocks_dir, blockundo, _pos, pindex->pprev->GetBlockHash(), chainparams.MessageStart())) {
             return AbortNode(state, "Failed to write undo data");
         }
         // rev files are written in block height order, whereas blk files are written as blocks come in (often out of order)
@@ -727,20 +726,20 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
 
 bool BlockManager::ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams) const
 {
-    return ::node::ReadBlockFromDisk(m_options.fast_prune, block, pindex, consensusParams);
+    return ::node::ReadBlockFromDisk(m_options.blocks_dir, m_options.fast_prune, block, pindex, consensusParams);
 }
 
 bool BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams) const
 {
-    return ::node::ReadBlockFromDisk(m_options.fast_prune, block, pos, consensusParams);
+    return ::node::ReadBlockFromDisk(m_options.blocks_dir, m_options.fast_prune, block, pos, consensusParams);
 }
 
-bool ReadBlockFromDisk(const bool fast_prune, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)
+bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)
 {
     block.SetNull();
 
     // Open history file to read
-    CAutoFile filein(OpenBlockFile(fast_prune, pos, true), SER_DISK, CLIENT_VERSION);
+    CAutoFile filein(OpenBlockFile(blocks_dir, fast_prune, pos, true), SER_DISK, CLIENT_VERSION);
     if (filein.IsNull()) {
         return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
     }
@@ -765,11 +764,11 @@ bool ReadBlockFromDisk(const bool fast_prune, CBlock& block, const FlatFilePos& 
     return true;
 }
 
-bool ReadBlockFromDisk(const bool fast_prune, CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams)
+bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams)
 {
     const FlatFilePos block_pos{WITH_LOCK(cs_main, return pindex->GetBlockPos())};
 
-    if (!ReadBlockFromDisk(fast_prune, block, block_pos, consensusParams)) {
+    if (!ReadBlockFromDisk(blocks_dir, fast_prune, block, block_pos, consensusParams)) {
         return false;
     }
     if (block.GetHash() != pindex->GetBlockHash()) {
@@ -832,7 +831,7 @@ FlatFilePos BlockManager::SaveBlockToDisk(const CBlock& block, int nHeight, CCha
         return FlatFilePos();
     }
     if (!position_known) {
-        if (!WriteBlockToDisk(m_options.fast_prune, block, blockPos, chainparams.MessageStart())) {
+        if (!WriteBlockToDisk(m_options.blocks_dir, m_options.fast_prune, block, blockPos, chainparams.MessageStart())) {
             AbortNode("Failed to write block");
             return FlatFilePos();
         }
