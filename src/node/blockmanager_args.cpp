@@ -9,5 +9,6 @@ namespace node {
 void ApplyArgsManOptions(const ArgsManager& args, BlockManager::Options& opts)
 {
     if (auto value{args.GetBoolArg("-fastprune")}) opts.fast_prune = *value;
+    if (auto value{args.GetBoolArg("-stopafterblockimport")}) opts.stop_after_block_import = *value;
 }
 } // namespace node
