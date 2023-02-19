@@ -873,7 +873,7 @@ struct CImportingNow {
     }
 };
 
-void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const ArgsManager& args, const fs::path& mempool_path)
+void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const fs::path& mempool_path)
 {
     SetSyscallSandboxPolicy(SyscallSandboxPolicy::INITIALIZATION_LOAD_BLOCKS);
     ScheduleBatchPriority();
@@ -940,7 +940,7 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
             }
         }
 
-        if (args.GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
+        if (chainman.m_blockman.m_options.stop_after_block_import) {
             LogPrintf("Stopping after block import\n");
             StartShutdown();
             return;

@@ -35,7 +35,6 @@ struct Params;
 }
 
 namespace node {
-static constexpr bool DEFAULT_STOPAFTERBLOCKIMPORT{false};
 
 /** The pre-allocation chunk size for blk?????.dat files (since 0.8) */
 static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
@@ -245,7 +244,7 @@ FILE* OpenBlockFile(const fs::path& blocks_dir, const bool fast_prune, const Fla
 bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
 bool ReadBlockFromDisk(const fs::path& blocks_dir, const bool fast_prune, CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
 
-void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const ArgsManager& args, const fs::path& mempool_path);
+void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const fs::path& mempool_path);
 } // namespace node
 
 #endif // BITCOIN_NODE_BLOCKSTORAGE_H
