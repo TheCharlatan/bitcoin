@@ -9,6 +9,8 @@
 
 namespace kernel {
 
+static constexpr bool DEFAULT_STOPAFTERBLOCKIMPORT{false};
+
 /**
  * An options struct for `BlockManager`, more ergonomically referred to as
  * `BlockManager::Options` due to the using-declaration in `BlockManager`.
@@ -16,6 +18,7 @@ namespace kernel {
 struct BlockManagerOpts {
     uint64_t prune_target{0};
     bool fast_prune{false};
+    bool stop_after_block_import{DEFAULT_STOPAFTERBLOCKIMPORT};
     fs::path blocks_dir;
 };
 
