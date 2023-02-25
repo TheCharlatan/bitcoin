@@ -1522,11 +1522,13 @@ void CoinsViews::InitCache()
 }
 
 Chainstate::Chainstate(
+    int stop_at_height,
     CTxMemPool* mempool,
     BlockManager& blockman,
     ChainstateManager& chainman,
     std::optional<uint256> from_snapshot_blockhash)
-    : m_mempool(mempool),
+    : nStopAtHeight(stop_at_height),
+      m_mempool(mempool),
       m_blockman(blockman),
       m_chainman(chainman),
       m_from_snapshot_blockhash(from_snapshot_blockhash) {}
@@ -3072,7 +3074,6 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
 
     CBlockIndex *pindexMostWork = nullptr;
     CBlockIndex *pindexNewTip = nullptr;
-    int nStopAtHeight = gArgs.GetIntArg("-stopatheight", DEFAULT_STOPATHEIGHT);
     do {
         // Block until the validation queue drains. This should largely
         // never happen in normal operation, however may happen during
@@ -4896,7 +4897,7 @@ Chainstate& ChainstateManager::InitializeChainstate(CTxMemPool* mempool)
     assert(!m_ibd_chainstate);
     assert(!m_active_chainstate);
 
-    m_ibd_chainstate = std::make_unique<Chainstate>(mempool, m_blockman, *this);
+    m_ibd_chainstate = std::make_unique<Chainstate>(m_options.stop_at_height, mempool, m_blockman, *this);
     m_active_chainstate = m_ibd_chainstate.get();
     return *m_active_chainstate;
 }
@@ -4997,9 +4998,7 @@ bool ChainstateManager::ActivateSnapshot(
             static_cast<size_t>(current_coinsdb_cache_size * IBD_CACHE_PERC));
     }
 
-    auto snapshot_chainstate = WITH_LOCK(::cs_main,
-        return std::make_unique<Chainstate>(
-            /*mempool=*/nullptr, m_blockman, *this, base_blockhash));
+    auto snapshot_chainstate = WITH_LOCK(::cs_main, return std::make_unique<Chainstate>(m_options.stop_at_height, /*mempool=*/nullptr, m_blockman, *this, base_blockhash));
 
     {
         LOCK(::cs_main);
@@ -5368,7 +5367,7 @@ Chainstate& ChainstateManager::ActivateExistingSnapshot(CTxMemPool* mempool, uin
 {
     assert(!m_snapshot_chainstate);
     m_snapshot_chainstate =
-        std::make_unique<Chainstate>(mempool, m_blockman, *this, base_blockhash);
+        std::make_unique<Chainstate>(m_options.stop_at_height, mempool, m_blockman, *this, base_blockhash);
     LogPrintf("[snapshot] switching active chainstate to %s\n", m_snapshot_chainstate->ToString());
     m_active_chainstate = m_snapshot_chainstate.get();
     return *m_snapshot_chainstate;

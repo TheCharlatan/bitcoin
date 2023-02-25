@@ -64,8 +64,6 @@ struct Params;
 static const int MAX_SCRIPTCHECK_THREADS = 15;
 /** -par default (number of script-checking threads, 0 = auto) */
 static const int DEFAULT_SCRIPTCHECK_THREADS = 0;
-/** Default for -stopatheight */
-static const int DEFAULT_STOPATHEIGHT = 0;
 /** Block files containing a block-height within MIN_BLOCKS_TO_KEEP of ActiveChain().Tip() will not be pruned. */
 static const unsigned int MIN_BLOCKS_TO_KEEP = 288;
 static const signed int DEFAULT_CHECKBLOCKS = 6;
@@ -459,6 +457,8 @@ protected:
     /** chainwork for the last block that preciousblock has been applied to. */
     arith_uint256 nLastPreciousChainwork = 0;
 
+    int nStopAtHeight;
+
     /**
      * The ChainState Mutex
      * A lock that must be held when modifying this ChainState - held in ActivateBestChain() and
@@ -492,6 +492,7 @@ public:
     ChainstateManager& m_chainman;
 
     explicit Chainstate(
+        int stop_at_height,
         CTxMemPool* mempool,
         node::BlockManager& blockman,
         ChainstateManager& chainman,
