@@ -217,10 +217,13 @@ apt install clang-tidy bear clang
 Then, pass clang as compiler to configure, and use bear to produce the `compile_commands.json`:
 
 ```sh
-./autogen.sh && ./configure CC=clang CXX=clang++
-make clean && bear make -j $(nproc)     # For bear 2.x
-make clean && bear -- make -j $(nproc)  # For bear 3.x
+./autogen.sh && ./configure CC=clang CXX=clang++ --enable-suppress-external-warnings
+make clean && bear --config src/.bear-tidy-config -- make -j $(nproc)
 ```
+
+The ouput is de-noised of errors from external dependencies and includes with 
+`--enable-suppress-external-warnings` and `--config src/.bear-tidy-config`. Both
+options may be omitted to view the full list of errors.
 
 To run clang-tidy on all source files:
 
@@ -233,6 +236,13 @@ To run clang-tidy on the changed source lines:
 ```sh
 git diff | ( cd ./src/ && clang-tidy-diff -p2 -j $(nproc) )
 ```
+
+To achieve a less noisy clang-tidy output, run configure with the
+`--enable-suppress-external-warnings` flag. This will suppress warnings arising
+from externally included headers. Additionally a default bear configuration
+file can be found in `src/.bear-tidy-config`. It contains rules excluding
+in-tree dependency headers and may be passed to bear with `--config
+src/.bear-tidy-config`.
 
 Coding Style (Python)
 ---------------------
