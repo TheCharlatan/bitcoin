@@ -234,6 +234,13 @@ To run clang-tidy on the changed source lines:
 git diff | ( cd ./src/ && clang-tidy-diff -p2 -j $(nproc) )
 ```
 
+To achieve a less noisy clang-tidy output, run configure with the
+`--enable-suppress-external-warnings` flag. This will suppress warnings arising
+from externally included headers. Additionally a default bear configuration
+file can be found in `src/.bear-tidy-config`. It contains rules excluding
+in-tree dependency headers and may be passed to bear with `--config
+src/.bear-tidy-config`.
+
 Coding Style (Python)
 ---------------------
 
