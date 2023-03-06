@@ -34,13 +34,14 @@
 #include <util/fees.h>
 #include <util/moneystr.h>
 #include <util/rbf.h>
+#include <util/shell.h>
 #include <util/string.h>
 #include <util/system.h>
 #include <util/translation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/context.h>
-#include <wallet/fees.h>
 #include <wallet/external_signer_scriptpubkeyman.h>
+#include <wallet/fees.h>
 
 #include <univalue.h>
 

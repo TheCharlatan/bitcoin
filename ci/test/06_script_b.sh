@@ -75,6 +75,7 @@ if [ "${RUN_TIDY}" = "true" ]; then
           " src/util/message.cpp"\
           " src/util/moneystr.cpp"\
           " src/util/serfloat.cpp"\
+          " src/util/shell.cpp"\
           " src/util/spanparsing.cpp"\
           " src/util/strencodings.cpp"\
           " src/util/string.cpp"\

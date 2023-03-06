@@ -296,6 +296,7 @@ BITCOIN_CORE_H = \
   util/result.h \
   util/serfloat.h \
   util/settings.h \
+  util/shell.h \
   util/sock.h \
   util/spanparsing.h \
   util/string.h \
@@ -716,6 +717,7 @@ libbitcoin_util_a_SOURCES = \
   util/threadinterrupt.cpp \
   util/threadnames.cpp \
   util/serfloat.cpp \
+  util/shell.cpp \
   util/spanparsing.cpp \
   util/strencodings.cpp \
   util/string.cpp \
@@ -951,6 +953,7 @@ libbitcoinkernel_la_SOURCES = \
   util/rbf.cpp \
   util/serfloat.cpp \
   util/settings.cpp \
+  util/shell.cpp \
   util/strencodings.cpp \
   util/string.cpp \
   util/syscall_sandbox.cpp \

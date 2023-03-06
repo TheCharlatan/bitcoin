@@ -91,12 +91,6 @@ fs::path GetConfigFile(const ArgsManager& args, const fs::path& configuration_fi
 #ifdef WIN32
 fs::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
 #endif
-#ifndef WIN32
-std::string ShellEscape(const std::string& arg);
-#endif
-#if HAVE_SYSTEM
-void runCommand(const std::string& strCommand);
-#endif
 
 /**
  * Most paths passed as configuration arguments are treated as relative to
