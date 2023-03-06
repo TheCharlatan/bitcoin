@@ -70,6 +70,7 @@ if [ "${RUN_TIDY}" = "true" ]; then
           " src/util/check.cpp"\
           " src/util/error.cpp"\
           " src/util/exception.cpp"\
+          " src/util/fs.cpp"\
           " src/util/getuniquepath.cpp"\
           " src/util/hasher.cpp"\
           " src/util/message.cpp"\
