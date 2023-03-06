@@ -8,12 +8,11 @@
 #include <flatfile.h>
 #include <logging.h>
 #include <tinyformat.h>
-#include <util/system.h>
+#include <util/fs.h>
 
-FlatFileSeq::FlatFileSeq(fs::path dir, const char* prefix, size_t chunk_size) :
-    m_dir(std::move(dir)),
-    m_prefix(prefix),
-    m_chunk_size(chunk_size)
+FlatFileSeq::FlatFileSeq(fs::path dir, const char* prefix, size_t chunk_size) : m_dir(std::move(dir)),
+                                                                                m_prefix(prefix),
+                                                                                m_chunk_size(chunk_size)
 {
     if (chunk_size == 0) {
         throw std::invalid_argument("chunk_size must be positive");
