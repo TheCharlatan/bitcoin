@@ -9,6 +9,7 @@
 #include <wallet/db.h>
 
 #include <util/check.h>
+#include <util/fs.h>
 #include <util/strencodings.h>
 #include <util/translation.h>
 
