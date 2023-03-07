@@ -19,7 +19,6 @@
 #include <tinyformat.h>
 #include <uint256.h>
 #include <util/serfloat.h>
-#include <util/system.h>
 #include <util/time.h>
 
 #include <algorithm>

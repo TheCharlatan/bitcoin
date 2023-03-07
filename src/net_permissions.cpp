@@ -5,7 +5,6 @@
 #include <net_permissions.h>
 #include <netbase.h>
 #include <util/error.h>
-#include <util/system.h>
 #include <util/translation.h>
 
 const std::vector<std::string> NET_PERMISSIONS_DOC{
@@ -15,8 +14,7 @@ const std::vector<std::string> NET_PERMISSIONS_DOC{
     "relay (relay even in -blocksonly mode, and unlimited transaction announcements)",
     "mempool (allow requesting BIP35 mempool contents)",
     "download (allow getheaders during IBD, no disconnect after maxuploadtarget limit)",
-    "addr (responses to GETADDR avoid hitting the cache and contain random records with the most up-to-date info)"
-};
+    "addr (responses to GETADDR avoid hitting the cache and contain random records with the most up-to-date info)"};
 
 namespace {
 
@@ -66,7 +64,7 @@ bool TryParsePermissionFlags(const std::string& str, NetPermissionFlags& output,
     return true;
 }
 
-}
+} // namespace
 
 std::vector<std::string> NetPermissions::ToStrings(NetPermissionFlags flags)
 {

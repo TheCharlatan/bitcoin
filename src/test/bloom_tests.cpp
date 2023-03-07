@@ -16,7 +16,6 @@
 #include <test/util/setup_common.h>
 #include <uint256.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 
 #include <vector>
 

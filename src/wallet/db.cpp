@@ -6,7 +6,7 @@
 #include <chainparams.h>
 #include <fs.h>
 #include <logging.h>
-#include <util/system.h>
+#include <util/args.h>
 #include <wallet/db.h>
 
 #include <exception>

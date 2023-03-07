@@ -20,6 +20,7 @@
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util.h>
+#include <util/args.h>
 #include <util/error.h>
 #include <util/fees.h>
 #include <util/message.h>
@@ -27,7 +28,6 @@
 #include <util/shell.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <version.h>
 

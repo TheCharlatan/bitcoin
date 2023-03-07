@@ -65,6 +65,7 @@ if [ "${RUN_TIDY}" = "true" ]; then
           " src/test/fuzz/util/"\
           " src/test/util/coins.cpp"\
           " src/uint256.cpp"\
+          " src/util/args.cpp"\
           " src/util/bip32.cpp"\
           " src/util/bytevectorhash.cpp"\
           " src/util/check.cpp"\

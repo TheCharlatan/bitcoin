@@ -25,12 +25,12 @@
 #include <test/fuzz/util.h>
 #include <uint256.h>
 #include <univalue.h>
+#include <util/args.h>
 #include <util/check.h>
 #include <util/moneystr.h>
 #include <util/overflow.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <version.h>
 
 #include <cassert>

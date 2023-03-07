@@ -2,19 +2,19 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <util/system.h>
 #include <fs.h>
 #include <sync.h>
 #include <test/util/logging.h>
 #include <test/util/setup_common.h>
 #include <test/util/str.h>
-#include <util/strencodings.h>
 #include <univalue.h>
+#include <util/args.h>
+#include <util/strencodings.h>
 
 #include <array>
-#include <optional>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <vector>
 
 #include <boost/test/unit_test.hpp>

@@ -18,7 +18,6 @@
 #include <interfaces/wallet.h>
 #include <key_io.h>
 #include <policy/policy.h>
-#include <util/system.h>
 #include <validation.h>
 #include <wallet/ismine.h>
 

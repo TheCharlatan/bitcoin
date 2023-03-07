@@ -25,6 +25,7 @@
 #include <streams.h>
 #include <sync.h>
 #include <txmempool.h>
+#include <util/args.h>
 #include <util/check.h>
 #include <validation.h>
 #include <version.h>

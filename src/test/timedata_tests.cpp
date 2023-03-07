@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 
+#include <logging.h>
 #include <netaddress.h>
 #include <noui.h>
 #include <test/util/logging.h>

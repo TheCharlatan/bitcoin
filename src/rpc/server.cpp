@@ -5,9 +5,11 @@
 
 #include <rpc/server.h>
 
+#include <logging.h>
 #include <rpc/util.h>
 #include <shutdown.h>
 #include <sync.h>
+#include <util/args.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/system.h>

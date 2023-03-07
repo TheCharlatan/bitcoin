@@ -14,8 +14,8 @@
 #include <test/fuzz/util/net.h>
 #include <test/util/setup_common.h>
 #include <time.h>
+#include <util/args.h>
 #include <util/asmap.h>
-#include <util/system.h>
 
 #include <cassert>
 #include <cstdint>

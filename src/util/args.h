@@ -7,17 +7,27 @@
  * Server/client environment: argument handling, config file parsing,
  * thread wrappers, startup time
  */
-#ifndef BITCOIN_UTIL_SYSTEM_H
-#define BITCOIN_UTIL_SYSTEM_H
+#ifndef BITCOIN_UTIL_ARGS_H
+#define BITCOIN_UTIL_ARGS_H
 
+#include <fs.h>
+#include <sync.h>
+#include <util/settings.h>
+
+#include <iosfwd>
+#include <list>
+#include <map>
+#include <optional>
+#include <set>
 #include <stdint.h>
+#include <string>
+#include <vector>
 
-// Application startup time (used for uptime calculation)
-int64_t GetStartupTime();
+class ArgsManager;
 
-void SetupEnvironment();
-bool SetupNetworking();
-<<<<<<< HEAD
+extern const char * const BITCOIN_CONF_FILENAME;
+extern const char * const BITCOIN_SETTINGS_FILENAME;
+
 // Return true if -datadir option points to a valid directory or is not specified.
 bool CheckDataDirOption(const ArgsManager& args);
 fs::path GetConfigFile(const ArgsManager& args, const fs::path& configuration_file_path);
@@ -348,6 +358,13 @@ protected:
     std::optional<unsigned int> GetArgFlags(const std::string& name) const;
 
     /**
+     * Read and update settings file with saved settings. This needs to be
+     * called after SelectParams() because the settings file location is
+     * network-specific.
+     */
+    bool InitSettings(std::string& error);
+
+    /**
      * Get settings file path, or return false if read-write settings were
      * disabled with -nosettings.
      */
@@ -385,6 +402,12 @@ protected:
      * useful for troubleshooting.
      */
     void LogArgs() const;
+
+    /**
+     * If datadir does not exist, create it along with wallets/
+     * subdirectory(s).
+     */
+    void EnsureDataDir() const;
 
 private:
     /**
@@ -429,19 +452,23 @@ std::string HelpMessageGroup(const std::string& message);
  */
 std::string HelpMessageOpt(const std::string& option, const std::string& message);
 
-=======
->>>>>>> 2b893e2a63 (refactor: Extract util/args from util/system)
-/**
- * Return the number of cores available on the current system.
- * @note This does count virtual cores, such as those provided by HyperThreading.
- */
-int GetNumCores();
+namespace util {
 
-/**
- * On platforms that support it, tell the kernel the calling thread is
- * CPU-intensive and non-interactive. See SCHED_BATCH in sched(7) for details.
- *
- */
-void ScheduleBatchPriority();
+#ifdef WIN32
+class WinCmdLineArgs
+{
+public:
+    WinCmdLineArgs();
+    ~WinCmdLineArgs();
+    std::pair<int, char**> get();
 
-#endif // BITCOIN_UTIL_SYSTEM_H
+private:
+    int argc;
+    char** argv;
+    std::vector<std::string> args;
+};
+#endif
+
+} // namespace util
+
+#endif // BITCOIN_UTIL_ARGS_H

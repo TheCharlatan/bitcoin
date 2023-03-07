@@ -6,7 +6,7 @@
 #define BITCOIN_EXTERNAL_SIGNER_H
 
 #include <univalue.h>
-#include <util/system.h>
+#include <util/args.h>
 
 #include <string>
 #include <vector>

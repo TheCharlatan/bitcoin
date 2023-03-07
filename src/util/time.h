@@ -7,6 +7,7 @@
 #define BITCOIN_UTIL_TIME_H
 
 #include <compat/compat.h>
+#include <util/time.h>
 
 #include <chrono> // IWYU pragma: export
 #include <cstdint>

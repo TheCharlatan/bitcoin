@@ -11,7 +11,7 @@
 #include <tinyformat.h>
 #include <txdb.h>
 #include <uint256.h>
-#include <util/system.h>
+#include <util/args.h>
 #include <validation.h>
 
 #include <cassert>

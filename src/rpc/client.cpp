@@ -5,7 +5,6 @@
 
 #include <rpc/client.h>
 #include <tinyformat.h>
-#include <util/system.h>
 
 #include <set>
 #include <stdint.h>

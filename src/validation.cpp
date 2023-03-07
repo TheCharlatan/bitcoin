@@ -45,6 +45,7 @@
 #include <txmempool.h>
 #include <uint256.h>
 #include <undo.h>
+#include <util/args.h>
 #include <util/check.h> // For NDEBUG compile time check
 #include <util/fs.h>
 #include <util/hasher.h>
@@ -52,7 +53,6 @@
 #include <util/rbf.h>
 #include <util/shell.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/time.h>
 #include <util/trace.h>
 #include <util/translation.h>

@@ -19,6 +19,7 @@
 #include <rpc/util.h>
 #include <scheduler.h>
 #include <univalue.h>
+#include <util/args.h>
 #include <util/check.h>
 #include <util/syscall_sandbox.h>
 
