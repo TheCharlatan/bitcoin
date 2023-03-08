@@ -8,6 +8,7 @@
 #include <kernel/coinstats.h>
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
+#include <common/args.h>
 #include <util/time.h>
 #include <validation.h>
 
@@ -30,7 +31,7 @@ static void IndexWaitSynced(BaseIndex& index)
 
 BOOST_FIXTURE_TEST_CASE(coinstatsindex_initial_sync, TestChain100Setup)
 {
-    CoinStatsIndex coin_stats_index{interfaces::MakeChain(m_node), 1 << 20, true};
+    CoinStatsIndex coin_stats_index{interfaces::MakeChain(m_node), 1 << 20, gArgs.GetDataDirNet(), true};
 
     const CBlockIndex* block_index;
     {
@@ -95,7 +96,7 @@ BOOST_FIXTURE_TEST_CASE(coinstatsindex_unclean_shutdown, TestChain100Setup)
     Chainstate& chainstate = Assert(m_node.chainman)->ActiveChainstate();
     const CChainParams& params = Params();
     {
-        CoinStatsIndex index{interfaces::MakeChain(m_node), 1 << 20};
+        CoinStatsIndex index{interfaces::MakeChain(m_node), 1 << 20, gArgs.GetDataDirNet()};
         BOOST_REQUIRE(index.Start());
         IndexWaitSynced(index);
         std::shared_ptr<const CBlock> new_block;
@@ -121,7 +122,7 @@ BOOST_FIXTURE_TEST_CASE(coinstatsindex_unclean_shutdown, TestChain100Setup)
     }
 
     {
-        CoinStatsIndex index{interfaces::MakeChain(m_node), 1 << 20};
+        CoinStatsIndex index{interfaces::MakeChain(m_node), 1 << 20, gArgs.GetDataDirNet()};
         // Make sure the index can be loaded.
         BOOST_REQUIRE(index.Start());
         index.Stop();
