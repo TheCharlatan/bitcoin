@@ -15,6 +15,9 @@
 #include <util/vector.h>
 
 #include <stdint.h>
+#include <algorithm>
+#include <iostream>
+#include <chrono>
 
 static constexpr uint8_t DB_COIN{'C'};
 static constexpr uint8_t DB_BLOCK_FILES{'f'};
@@ -112,6 +115,10 @@ std::vector<uint256> CCoinsViewDB::GetHeadBlocks() const {
     return vhashHeadBlocks;
 }
 
+bool SortByFirst(const std::pair<COutPoint, CCoinsCacheEntry> &a, const std::pair<COutPoint, CCoinsCacheEntry> &b) {
+    return (a.first < b.first);
+}
+
 bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, bool erase) {
     CDBBatch batch(*m_db);
     size_t count = 0;
@@ -135,7 +142,21 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
     batch.Erase(DB_BEST_BLOCK);
     batch.Write(DB_HEAD_BLOCKS, Vector(hashBlock, old_tip));
 
-    for (CCoinsMap::iterator it = mapCoins.begin(); it != mapCoins.end();) {
+    // std::unordered_map<COutPoint, CCoinsCacheEntry, SaltedOutpointHasher> CCoinsMap
+
+    std::map<COutPoint, CCoinsCacheEntry> order(mapCoins.begin(), mapCoins.end());
+
+    // std::vector<std::pair<COutPoint, CCoinsCacheEntry>> vec;
+    // vec.reserve(mapCoins.size());
+    // for (const auto &kv : mapCoins) {
+    //     vec.push_back(std::make_pair(kv.first, kv.second));
+    // }
+
+    // std::sort(vec.begin(), vec.end(), SortByFirst);
+    auto start = std::chrono::high_resolution_clock::now();
+    std::cout << "This is the first element in the map:" << order.begin()->first.ToString() << order.begin()->first.hash.ToString() << std::endl;
+    std::cout << "This is the last element in the map:" << order.end()->first.ToString() << order.end()->first.hash.ToString() << std::endl;
+    for (auto it = order.begin(); it != order.end();) {
         if (it->second.flags & CCoinsCacheEntry::DIRTY) {
             CoinEntry entry(&it->first);
             if (it->second.coin.IsSpent())
@@ -145,7 +166,8 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
             changed++;
         }
         count++;
-        it = erase ? mapCoins.erase(it) : std::next(it);
+        // it = erase ? decltype(it)(order.erase(std::next(it).base())) : std::next(it);
+        it = erase ? order.erase(it) : std::next(it);
         if (batch.SizeEstimate() > m_options.batch_write_bytes) {
             LogPrint(BCLog::COINDB, "Writing partial batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
             m_db->WriteBatch(batch);
@@ -167,6 +189,10 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
     LogPrint(BCLog::COINDB, "Writing final batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
     bool ret = m_db->WriteBatch(batch);
     LogPrint(BCLog::COINDB, "Committed %u changed transaction outputs (out of %u) to coin database...\n", (unsigned int)changed, (unsigned int)count);
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    std::cout << "Time taken to batch write: " << duration.count() << " ms" << std::endl;
+    mapCoins.clear();
     return ret;
 }
 
