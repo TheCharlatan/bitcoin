@@ -17,6 +17,7 @@
 #include <init.h>
 #include <init/common.h>
 #include <interfaces/chain.h>
+#include <kernel/chainname.h>
 #include <kernel/mempool_entry.h>
 #include <net.h>
 #include <net_processing.h>
@@ -271,7 +272,7 @@ TestChain100Setup::TestChain100Setup(
         const std::vector<const char*>& extra_args,
         const bool coins_db_in_memory,
         const bool block_tree_db_in_memory)
-    : TestingSetup{CBaseChainParams::REGTEST, extra_args, coins_db_in_memory, block_tree_db_in_memory}
+    : TestingSetup{kernel::chainname::REGTEST, extra_args, coins_db_in_memory, block_tree_db_in_memory}
 {
     SetMockTime(1598887952);
     constexpr std::array<unsigned char, 32> vchKey = {

@@ -5,6 +5,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/params.h>
+#include <kernel/chainname.h>
 #include <primitives/block.h>
 #include <util/system.h>
 #include <versionbits.h>
@@ -104,7 +105,7 @@ std::unique_ptr<const CChainParams> g_params;
 void initialize()
 {
     // this is actually comparatively slow, so only do it once
-    g_params = CreateChainParams(ArgsManager{}, CBaseChainParams::MAIN);
+    g_params = CreateChainParams(ArgsManager{}, kernel::chainname::MAIN);
     assert(g_params != nullptr);
 }
 

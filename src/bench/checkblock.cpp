@@ -7,6 +7,7 @@
 
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <kernel/chainname.h>
 #include <streams.h>
 #include <util/system.h>
 #include <validation.h>
@@ -36,7 +37,7 @@ static void DeserializeAndCheckBlockTest(benchmark::Bench& bench)
     stream.write({&a, 1}); // Prevent compaction
 
     ArgsManager bench_args;
-    const auto chainParams = CreateChainParams(bench_args, CBaseChainParams::MAIN);
+    const auto chainParams = CreateChainParams(bench_args, kernel::chainname::MAIN);
 
     bench.unit("block").run([&] {
         CBlock block; // Note that CBlock caches its checked state, so we need to recreate it here

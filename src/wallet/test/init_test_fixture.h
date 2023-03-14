@@ -7,13 +7,14 @@
 
 #include <interfaces/chain.h>
 #include <interfaces/wallet.h>
+#include <kernel/chainname.h>
 #include <node/context.h>
 #include <test/util/setup_common.h>
 
 
 namespace wallet {
 struct InitWalletDirTestingSetup: public BasicTestingSetup {
-    explicit InitWalletDirTestingSetup(const std::string& chainName = CBaseChainParams::MAIN);
+    explicit InitWalletDirTestingSetup(const std::string& chainName = kernel::chainname::MAIN);
     ~InitWalletDirTestingSetup();
     void SetWalletDir(const fs::path& walletdir_path);
 

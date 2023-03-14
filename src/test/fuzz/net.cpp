@@ -2,8 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <chainparams.h>
-#include <chainparamsbase.h>
+#include <kernel/chainname.h>
 #include <net.h>
 #include <net_permissions.h>
 #include <netaddress.h>
@@ -24,7 +23,7 @@
 
 void initialize_net()
 {
-    static const auto testing_setup = MakeNoLogFileContext<>(CBaseChainParams::MAIN);
+    static const auto testing_setup = MakeNoLogFileContext<>(kernel::chainname::MAIN);
 }
 
 FUZZ_TARGET_INIT(net, initialize_net)

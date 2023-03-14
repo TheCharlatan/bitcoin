@@ -3,8 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <banman.h>
-#include <chainparams.h>
 #include <consensus/consensus.h>
+#include <kernel/chainname.h>
 #include <net.h>
 #include <net_processing.h>
 #include <protocol.h>
@@ -57,7 +57,7 @@ void initialize_process_message()
     Assert(GetNumMsgTypes() == getAllNetMessageTypes().size()); // If this fails, add or remove the message type below
 
     static const auto testing_setup = MakeNoLogFileContext<const TestingSetup>(
-            /*chain_name=*/CBaseChainParams::REGTEST,
+            /*chain_name=*/kernel::chainname::REGTEST,
             /*extra_args=*/{"-txreconciliation"});
     g_setup = testing_setup.get();
     for (int i = 0; i < 2 * COINBASE_MATURITY; i++) {

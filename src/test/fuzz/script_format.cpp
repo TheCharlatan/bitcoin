@@ -5,6 +5,7 @@
 #include <chainparams.h>
 #include <consensus/consensus.h>
 #include <core_io.h>
+#include <kernel/chainname.h>
 #include <policy/policy.h>
 #include <script/script.h>
 #include <test/fuzz/FuzzedDataProvider.h>
@@ -14,7 +15,7 @@
 
 void initialize_script_format()
 {
-    SelectParams(CBaseChainParams::REGTEST);
+    SelectParams(kernel::chainname::REGTEST);
 }
 
 FUZZ_TARGET_INIT(script_format, initialize_script_format)

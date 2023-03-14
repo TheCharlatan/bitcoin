@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <bench/bench.h>
-#include <chainparamsbase.h>
+#include <kernel/chainname.h>
 #include <kernel/cs_main.h>
 #include <kernel/mempool_entry.h>
 #include <rpc/mempool.h>
@@ -21,7 +21,7 @@ static void AddTx(const CTransactionRef& tx, const CAmount& fee, CTxMemPool& poo
 
 static void RpcMempool(benchmark::Bench& bench)
 {
-    const auto testing_setup = MakeNoLogFileContext<const ChainTestingSetup>(CBaseChainParams::MAIN);
+    const auto testing_setup = MakeNoLogFileContext<const ChainTestingSetup>(kernel::chainname::MAIN);
     CTxMemPool& pool = *Assert(testing_setup->m_node.mempool);
     LOCK2(cs_main, pool.cs);
 

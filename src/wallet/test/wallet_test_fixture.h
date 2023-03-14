@@ -9,6 +9,7 @@
 
 #include <interfaces/chain.h>
 #include <interfaces/wallet.h>
+#include <kernel/chainname.h>
 #include <node/context.h>
 #include <util/check.h>
 #include <wallet/wallet.h>
@@ -19,7 +20,7 @@ namespace wallet {
 /** Testing setup and teardown for wallet.
  */
 struct WalletTestingSetup : public TestingSetup {
-    explicit WalletTestingSetup(const std::string& chainName = CBaseChainParams::MAIN);
+    explicit WalletTestingSetup(const std::string& chainName = kernel::chainname::MAIN);
     ~WalletTestingSetup();
 
     std::unique_ptr<interfaces::WalletLoader> m_wallet_loader;

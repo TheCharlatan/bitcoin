@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <bench/bench.h>
+#include <kernel/chainname.h>
 #include <logging.h>
 #include <test/util/setup_common.h>
 
@@ -10,7 +11,7 @@
 static void Logging(benchmark::Bench& bench, const std::vector<const char*>& extra_args, const std::function<void()>& log)
 {
     TestingSetup test_setup{
-        CBaseChainParams::REGTEST,
+        kernel::chainname::REGTEST,
         extra_args,
     };
 

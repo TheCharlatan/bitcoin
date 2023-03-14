@@ -4,6 +4,7 @@
 
 #include <chain.h>
 #include <chainparams.h>
+#include <kernel/chainname.h>
 #include <pow.h>
 #include <primitives/block.h>
 #include <test/fuzz/FuzzedDataProvider.h>
@@ -19,7 +20,7 @@
 
 void initialize_pow()
 {
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(kernel::chainname::MAIN);
 }
 
 FUZZ_TARGET_INIT(pow, initialize_pow)

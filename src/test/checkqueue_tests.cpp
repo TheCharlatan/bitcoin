@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <checkqueue.h>
+#include <kernel/chainname.h>
 #include <sync.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
@@ -27,9 +28,11 @@
 struct NoLockLoggingTestingSetup : public TestingSetup {
     NoLockLoggingTestingSetup()
 #ifdef DEBUG_LOCKCONTENTION
-        : TestingSetup{CBaseChainParams::MAIN, /*extra_args=*/{"-debugexclude=lock"}} {}
+        : TestingSetup{kernel::chainname::MAIN, /*extra_args=*/{ "-debugexclude=lock" }} {}
 #else
-        : TestingSetup{CBaseChainParams::MAIN} {}
+        : TestingSetup{kernel::chainname::MAIN}
+    {
+    }
 #endif
 };
 
