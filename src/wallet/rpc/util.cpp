@@ -6,7 +6,6 @@
 
 #include <common/url.h>
 #include <rpc/util.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <wallet/context.h>
 #include <wallet/wallet.h>
@@ -102,7 +101,7 @@ void EnsureWalletIsUnlocked(const CWallet& wallet)
 
 WalletContext& EnsureWalletContext(const std::any& context)
 {
-    auto wallet_context = util::AnyPtr<WalletContext>(context);
+    auto wallet_context = AnyPtr<WalletContext>(context);
     if (!wallet_context) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Wallet context not found");
     }

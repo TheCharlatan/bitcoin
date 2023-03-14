@@ -9,8 +9,8 @@
 #include <policy/fees.h>
 #include <rpc/protocol.h>
 #include <rpc/request.h>
+#include <rpc/util.h>
 #include <txmempool.h>
-#include <util/system.h>
 #include <validation.h>
 
 #include <any>
@@ -19,7 +19,7 @@ using node::NodeContext;
 
 NodeContext& EnsureAnyNodeContext(const std::any& context)
 {
-    auto node_context = util::AnyPtr<NodeContext>(context);
+    auto node_context = AnyPtr<NodeContext>(context);
     if (!node_context) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Node context not found");
     }

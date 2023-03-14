@@ -21,7 +21,6 @@
 #include <univalue.h>
 #include <util/check.h>
 #include <util/syscall_sandbox.h>
-#include <util/system.h>
 
 #include <stdint.h>
 #ifdef HAVE_MALLOC_INFO
@@ -58,7 +57,7 @@ static RPCHelpMan setmocktime()
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Mocktime cannot be negative: %s.", time));
     }
     SetMockTime(time);
-    auto node_context = util::AnyPtr<NodeContext>(request.context);
+    auto node_context = AnyPtr<NodeContext>(request.context);
     if (node_context) {
         for (const auto& chain_client : node_context->chain_clients) {
             chain_client->setMockTime(time);
@@ -111,7 +110,7 @@ static RPCHelpMan mockscheduler()
         throw std::runtime_error("delta_time must be between 1 and 3600 seconds (1 hr)");
     }
 
-    auto node_context = CHECK_NONFATAL(util::AnyPtr<NodeContext>(request.context));
+    auto node_context = CHECK_NONFATAL(AnyPtr<NodeContext>(request.context));
     // protect against null pointer dereference
     CHECK_NONFATAL(node_context->scheduler);
     node_context->scheduler->MockForward(std::chrono::seconds(delta_seconds));

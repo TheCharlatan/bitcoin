@@ -478,18 +478,6 @@ inline void insert(std::set<TsetT>& dst, const Tsrc& src) {
     dst.insert(src.begin(), src.end());
 }
 
-/**
- * Helper function to access the contained object of a std::any instance.
- * Returns a pointer to the object if passed instance has a value and the type
- * matches, nullptr otherwise.
- */
-template<typename T>
-T* AnyPtr(const std::any& any) noexcept
-{
-    T* const* ptr = std::any_cast<T*>(&any);
-    return ptr ? *ptr : nullptr;
-}
-
 #ifdef WIN32
 class WinCmdLineArgs
 {

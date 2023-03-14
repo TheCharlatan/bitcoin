@@ -21,11 +21,11 @@
 #include <rpc/protocol.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>
+#include <rpc/util.h>
 #include <streams.h>
 #include <sync.h>
 #include <txmempool.h>
 #include <util/check.h>
-#include <util/system.h>
 #include <validation.h>
 #include <version.h>
 
@@ -81,7 +81,7 @@ static bool RESTERR(HTTPRequest* req, enum HTTPStatusCode status, std::string me
  */
 static NodeContext* GetNodeContext(const std::any& context, HTTPRequest* req)
 {
-    auto node_context = util::AnyPtr<NodeContext>(context);
+    auto node_context = AnyPtr<NodeContext>(context);
     if (!node_context) {
         RESTERR(req, HTTP_INTERNAL_SERVER_ERROR,
                 strprintf("%s:%d (%s)\n"
@@ -102,7 +102,7 @@ static NodeContext* GetNodeContext(const std::any& context, HTTPRequest* req)
  */
 static CTxMemPool* GetMemPool(const std::any& context, HTTPRequest* req)
 {
-    auto node_context = util::AnyPtr<NodeContext>(context);
+    auto node_context = AnyPtr<NodeContext>(context);
     if (!node_context || !node_context->mempool) {
         RESTERR(req, HTTP_NOT_FOUND, "Mempool disabled or instance not found");
         return nullptr;
@@ -119,7 +119,7 @@ static CTxMemPool* GetMemPool(const std::any& context, HTTPRequest* req)
  */
 static ChainstateManager* GetChainman(const std::any& context, HTTPRequest* req)
 {
-    auto node_context = util::AnyPtr<NodeContext>(context);
+    auto node_context = AnyPtr<NodeContext>(context);
     if (!node_context || !node_context->chainman) {
         RESTERR(req, HTTP_INTERNAL_SERVER_ERROR,
                 strprintf("%s:%d (%s)\n"

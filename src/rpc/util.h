@@ -381,4 +381,16 @@ private:
     const RPCExamples m_examples;
 };
 
+/**
+ * Helper function to access the contained object of a std::any instance.
+ * Returns a pointer to the object if passed instance has a value and the type
+ * matches, nullptr otherwise.
+ */
+template<typename T>
+T* AnyPtr(const std::any& any) noexcept
+{
+    T* const* ptr = std::any_cast<T*>(&any);
+    return ptr ? *ptr : nullptr;
+}
+
 #endif // BITCOIN_RPC_UTIL_H
