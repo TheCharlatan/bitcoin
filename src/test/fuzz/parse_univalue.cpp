@@ -4,6 +4,7 @@
 
 #include <chainparams.h>
 #include <core_io.h>
+#include <kernel/chainname.h>
 #include <rpc/client.h>
 #include <rpc/util.h>
 #include <test/fuzz/fuzz.h>
@@ -13,7 +14,7 @@
 
 void initialize_parse_univalue()
 {
-    SelectParams(CBaseChainParams::REGTEST);
+    SelectParams(kernel::chainname::REGTEST);
 }
 
 FUZZ_TARGET_INIT(parse_univalue, initialize_parse_univalue)

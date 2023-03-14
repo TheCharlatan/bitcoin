@@ -2,14 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <util/system.h>
 #include <fs.h>
+#include <kernel/chainname.h>
 #include <sync.h>
 #include <test/util/logging.h>
 #include <test/util/setup_common.h>
 #include <test/util/str.h>
-#include <util/strencodings.h>
 #include <univalue.h>
+#include <util/strencodings.h>
+#include <util/system.h>
 
 #include <array>
 #include <optional>
@@ -580,7 +581,7 @@ BOOST_AUTO_TEST_CASE(util_ReadConfigStream)
     test_args.SetNetworkOnlyArg("-ccc");
     test_args.SetNetworkOnlyArg("-h");
 
-    test_args.SelectConfigNetwork(CBaseChainParams::MAIN);
+    test_args.SelectConfigNetwork(kernel::chainname::MAIN);
     BOOST_CHECK(test_args.GetArg("-d", "xxx") == "e");
     BOOST_CHECK(test_args.GetArgs("-ccc").size() == 2);
     BOOST_CHECK(test_args.GetArg("-h", "xxx") == "0");
@@ -755,8 +756,8 @@ struct ArgsMergeTestingSetup : public BasicTestingSetup {
             ForEachNoDup(conf_actions, SET, SECTION_NEGATE, [&] {
                 for (bool soft_set : {false, true}) {
                     for (bool force_set : {false, true}) {
-                        for (const std::string& section : {CBaseChainParams::MAIN, CBaseChainParams::TESTNET, CBaseChainParams::SIGNET}) {
-                            for (const std::string& network : {CBaseChainParams::MAIN, CBaseChainParams::TESTNET, CBaseChainParams::SIGNET}) {
+                        for (const std::string& section : {kernel::chainname::MAIN, kernel::chainname::TESTNET, kernel::chainname::SIGNET}) {
+                            for (const std::string& network : {kernel::chainname::MAIN, kernel::chainname::TESTNET, kernel::chainname::SIGNET}) {
                                 for (bool net_specific : {false, true}) {
                                     fn(arg_actions, conf_actions, soft_set, force_set, section, network, net_specific);
                                 }

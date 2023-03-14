@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparams.h>
+#include <kernel/chainname.h>
 #include <key_io.h>
 #include <test/fuzz/fuzz.h>
 
@@ -14,7 +15,7 @@
 void initialize_key_io()
 {
     ECC_Start();
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(kernel::chainname::MAIN);
 }
 
 FUZZ_TARGET_INIT(key_io, initialize_key_io)

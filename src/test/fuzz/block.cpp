@@ -7,6 +7,7 @@
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <core_memusage.h>
+#include <kernel/chainname.h>
 #include <primitives/block.h>
 #include <pubkey.h>
 #include <streams.h>
@@ -19,7 +20,7 @@
 
 void initialize_block()
 {
-    SelectParams(CBaseChainParams::REGTEST);
+    SelectParams(kernel::chainname::REGTEST);
 }
 
 FUZZ_TARGET_INIT(block, initialize_block)

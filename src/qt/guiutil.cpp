@@ -14,6 +14,7 @@
 #include <chainparams.h>
 #include <fs.h>
 #include <interfaces/node.h>
+#include <kernel/chainname.h>
 #include <key_io.h>
 #include <policy/policy.h>
 #include <primitives/transaction.h>
@@ -502,9 +503,9 @@ bool LabelOutOfFocusEventFilter::eventFilter(QObject* watched, QEvent* event)
 fs::path static StartupShortcutPath()
 {
     std::string chain = gArgs.GetChainName();
-    if (chain == CBaseChainParams::MAIN)
+    if (chain == kernel::chainname::MAIN)
         return GetSpecialFolderPath(CSIDL_STARTUP) / "Bitcoin.lnk";
-    if (chain == CBaseChainParams::TESTNET) // Remove this special case when CBaseChainParams::TESTNET = "testnet4"
+    if (chain == kernel::chainname::TESTNET) // Remove this special case when kernel::chainname::TESTNET = "testnet4"
         return GetSpecialFolderPath(CSIDL_STARTUP) / "Bitcoin (testnet).lnk";
     return GetSpecialFolderPath(CSIDL_STARTUP) / fs::u8path(strprintf("Bitcoin (%s).lnk", chain));
 }
@@ -585,7 +586,7 @@ fs::path static GetAutostartDir()
 fs::path static GetAutostartFilePath()
 {
     std::string chain = gArgs.GetChainName();
-    if (chain == CBaseChainParams::MAIN)
+    if (chain == kernel::chainname::MAIN)
         return GetAutostartDir() / "bitcoin.desktop";
     return GetAutostartDir() / fs::u8path(strprintf("bitcoin-%s.desktop", chain));
 }
@@ -631,7 +632,7 @@ bool SetStartOnSystemStartup(bool fAutoStart)
         // Write a bitcoin.desktop file to the autostart directory:
         optionFile << "[Desktop Entry]\n";
         optionFile << "Type=Application\n";
-        if (chain == CBaseChainParams::MAIN)
+        if (chain == kernel::chainname::MAIN)
             optionFile << "Name=Bitcoin\n";
         else
             optionFile << strprintf("Name=Bitcoin (%s)\n", chain);

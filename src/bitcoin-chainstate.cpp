@@ -11,6 +11,7 @@
 //
 // It is part of the libbitcoinkernel project.
 
+#include <kernel/chainname.h>
 #include <kernel/chainparams.h>
 #include <kernel/checks.h>
 #include <kernel/context.h>
@@ -52,7 +53,7 @@ int main(int argc, char* argv[])
 
 
     // SETUP: Misc Globals
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(kernel::chainname::MAIN);
     auto chainparams = CChainParams::Main();
 
     kernel::Context kernel_context{};

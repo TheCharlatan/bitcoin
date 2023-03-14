@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparams.h>
+#include <kernel/chainname.h>
 #include <node/blockstorage.h>
 #include <node/context.h>
 #include <validation.h>
@@ -20,7 +21,7 @@ BOOST_FIXTURE_TEST_SUITE(blockmanager_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(blockmanager_find_block_pos)
 {
-    const auto params {CreateChainParams(ArgsManager{}, CBaseChainParams::MAIN)};
+    const auto params{CreateChainParams(ArgsManager{}, kernel::chainname::MAIN)};
     BlockManager blockman{{}};
     CChain chain {};
     // simulate adding a genesis block normally

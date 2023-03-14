@@ -9,6 +9,7 @@
 #include <core_io.h>
 #include <crypto/common.h>
 #include <crypto/siphash.h>
+#include <kernel/chainname.h>
 #include <key_io.h>
 #include <memusage.h>
 #include <netbase.h>
@@ -41,7 +42,7 @@
 
 void initialize_integer()
 {
-    SelectParams(CBaseChainParams::REGTEST);
+    SelectParams(kernel::chainname::REGTEST);
 }
 
 FUZZ_TARGET_INIT(integer, initialize_integer)

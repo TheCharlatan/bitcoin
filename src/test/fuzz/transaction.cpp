@@ -9,6 +9,7 @@
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <core_memusage.h>
+#include <kernel/chainname.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
 #include <primitives/transaction.h>
@@ -23,7 +24,7 @@
 
 void initialize_transaction()
 {
-    SelectParams(CBaseChainParams::REGTEST);
+    SelectParams(kernel::chainname::REGTEST);
 }
 
 FUZZ_TARGET_INIT(transaction, initialize_transaction)

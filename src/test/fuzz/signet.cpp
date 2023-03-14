@@ -4,6 +4,7 @@
 
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <kernel/chainname.h>
 #include <primitives/block.h>
 #include <signet.h>
 #include <streams.h>
@@ -18,7 +19,7 @@
 
 void initialize_signet()
 {
-    static const auto testing_setup = MakeNoLogFileContext<>(CBaseChainParams::SIGNET);
+    static const auto testing_setup = MakeNoLogFileContext<>(kernel::chainname::SIGNET);
 }
 
 FUZZ_TARGET_INIT(signet, initialize_signet)

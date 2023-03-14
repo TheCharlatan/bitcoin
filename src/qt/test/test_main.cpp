@@ -8,6 +8,7 @@
 
 #include <interfaces/init.h>
 #include <interfaces/node.h>
+#include <kernel/chainname.h>
 #include <qt/bitcoin.h>
 #include <qt/test/apptests.h>
 #include <qt/test/optiontests.h>
@@ -57,7 +58,7 @@ int main(int argc, char* argv[])
     //
     // All tests must use their own testing setup (if needed).
     fs::create_directories([] {
-        BasicTestingSetup dummy{CBaseChainParams::REGTEST};
+        BasicTestingSetup dummy{kernel::chainname::REGTEST};
         return gArgs.GetDataDirNet() / "blocks";
     }());
 

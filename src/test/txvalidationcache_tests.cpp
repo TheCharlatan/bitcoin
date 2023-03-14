@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <consensus/validation.h>
+#include <kernel/chainname.h>
 #include <key.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
@@ -15,7 +16,7 @@
 
 struct Dersig100Setup : public TestChain100Setup {
     Dersig100Setup()
-        : TestChain100Setup{CBaseChainParams::REGTEST, {"-testactivationheight=dersig@102"}} {}
+        : TestChain100Setup{kernel::chainname::REGTEST, {"-testactivationheight=dersig@102"}} {}
 };
 
 bool CheckInputScripts(const CTransaction& tx, TxValidationState& state,
