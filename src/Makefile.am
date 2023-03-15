@@ -154,7 +154,7 @@ BITCOIN_CORE_H = \
   deploymentstatus.h \
   external_signer.h \
   flatfile.h \
-  fs.h \
+  util/fs.h \
   headerssync.h \
   httprpc.h \
   httpserver.h \
@@ -695,7 +695,7 @@ libbitcoin_util_a_SOURCES = \
   support/lockedpool.cpp \
   chainparamsbase.cpp \
   clientversion.cpp \
-  fs.cpp \
+  util/fs.cpp \
   logging.cpp \
   random.cpp \
   randomenv.cpp \
@@ -910,7 +910,7 @@ libbitcoinkernel_la_SOURCES = \
   deploymentinfo.cpp \
   deploymentstatus.cpp \
   flatfile.cpp \
-  fs.cpp \
+  util/fs.cpp \
   hash.cpp \
   kernel/chain.cpp \
   kernel/checks.cpp \
