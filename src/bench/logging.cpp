@@ -5,6 +5,7 @@
 #include <bench/bench.h>
 #include <logging.h>
 #include <test/util/setup_common.h>
+#include <util/chainname.h>
 
 
 static void Logging(benchmark::Bench& bench, const std::vector<const char*>& extra_args, const std::function<void()>& log)

@@ -7,6 +7,7 @@
 #include <fs.h>
 #include <test/util/setup_common.h>
 #include <test/util/str.h>
+#include <util/chainname.h>
 
 
 #include <boost/test/unit_test.hpp>
