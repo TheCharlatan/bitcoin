@@ -230,7 +230,7 @@ protected:
     /**
      * Select the network in use
      */
-    void SelectConfigNetwork(const std::string& network);
+    void SelectConfigNetwork(const std::string_view network);
 
     [[nodiscard]] bool ParseParameters(int argc, const char* const argv[], std::string& error);
 
@@ -386,7 +386,7 @@ protected:
      * Returns the appropriate chain name from the program arguments.
      * @return kernel::chainname::MAIN by default; raises runtime error if an invalid combination is given.
      */
-    std::string GetChainName() const;
+    std::string_view GetChainName() const;
 
     /**
      * Add argument

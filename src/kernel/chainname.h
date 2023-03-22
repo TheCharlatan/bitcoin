@@ -8,12 +8,12 @@
 #include <string>
 
 namespace kernel {
-namespace chainname {
-static const std::string MAIN{"main"};
-static const std::string TESTNET{"test"};
-static const std::string SIGNET{"signet"};
-static const std::string REGTEST{"regtest"};
-} // namespace chainname
+struct chainname {
+static const std::string_view MAIN;
+static const std::string_view TESTNET;
+static const std::string_view SIGNET;
+static const std::string_view REGTEST;
+};
 } // namespace kernel
 
 #endif // BITCOIN_KERNEL_CHAINNAME_H

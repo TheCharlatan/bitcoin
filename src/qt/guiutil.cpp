@@ -585,7 +585,7 @@ fs::path static GetAutostartDir()
 
 fs::path static GetAutostartFilePath()
 {
-    std::string chain = gArgs.GetChainName();
+    std::string_view chain = gArgs.GetChainName();
     if (chain == kernel::chainname::MAIN)
         return GetAutostartDir() / "bitcoin.desktop";
     return GetAutostartDir() / fs::u8path(strprintf("bitcoin-%s.desktop", chain));
@@ -628,7 +628,7 @@ bool SetStartOnSystemStartup(bool fAutoStart)
         std::ofstream optionFile{GetAutostartFilePath(), std::ios_base::out | std::ios_base::trunc};
         if (!optionFile.good())
             return false;
-        std::string chain = gArgs.GetChainName();
+        std::string_view chain = gArgs.GetChainName();
         // Write a bitcoin.desktop file to the autostart directory:
         optionFile << "[Desktop Entry]\n";
         optionFile << "Type=Application\n";

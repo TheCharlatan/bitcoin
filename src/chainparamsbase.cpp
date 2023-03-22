@@ -36,7 +36,7 @@ const CBaseChainParams& BaseParams()
  * Port numbers for incoming Tor connections (8334, 18334, 38334, 18445) have
  * been chosen arbitrarily to keep ranges of used ports tight.
  */
-std::unique_ptr<CBaseChainParams> CreateBaseChainParams(const std::string& chain)
+std::unique_ptr<CBaseChainParams> CreateBaseChainParams(const std::string_view chain)
 {
     if (chain == kernel::chainname::MAIN) {
         return std::make_unique<CBaseChainParams>("", 8332, 8334);
@@ -50,7 +50,7 @@ std::unique_ptr<CBaseChainParams> CreateBaseChainParams(const std::string& chain
     throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
 
-void SelectBaseParams(const std::string& chain)
+void SelectBaseParams(const std::string_view chain)
 {
     globalChainBaseParams = CreateBaseChainParams(chain);
     gArgs.SelectConfigNetwork(chain);

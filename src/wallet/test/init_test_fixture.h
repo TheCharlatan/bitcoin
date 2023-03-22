@@ -11,10 +11,11 @@
 #include <node/context.h>
 #include <test/util/setup_common.h>
 
+#include <string_view>
 
 namespace wallet {
 struct InitWalletDirTestingSetup: public BasicTestingSetup {
-    explicit InitWalletDirTestingSetup(const std::string& chainName = kernel::chainname::MAIN);
+    explicit InitWalletDirTestingSetup(const std::string_view chainName = kernel::chainname::MAIN);
     ~InitWalletDirTestingSetup();
     void SetWalletDir(const fs::path& walletdir_path);
 

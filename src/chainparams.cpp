@@ -98,7 +98,7 @@ const CChainParams &Params() {
     return *globalChainParams;
 }
 
-std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, const std::string& chain)
+std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, const std::string_view chain)
 {
     if (chain == kernel::chainname::MAIN) {
         return CChainParams::Main();
@@ -116,7 +116,7 @@ std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, c
     throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
 
-void SelectParams(const std::string& network)
+void SelectParams(const std::string_view network)
 {
     SelectBaseParams(network);
     globalChainParams = CreateChainParams(gArgs, network);

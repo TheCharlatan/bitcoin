@@ -21,7 +21,7 @@ std::string ExternalSigner::NetworkArg() const
     return " --chain " + m_chain;
 }
 
-bool ExternalSigner::Enumerate(const std::string& command, std::vector<ExternalSigner>& signers, const std::string chain)
+bool ExternalSigner::Enumerate(const std::string& command, std::vector<ExternalSigner>& signers, const std::string_view chain)
 {
     // Call <command> enumerate
     const UniValue result = RunCommandParseJSON(command + " enumerate");
@@ -54,7 +54,7 @@ bool ExternalSigner::Enumerate(const std::string& command, std::vector<ExternalS
         if (model_field.isStr() && model_field.getValStr() != "") {
             name += model_field.getValStr();
         }
-        signers.push_back(ExternalSigner(command, chain, fingerprintStr, name));
+        signers.push_back(ExternalSigner(command, std::string{chain}, fingerprintStr, name));
     }
     return true;
 }

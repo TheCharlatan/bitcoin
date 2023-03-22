@@ -26,7 +26,7 @@
  * @returns a CChainParams* of the chosen chain.
  * @throws a std::runtime_error if the chain is not supported.
  */
-std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, const std::string& chain);
+std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, const std::string_view chain);
 
 /**
  * Return the currently selected parameters. This won't change after app
@@ -38,6 +38,6 @@ const CChainParams &Params();
  * Sets the params returned by Params() to those for the given chain name.
  * @throws std::runtime_error when the chain is not supported.
  */
-void SelectParams(const std::string& chain);
+void SelectParams(const std::string_view chain);
 
 #endif // BITCOIN_CHAINPARAMS_H

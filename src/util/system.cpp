@@ -266,7 +266,7 @@ std::set<std::string> ArgsManager::GetUnsuitableSectionOnlyArgs() const
 std::list<SectionInfo> ArgsManager::GetUnrecognizedSections() const
 {
     // Section names to be recognized in the config file.
-    static const std::set<std::string> available_sections{
+    static const std::set<std::string_view> available_sections{
         kernel::chainname::REGTEST,
         kernel::chainname::SIGNET,
         kernel::chainname::TESTNET,
@@ -278,7 +278,7 @@ std::list<SectionInfo> ArgsManager::GetUnrecognizedSections() const
     return unrecognized;
 }
 
-void ArgsManager::SelectConfigNetwork(const std::string& network)
+void ArgsManager::SelectConfigNetwork(const std::string_view network)
 {
     LOCK(cs_args);
     m_network = network;
@@ -954,13 +954,13 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
             }
         }
         if (use_conf_file) {
-            std::string chain_id = GetChainName();
+            std::string_view chain_id = GetChainName();
             std::vector<std::string> conf_file_names;
 
-            auto add_includes = [&](const std::string& network, size_t skip = 0) {
+            auto add_includes = [&](const std::string_view& network, size_t skip = 0) {
                 size_t num_values = 0;
                 LOCK(cs_args);
-                if (auto* section = util::FindKey(m_settings.ro_config, network)) {
+                if (auto* section = util::FindKey(m_settings.ro_config, std::string{network})) {
                     if (auto* values = util::FindKey(*section, "includeconf")) {
                         for (size_t i = std::max(skip, util::SettingsSpan(*values).negated()); i < values->size(); ++i) {
                             conf_file_names.push_back((*values)[i].get_str());
@@ -993,7 +993,7 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
             conf_file_names.clear();
             add_includes(chain_id, /* skip= */ chain_includes);
             add_includes({}, /* skip= */ default_includes);
-            std::string chain_id_final = GetChainName();
+            std::string_view chain_id_final = GetChainName();
             if (chain_id_final != chain_id) {
                 // Also warn about recursive includeconf for the chain that was specified in one of the includeconfs
                 add_includes(chain_id_final);
@@ -1013,7 +1013,7 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
     return true;
 }
 
-std::string ArgsManager::GetChainName() const
+std::string_view ArgsManager::GetChainName() const
 {
     auto get_net = [&](const std::string& arg) {
         LOCK(cs_args);
@@ -1040,7 +1040,17 @@ std::string ArgsManager::GetChainName() const
     if (fTestNet)
         return kernel::chainname::TESTNET;
 
-    return GetArg("-chain", kernel::chainname::MAIN);
+    std::string chain = GetArg("-chain", std::string{kernel::chainname::MAIN});
+    if (chain == kernel::chainname::REGTEST) {
+        return kernel::chainname::REGTEST;
+    } else if (chain == kernel::chainname::TESTNET) {
+        return kernel::chainname::TESTNET;
+    } else if (chain == kernel::chainname::SIGNET) {
+        return kernel::chainname::SIGNET;
+    } else if (chain == kernel::chainname::MAIN) {
+        return kernel::chainname::MAIN;
+    }
+    return "error";
 }
 
 bool ArgsManager::UseDefaultSection(const std::string& arg) const

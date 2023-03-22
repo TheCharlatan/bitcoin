@@ -845,7 +845,7 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
     // Error if network-specific options (-addnode, -connect, etc) are
     // specified in default section of config file, but not overridden
     // on the command line or in this network's section of the config file.
-    std::string network = args.GetChainName();
+    std::string_view network = args.GetChainName();
     if (network == kernel::chainname::SIGNET) {
         LogPrintf("Signet derived magic (message start): %s\n", HexStr(chainparams.MessageStart()));
     }

@@ -15,12 +15,13 @@
 #include <wallet/wallet.h>
 
 #include <memory>
+#include <string_view>
 
 namespace wallet {
 /** Testing setup and teardown for wallet.
  */
 struct WalletTestingSetup : public TestingSetup {
-    explicit WalletTestingSetup(const std::string& chainName = kernel::chainname::MAIN);
+    explicit WalletTestingSetup(const std::string_view chainName = kernel::chainname::MAIN);
     ~WalletTestingSetup();
 
     std::unique_ptr<interfaces::WalletLoader> m_wallet_loader;

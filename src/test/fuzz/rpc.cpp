@@ -37,7 +37,7 @@
 
 namespace {
 struct RPCFuzzTestingSetup : public TestingSetup {
-    RPCFuzzTestingSetup(const std::string& chain_name, const std::vector<const char*>& extra_args) : TestingSetup{chain_name, extra_args}
+    RPCFuzzTestingSetup(const std::string_view chain_name, const std::vector<const char*>& extra_args) : TestingSetup{chain_name, extra_args}
     {
     }
 

@@ -156,7 +156,7 @@ BOOST_AUTO_TEST_CASE(GetBlockProofEquivalentTime_test)
     }
 }
 
-void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
+void sanity_check_chainparams(const ArgsManager& args, std::string_view chainName)
 {
     const auto chainParams = CreateChainParams(args, chainName);
     const auto consensus = chainParams->GetConsensus();
