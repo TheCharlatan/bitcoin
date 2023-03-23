@@ -1418,14 +1418,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             return InitError(ResolveErrMsg("externalip", strAddr));
     }
 
-#if ENABLE_ZMQ
-    g_zmq_notification_interface = CZMQNotificationInterface::Create();
-
-    if (g_zmq_notification_interface) {
-        RegisterValidationInterface(g_zmq_notification_interface);
-    }
-#endif
-
     // ********************************************************* Step 7: load block chain
 
     fReindex = args.GetBoolArg("-reindex", false);
@@ -1477,6 +1469,14 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
         node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
         ChainstateManager& chainman = *node.chainman;
+
+#if ENABLE_ZMQ
+        g_zmq_notification_interface = CZMQNotificationInterface::Create(chainman.m_blockman);
+
+        if (g_zmq_notification_interface) {
+            RegisterValidationInterface(g_zmq_notification_interface);
+        }
+#endif
 
         node::ChainstateLoadOptions options;
         options.mempool = Assert(node.mempool.get());
