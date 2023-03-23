@@ -12,6 +12,10 @@
 #include <list>
 #include <memory>
 
+namespace node {
+struct NodeContext;
+}
+
 class CBlock;
 class CBlockIndex;
 class CZMQAbstractNotifier;
@@ -23,7 +27,7 @@ public:
 
     std::list<const CZMQAbstractNotifier*> GetActiveNotifiers() const;
 
-    static std::unique_ptr<CZMQNotificationInterface> Create();
+    static std::unique_ptr<CZMQNotificationInterface> Create(const node::NodeContext& node);
 
 protected:
     bool Initialize();
