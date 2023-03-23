@@ -21,6 +21,10 @@
 #include <utility>
 #include <vector>
 
+namespace node {
+struct NodeContext;
+}
+
 CZMQNotificationInterface::CZMQNotificationInterface()
 {
 }
@@ -39,12 +43,14 @@ std::list<const CZMQAbstractNotifier*> CZMQNotificationInterface::GetActiveNotif
     return result;
 }
 
-std::unique_ptr<CZMQNotificationInterface> CZMQNotificationInterface::Create()
+std::unique_ptr<CZMQNotificationInterface> CZMQNotificationInterface::Create(const node::NodeContext& node)
 {
     std::map<std::string, CZMQNotifierFactory> factories;
     factories["pubhashblock"] = CZMQAbstractNotifier::Create<CZMQPublishHashBlockNotifier>;
     factories["pubhashtx"] = CZMQAbstractNotifier::Create<CZMQPublishHashTransactionNotifier>;
-    factories["pubrawblock"] = CZMQAbstractNotifier::Create<CZMQPublishRawBlockNotifier>;
+    factories["pubrawblock"] = [&node = node]() -> std::unique_ptr<CZMQAbstractNotifier> {
+        return std::make_unique<CZMQPublishRawBlockNotifier>(node);
+    };
     factories["pubrawtx"] = CZMQAbstractNotifier::Create<CZMQPublishRawTransactionNotifier>;
     factories["pubsequence"] = CZMQAbstractNotifier::Create<CZMQPublishSequenceNotifier>;
 

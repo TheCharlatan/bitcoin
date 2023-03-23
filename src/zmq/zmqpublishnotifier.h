@@ -10,6 +10,10 @@
 #include <cstddef>
 #include <cstdint>
 
+namespace node {
+struct NodeContext;
+}
+
 class CBlockIndex;
 class CTransaction;
 
@@ -46,7 +50,12 @@ public:
 
 class CZMQPublishRawBlockNotifier : public CZMQAbstractPublishNotifier
 {
+    const node::NodeContext& m_node;
+
 public:
+    CZMQPublishRawBlockNotifier(const node::NodeContext& node)
+        : m_node{node} {}
+
     bool NotifyBlock(const CBlockIndex *pindex) override;
 };
 
