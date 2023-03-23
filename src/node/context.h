@@ -7,6 +7,8 @@
 
 #include <kernel/context.h>
 
+#include <util/system.h>
+
 #include <cassert>
 #include <functional>
 #include <memory>

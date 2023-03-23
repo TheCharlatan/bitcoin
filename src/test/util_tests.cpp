@@ -1685,7 +1685,7 @@ BOOST_AUTO_TEST_CASE(message_hash)
 
 BOOST_AUTO_TEST_CASE(remove_prefix)
 {
-    BOOST_CHECK_EQUAL(RemovePrefix("./util/system.h", "./"), "util/system.h");
+    BOOST_CHECK_EQUAL(RemovePrefix("./<<common/args.h>>", "./"), "<<common/args.h>>");
     BOOST_CHECK_EQUAL(RemovePrefixView("foo", "foo"), "");
     BOOST_CHECK_EQUAL(RemovePrefix("foo", "fo"), "o");
     BOOST_CHECK_EQUAL(RemovePrefixView("foo", "f"), "oo");
