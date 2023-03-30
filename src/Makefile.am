@@ -15,6 +15,7 @@ AM_LIBTOOLFLAGS = --preserve-dup-deps
 PTHREAD_FLAGS = $(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
 EXTRA_LIBRARIES =
 
+include_HEADERS =
 lib_LTLIBRARIES =
 noinst_LTLIBRARIES =
 
@@ -43,7 +44,6 @@ LIBBITCOINCONSENSUS=libbitcoinconsensus.la
 endif
 if BUILD_BITCOIN_KERNEL_LIB
 LIBBITCOINKERNEL=libbitcoinkernel.la
-# LIBBITCOINKERNELWRAPPER=libbitcoinkernelwrapper.la
 endif
 if ENABLE_WALLET
 LIBBITCOIN_WALLET=libbitcoin_wallet.a
@@ -869,12 +869,6 @@ bitcoin_chainstate_c_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 bitcoin_chainstate_c_LDFLAGS = $(RELDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)
 bitcoin_chainstate_c_LDADD = $(LIBBITCOINKERNEL)
 
-# libbitcoinkernelwrapper_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(PTHREAD_FLAGS)
-# libbitcoinkernelwrapper_la_LIBADD = $(LIBBITCOINKERNEL)
-# libbitcoinkernelwrapper_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT)
-# libbitcoinkernelwrapper_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -fvisibility=default
-# libbitcoinkernelwrapper_la_SOURCES = bitcoin-chainstate-wrapper.cpp
-
 # bitcoin-chainstate binary #
 bitcoin_chainstate_SOURCES = bitcoin-chainstate.cpp
 bitcoin_chainstate_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
@@ -891,7 +885,7 @@ bitcoin_chainstate_LDADD += $(LIBSECP256K1)
 # bitcoinkernel library #
 if BUILD_BITCOIN_KERNEL_LIB
 lib_LTLIBRARIES += $(LIBBITCOINKERNEL)
-# lib_LTLIBRARIES += $(LIBBITCOINKERNELWRAPPER)
+include_HEADERS += bitcoin-chainstate-wrapper.h
 
 libbitcoinkernel_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(PTHREAD_FLAGS)
 libbitcoinkernel_la_LIBADD = $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(LIBSECP256K1)
@@ -999,7 +993,7 @@ endif # BUILD_BITCOIN_KERNEL_LIB
 if BUILD_BITCOIN_LIBS
 lib_LTLIBRARIES += $(LIBBITCOINCONSENSUS)
 
-include_HEADERS = script/bitcoinconsensus.h
+include_HEADERS += script/bitcoinconsensus.h
 libbitcoinconsensus_la_SOURCES = support/cleanse.cpp $(crypto_libbitcoin_crypto_base_la_SOURCES) $(libbitcoin_consensus_a_SOURCES)
 
 libbitcoinconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
