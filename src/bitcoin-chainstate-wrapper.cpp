@@ -5,6 +5,7 @@
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <core_io.h>
+#include <logging.h>
 #include <node/blockstorage.h>
 #include <node/caches.h>
 #include <node/chainstate.h>
@@ -26,6 +27,8 @@
 
 #include <bitcoinkernel.h>
 
+static LogCallback g_log_callback = nullptr;
+
 void* c_scheduler_new() {
     // SETUP: Scheduling and Background Signals
     CScheduler* scheduler = new CScheduler();
@@ -43,6 +46,18 @@ void* c_scheduler_new() {
     std::cout << "sleeping for 1ms\n";
     std::this_thread::sleep_for(1ms);
     return scheduler;
+}
+
+void set_logging_callback_and_start_logging(LogCallback callback) {
+    g_log_callback = callback;
+    LogInstance().m_print_to_file = false;
+    LogInstance().m_print_to_console = false;
+    LogInstance().PushBackCallback([&callback](const std::string& str) { g_log_callback(str.c_str()); });
+    if (!LogInstance().StartLogging()) {
+        callback("logger start failed");
+    } else {
+        callback("logger started");
+    }
 }
 
 void* c_chainstate_manager_create(const char* data_dir, void* scheduler_) {
@@ -243,6 +258,7 @@ int c_chainstate_manager_validate_block(void* chainman_, const char* raw_c_block
         std::cerr << "the block failed to meet one of our checkpoints" << std::endl;
         return 1;
     }
+    return 0;
 }
 
 int c_chainstate_manager_delete(void* chainman_, void* scheduler_) {

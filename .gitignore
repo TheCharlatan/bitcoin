@@ -10,6 +10,7 @@ src/bitcoin-node
 src/bitcoin-tx
 src/bitcoin-util
 src/bitcoin-chainstate
+src/bitcoin-chainstate_c
 src/bitcoin-wallet
 src/test/fuzz/fuzz
 src/test/test_bitcoin
@@ -136,6 +137,7 @@ test/.mypy_cache/
 /doc/doxygen/
 
 libbitcoinconsensus.pc
+libbitcoinkernel.pc
 contrib/devtools/split-debug.sh
 
 # Output from running db4 installation
