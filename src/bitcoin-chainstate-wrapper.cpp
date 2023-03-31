@@ -52,6 +52,7 @@ void set_logging_callback_and_start_logging(LogCallback callback) {
     g_log_callback = callback;
     LogInstance().m_print_to_file = false;
     LogInstance().m_print_to_console = false;
+    LogInstance().m_log_timestamps = false;
     LogInstance().PushBackCallback([&callback](const std::string& str) { g_log_callback(str.c_str()); });
     if (!LogInstance().StartLogging()) {
         callback("logger start failed");
