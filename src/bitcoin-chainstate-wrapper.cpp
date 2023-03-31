@@ -24,7 +24,7 @@
 #include <chrono>
 #include <thread>
 
-#include <bitcoin-chainstate-wrapper.h>
+#include <bitcoinkernel.h>
 
 void* c_scheduler_new() {
     // SETUP: Scheduling and Background Signals

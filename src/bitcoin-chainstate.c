@@ -1,6 +1,6 @@
 #include "stdio.h"
 #include "unistd.h"
-#include "bitcoin-chainstate-wrapper.h"
+#include "bitcoinkernel.h"
 
 int main(int argc, char* argv[]) {
     // TODO: Using the scheduler here results in an uncaught exception

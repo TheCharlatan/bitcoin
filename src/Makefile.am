@@ -126,7 +126,7 @@ BITCOIN_CORE_H = \
   banman.h \
   base58.h \
   bech32.h \
-  bitcoin-chainstate-wrapper.h \
+  bitcoinkernel.h \
   blockencodings.h \
   blockfilter.h \
   chain.h \
@@ -885,7 +885,7 @@ bitcoin_chainstate_LDADD += $(LIBSECP256K1)
 # bitcoinkernel library #
 if BUILD_BITCOIN_KERNEL_LIB
 lib_LTLIBRARIES += $(LIBBITCOINKERNEL)
-include_HEADERS += bitcoin-chainstate-wrapper.h
+include_HEADERS += bitcoinkernel.h
 
 libbitcoinkernel_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(PTHREAD_FLAGS)
 libbitcoinkernel_la_LIBADD = $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(LIBSECP256K1)
