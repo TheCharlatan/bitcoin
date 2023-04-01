@@ -9,7 +9,7 @@ void log_printf(const char* message) {
 int main(int argc, char* argv[]) {
     // TODO: Using the scheduler here results in an uncaught exception
     log_printf("Creating logger");
-    set_logging_callback_and_start_logging(log_printf);
+    c_set_logging_callback_and_start_logging(log_printf);
 
     log_printf("Creating bitcoin scheduler\n");
     void* scheduler = c_scheduler_new();

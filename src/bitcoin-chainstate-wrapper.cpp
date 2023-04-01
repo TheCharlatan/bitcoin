@@ -48,7 +48,7 @@ void* c_scheduler_new() {
     return scheduler;
 }
 
-void set_logging_callback_and_start_logging(LogCallback callback) {
+void c_set_logging_callback_and_start_logging(LogCallback callback) {
     g_log_callback = callback;
     LogInstance().m_print_to_file = false;
     LogInstance().m_print_to_console = false;
@@ -122,7 +122,7 @@ void* c_chainstate_manager_create(const char* data_dir, void* scheduler_) {
         }
     }
 
-    ChainstateInfo info = get_chainstate_info(chainman);
+    C_ChainstateInfo info = c_get_chainstate_info(chainman);
 
     // Main program logic starts here
     std::cout
@@ -143,19 +143,76 @@ void* c_chainstate_manager_create(const char* data_dir, void* scheduler_) {
     return chainman;
 }
 
-ChainstateInfo get_chainstate_info(void* chainman_) {
+void* c_chainstate_coins_cursor(void* chainman_) {
     if (!chainman_ || !(static_cast<ChainstateManager *>(chainman_))->healthy() ) {
         std::cerr << "Received invalid chainman pointer";
     }
     ChainstateManager* chainman = static_cast<ChainstateManager*>(chainman_);
 
-    ChainstateInfo info;
-    info.path = gArgs.GetDataDirNet().c_str();
-    info.reindexing = node::fReindex.load();
-    info.snapshot_active = chainman->IsSnapshotActive();
-    info.active_height = chainman->ActiveHeight();
-    info.active_ibd = chainman->ActiveChainstate().IsInitialBlockDownload();
+    return chainman->ActiveChainstate().CoinsDB().Cursor().get();
+}
 
+void c_coins_cursor_next(void* cursor_) {
+    if (!cursor_ || !(static_cast<CCoinsViewCursor *>(cursor_))->Valid()) {
+        std::cerr << "Received invvalid cursor pointer";
+    }
+    CCoinsViewCursor* cursor = static_cast<CCoinsViewCursor*>(cursor_);
+    cursor->Next();
+}
+
+C_OutPoint c_coins_cursor_get_key(void* cursor_) {
+    if (!cursor_ || !(static_cast<CCoinsViewCursor *>(cursor_))->Valid()) {
+        std::cerr << "Received invvalid cursor pointer";
+    }
+    CCoinsViewCursor* cursor = static_cast<CCoinsViewCursor*>(cursor_);
+    COutPoint key;
+    cursor->GetKey(key);
+    C_OutPoint out_point {
+        hash: key.hash.ToString().c_str(),
+        n: key.n,
+    };
+    return out_point;
+}
+
+std::string CScriptToHexString(const CScript& script) {
+    std::ostringstream ss;
+    ss << std::hex;
+    for (const auto& byte : script) {
+        ss << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
+    }
+    return ss.str();
+}
+
+C_Coin c_coins_cursor_get_value(void* cursor_) {
+    if (!cursor_ || !(static_cast<CCoinsViewCursor *>(cursor_))->Valid()) {
+        std::cerr << "Received invvalid cursor pointer";
+    }
+    CCoinsViewCursor* cursor = static_cast<CCoinsViewCursor*>(cursor_);
+    Coin coin;
+    cursor->GetValue(coin);
+    C_Coin c_coin{
+        out: C_TxOut {
+            value: coin.out.nValue,
+            script_pubkey: CScriptToHexString(coin.out.scriptPubKey).c_str(),
+        },
+        is_coinbase: coin.fCoinBase,
+        confirmation_height: coin.nHeight,
+    };
+    return c_coin;
+}
+
+C_ChainstateInfo c_get_chainstate_info(void* chainman_) {
+    if (!chainman_ || !(static_cast<ChainstateManager *>(chainman_))->healthy() ) {
+        std::cerr << "Received invalid chainman pointer";
+    }
+    ChainstateManager* chainman = static_cast<ChainstateManager*>(chainman_);
+    C_ChainstateInfo info{
+        path : gArgs.GetDataDirNet().c_str(),
+        reindexing : node::fReindex.load(),
+        snapshot_active : chainman->IsSnapshotActive(),
+        active_height : chainman->ActiveHeight(),
+        active_ibd : chainman->ActiveChainstate().IsInitialBlockDownload(),
+    };
     return info;
 }
 
