@@ -122,23 +122,41 @@ void* c_chainstate_manager_create(const char* data_dir, void* scheduler_) {
         }
     }
 
+    ChainstateInfo info = get_chainstate_info(chainman);
+
     // Main program logic starts here
     std::cout
         << "Hello! I'm going to print out some information about your datadir." << std::endl
-        << "\t" << "Path: " << gArgs.GetDataDirNet() << std::endl;
+        << "\t" << "Path: " << info.path << std::endl;
     {
         LOCK(chainman->GetMutex());
         std::cout
-        << "\t" << "Reindexing: " << std::boolalpha << node::fReindex.load() << std::noboolalpha << std::endl
-        << "\t" << "Snapshot Active: " << std::boolalpha << chainman->IsSnapshotActive() << std::noboolalpha << std::endl
-        << "\t" << "Active Height: " << chainman->ActiveHeight() << std::endl
-        << "\t" << "Active IBD: " << std::boolalpha << chainman->ActiveChainstate().IsInitialBlockDownload() << std::noboolalpha << std::endl;
+        << "\t" << "Reindexing: " << std::boolalpha << info.reindexing << std::noboolalpha << std::endl
+        << "\t" << "Snapshot Active: " << std::boolalpha << info.snapshot_active << std::noboolalpha << std::endl
+        << "\t" << "Active Height: " << info.active_height << std::endl
+        << "\t" << "Active IBD: " << std::boolalpha << info.active_ibd << std::noboolalpha << std::endl;
         CBlockIndex* tip = chainman->ActiveTip();
         if (tip) {
             std::cout << "\t" << tip->ToString() << std::endl;
         }
     }
     return chainman;
+}
+
+ChainstateInfo get_chainstate_info(void* chainman_) {
+    if (!chainman_ || !(static_cast<ChainstateManager *>(chainman_))->healthy() ) {
+        std::cerr << "Received invalid chainman pointer";
+    }
+    ChainstateManager* chainman = static_cast<ChainstateManager*>(chainman_);
+
+    ChainstateInfo info;
+    info.path = gArgs.GetDataDirNet().c_str();
+    info.reindexing = node::fReindex.load();
+    info.snapshot_active = chainman->IsSnapshotActive();
+    info.active_height = chainman->ActiveHeight();
+    info.active_ibd = chainman->ActiveChainstate().IsInitialBlockDownload();
+
+    return info;
 }
 
 int c_chainstate_manager_validate_block(void* chainman_, const char* raw_c_block) {
