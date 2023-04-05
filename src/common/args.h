@@ -5,10 +5,6 @@
 #ifndef BITCOIN_COMMON_ARGS_H
 #define BITCOIN_COMMON_ARGS_H
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
-
 #include <compat/compat.h>
 #include <sync.h>
 #include <util/fs.h>

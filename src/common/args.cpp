@@ -15,7 +15,6 @@
 #include <util/settings.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <util/time.h>
 
 #ifndef WIN32
 #include <algorithm>
@@ -39,6 +38,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 
 const char * const BITCOIN_CONF_FILENAME = "bitcoin.conf";
