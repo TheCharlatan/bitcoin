@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <common/args.h>
+#include <common/config.h>
 #include <sync.h>
 #include <test/util/logging.h>
 #include <test/util/setup_common.h>
@@ -58,7 +59,7 @@ struct TestArgsManager : public ArgsManager
             m_config_sections.clear();
         }
         std::string error;
-        BOOST_REQUIRE(ReadConfigStream(streamConfig, "", error));
+        BOOST_REQUIRE(common::ConfigFile::ReadConfigStream(*this, streamConfig, "", error));
     }
     void SetNetworkOnlyArg(const std::string arg)
     {
@@ -73,7 +74,6 @@ struct TestArgsManager : public ArgsManager
     }
     using ArgsManager::GetSetting;
     using ArgsManager::GetSettingsList;
-    using ArgsManager::ReadConfigStream;
     using ArgsManager::cs_args;
     using ArgsManager::m_network;
     using ArgsManager::m_settings;
@@ -409,7 +409,7 @@ BOOST_AUTO_TEST_CASE(util_GetBoolArgEdgeCases)
                 && testArgs.GetArgs("-bar").front() == "");
 }
 
-BOOST_AUTO_TEST_CASE(util_ReadConfigStream)
+BOOST_AUTO_TEST_CASE(common_ReadConfigStream)
 {
     const char *str_config =
        "a=\n"
@@ -840,7 +840,7 @@ BOOST_FIXTURE_TEST_CASE(util_ArgsMerge, ArgsMergeTestingSetup)
             conf += "\n";
         }
         std::istringstream conf_stream(conf);
-        BOOST_CHECK(parser.ReadConfigStream(conf_stream, "filepath", error));
+        BOOST_CHECK(common::ConfigFile::ReadConfigStream(parser, conf_stream, "filepath", error));
         BOOST_CHECK_EQUAL(error, "");
 
         if (soft_set) {
@@ -977,7 +977,7 @@ BOOST_FIXTURE_TEST_CASE(util_ChainMerge, ChainMergeTestingSetup)
             conf += "\n";
         }
         std::istringstream conf_stream(conf);
-        BOOST_CHECK(parser.ReadConfigStream(conf_stream, "filepath", error));
+        BOOST_CHECK(common::ConfigFile::ReadConfigStream(parser, conf_stream, "filepath", error));
         BOOST_CHECK_EQUAL(error, "");
 
         desc += " || ";

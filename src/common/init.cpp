@@ -4,6 +4,7 @@
 
 #include <chainparams.h>
 #include <common/args.h>
+#include <common/config.h>
 #include <common/init.h>
 #include <tinyformat.h>
 #include <util/fs.h>
@@ -21,7 +22,7 @@ std::optional<ConfigError> InitConfig(ArgsManager& args, SettingsAbortFn setting
             return ConfigError{ConfigStatus::FAILED, strprintf(_("Specified data directory \"%s\" does not exist."), args.GetArg("-datadir", ""))};
         }
         std::string error;
-        if (!args.ReadConfigFiles(error, true)) {
+        if (!ConfigFile::ReadConfigFiles(args, error, true)) {
             return ConfigError{ConfigStatus::FAILED, strprintf(_("Error reading configuration file: %s"), error)};
         }
 

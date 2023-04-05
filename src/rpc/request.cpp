@@ -8,6 +8,7 @@
 #include <util/fs.h>
 
 #include <common/args.h>
+#include <common/config.h>
 #include <logging.h>
 #include <random.h>
 #include <rpc/protocol.h>
@@ -77,7 +78,7 @@ static fs::path GetAuthCookieFile(bool temp=false)
     if (temp) {
         arg += ".tmp";
     }
-    return AbsPathForConfigVal(gArgs, arg);
+    return common::AbsPathForConfigVal(gArgs, arg);
 }
 
 bool GenerateAuthCookie(std::string *cookie_out)

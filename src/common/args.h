@@ -10,7 +10,6 @@
 #include <util/fs.h>
 #include <util/settings.h>
 
-#include <iosfwd>
 #include <list>
 #include <map>
 #include <optional>
@@ -20,24 +19,15 @@
 #include <vector>
 
 class ArgsManager;
+namespace common {
+class ConfigFile;
+}
 
 extern const char * const BITCOIN_CONF_FILENAME;
 extern const char * const BITCOIN_SETTINGS_FILENAME;
 
 // Return true if -datadir option points to a valid directory or is not specified.
 bool CheckDataDirOption(const ArgsManager& args);
-fs::path GetConfigFile(const ArgsManager& args, const fs::path& configuration_file_path);
-
-/**
- * Most paths passed as configuration arguments are treated as relative to
- * the datadir if they are not absolute.
- *
- * @param args Parsed arguments and settings.
- * @param path The path to be conditionally prefixed with datadir.
- * @param net_specific Use network specific datadir variant
- * @return The normalized path.
- */
-fs::path AbsPathForConfigVal(const ArgsManager& args, const fs::path& path, bool net_specific = true);
 
 inline bool IsSwitchChar(char c)
 {
@@ -65,6 +55,19 @@ enum class OptionsCategory {
 
     HIDDEN // Always the last option to avoid printing these in the help
 };
+
+struct KeyInfo {
+    std::string name;
+    std::string section;
+    bool negated{false};
+};
+
+KeyInfo InterpretKey(std::string key);
+
+bool IsConfSupported(KeyInfo& key, std::string& error);
+
+std::optional<util::SettingsValue> InterpretValue(const KeyInfo& key, const std::string* value,
+                                                         unsigned int flags, std::string& error);
 
 struct SectionInfo
 {
@@ -111,6 +114,8 @@ public:
     };
 
 protected:
+    friend class common::ConfigFile;
+
     struct Arg
     {
         std::string m_help_param;
@@ -130,8 +135,6 @@ protected:
     mutable fs::path m_cached_datadir_path GUARDED_BY(cs_args);
     mutable fs::path m_cached_network_datadir_path GUARDED_BY(cs_args);
 
-    [[nodiscard]] bool ReadConfigStream(std::istream& stream, const std::string& filepath, std::string& error, bool ignore_invalid_keys = false);
-
     /**
      * Returns true if settings values from the default section should be used,
      * depending on the current network and whether the setting is
@@ -140,50 +143,50 @@ protected:
     bool UseDefaultSection(const std::string& arg) const EXCLUSIVE_LOCKS_REQUIRED(cs_args);
 
  public:
-    /**
-     * Get setting value.
-     *
-     * Result will be null if setting was unset, true if "-setting" argument was passed
-     * false if "-nosetting" argument was passed, and a string if a "-setting=value"
-     * argument was passed.
-     */
-    util::SettingsValue GetSetting(const std::string& arg) const;
 
-    /**
-     * Get list of setting values.
-     */
-    std::vector<util::SettingsValue> GetSettingsList(const std::string& arg) const;
+     /**
+      * Get setting value.
+      *
+      * Result will be null if setting was unset, true if "-setting" argument was passed
+      * false if "-nosetting" argument was passed, and a string if a "-setting=value"
+      * argument was passed.
+      */
+     util::SettingsValue GetSetting(const std::string& arg) const;
 
-    ArgsManager();
-    ~ArgsManager();
+     /**
+      * Get list of setting values.
+      */
+     std::vector<util::SettingsValue> GetSettingsList(const std::string& arg) const;
 
-    /**
-     * Select the network in use
-     */
-    void SelectConfigNetwork(const std::string& network);
+     ArgsManager();
+     ~ArgsManager();
 
-    [[nodiscard]] bool ParseParameters(int argc, const char* const argv[], std::string& error);
+     /**
+      * Select the network in use
+      */
+     void SelectConfigNetwork(const std::string& network);
 
-    /**
-     * Return config file path (read-only)
-     */
-    fs::path GetConfigFilePath() const;
-    [[nodiscard]] bool ReadConfigFiles(std::string& error, bool ignore_invalid_keys = false);
+     [[nodiscard]] bool ParseParameters(int argc, const char* const argv[], std::string& error);
 
-    /**
-     * Log warnings for options in m_section_only_args when
-     * they are specified in the default section but not overridden
-     * on the command line or in a network-specific section in the
-     * config file.
-     */
-    std::set<std::string> GetUnsuitableSectionOnlyArgs() const;
+     /**
+      * Return config file path (read-only)
+      */
+     fs::path GetConfigFilePath() const;
 
-    /**
-     * Log warnings for unrecognized section names in the config file.
-     */
-    std::list<SectionInfo> GetUnrecognizedSections() const;
+     /**
+      * Log warnings for options in m_section_only_args when
+      * they are specified in the default section but not overridden
+      * on the command line or in a network-specific section in the
+      * config file.
+      */
+     std::set<std::string> GetUnsuitableSectionOnlyArgs() const;
 
-    struct Command {
+     /**
+      * Log warnings for unrecognized section names in the config file.
+      */
+     std::list<SectionInfo> GetUnrecognizedSections() const;
+
+     struct Command {
         /** The command (if one has been registered with AddCommand), or empty */
         std::string command;
         /**

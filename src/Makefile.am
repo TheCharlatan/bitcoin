@@ -649,6 +649,7 @@ libbitcoin_common_a_SOURCES = \
   coins.cpp \
   common/args.cpp \
   common/bloom.cpp \
+  common/config.cpp \
   common/init.cpp \
   common/interfaces.cpp \
   common/run_command.cpp \
@@ -904,6 +905,7 @@ libbitcoinkernel_la_SOURCES = \
   clientversion.cpp \
   coins.cpp \
   common/args.cpp \
+  common/config.cpp \
   compressor.cpp \
   consensus/merkle.cpp \
   consensus/tx_check.cpp \
