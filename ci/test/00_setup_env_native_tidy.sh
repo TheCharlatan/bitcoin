@@ -15,5 +15,5 @@ export RUN_FUNCTIONAL_TESTS=false
 export RUN_FUZZ_TESTS=false
 export RUN_TIDY=true
 export GOAL="install"
-export BITCOIN_CONFIG="CC=clang-15 CXX=clang++-15 --with-incompatible-bdb --disable-hardening CFLAGS='-O0 -g0' CXXFLAGS='-O0 -g0'"
+export BITCOIN_CONFIG="CC=clang-15 CXX=clang++-15 --with-incompatible-bdb --disable-hardening CPPFLAGS='-DBOOST_MULTI_INDEX_ENABLE_SAFE_MODE' CFLAGS='-O0 -g0' CXXFLAGS='-O0 -g0'"
 export CCACHE_SIZE=200M
