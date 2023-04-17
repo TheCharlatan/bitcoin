@@ -339,12 +339,6 @@ protected:
     std::string GetChainTypeString() const;
 
     /**
-     * Returns the appropriate chain name from the program arguments.
-     * @return CBaseChainParams::MAIN by default; raises runtime error if an invalid combination is given.
-     */
-    std::string GetChainName() const;
-
-    /**
      * Add argument
      */
     void AddArg(const std::string& name, const std::string& help, unsigned int flags, const OptionsCategory& cat);
