@@ -169,7 +169,7 @@ std::set<std::string> ArgsManager::GetUnsuitableSectionOnlyArgs() const
     if (m_network.empty()) return std::set<std::string> {};
 
     // if it's okay to use the default section for this network, don't worry
-    if (m_network == CBaseChainParams::MAIN) return std::set<std::string> {};
+    if (m_network == ChainTypeToString(ChainType::MAIN)) return std::set<std::string> {};
 
     for (const auto& arg : m_network_only_args) {
         if (OnlyHasDefaultSectionSetting(m_settings, m_network, SettingName(arg))) {
@@ -183,11 +183,10 @@ std::list<SectionInfo> ArgsManager::GetUnrecognizedSections() const
 {
     // Section names to be recognized in the config file.
     static const std::set<std::string> available_sections{
-        CBaseChainParams::REGTEST,
-        CBaseChainParams::SIGNET,
-        CBaseChainParams::TESTNET,
-        CBaseChainParams::MAIN
-    };
+        ChainTypeToString(ChainType::REGTEST),
+        ChainTypeToString(ChainType::SIGNET),
+        ChainTypeToString(ChainType::TESTNET),
+        ChainTypeToString(ChainType::MAIN)};
 
     LOCK(cs_args);
     std::list<SectionInfo> unrecognized = m_config_sections;
@@ -471,7 +470,7 @@ util::SettingsValue ArgsManager::GetPersistentSetting(const std::string& name) c
 {
     LOCK(cs_args);
     return util::GetSetting(m_settings, m_network, name, !UseDefaultSection("-" + name),
-        /*ignore_nonpersistent=*/true, /*get_chain_name=*/false);
+        /*ignore_nonpersistent=*/true, /*get_chain_type=*/false);
 }
 
 bool ArgsManager::IsArgNegated(const std::string& strArg) const
@@ -871,7 +870,7 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
             }
         }
         if (use_conf_file) {
-            std::string chain_id = GetChainName();
+            std::string chain_id = GetChainTypeString();
             std::vector<std::string> conf_file_names;
 
             auto add_includes = [&](const std::string& network, size_t skip = 0) {
@@ -910,7 +909,7 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
             conf_file_names.clear();
             add_includes(chain_id, /* skip= */ chain_includes);
             add_includes({}, /* skip= */ default_includes);
-            std::string chain_id_final = GetChainName();
+            std::string chain_id_final = GetChainTypeString();
             if (chain_id_final != chain_id) {
                 // Also warn about recursive includeconf for the chain that was specified in one of the includeconfs
                 add_includes(chain_id_final);
@@ -930,14 +929,24 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
     return true;
 }
 
-std::string ArgsManager::GetChainName() const
+ChainType ArgsManager::GetChainType() const
+{
+    std::string chain_str = GetChainTypeString();
+    std::optional<ChainType> chain = ChainTypeFromString(chain_str);
+    if (!chain) {
+        throw std::runtime_error(strprintf("Unknown chain %s.", chain_str));
+    }
+    return *chain;
+}
+
+std::string ArgsManager::GetChainTypeString() const
 {
     auto get_net = [&](const std::string& arg) {
         LOCK(cs_args);
         util::SettingsValue value = util::GetSetting(m_settings, /* section= */ "", SettingName(arg),
             /* ignore_default_section_config= */ false,
             /*ignore_nonpersistent=*/false,
-            /* get_chain_name= */ true);
+            /* get_chain_type= */ true);
         return value.isNull() ? false : value.isBool() ? value.get_bool() : InterpretBool(value.get_str());
     };
 
@@ -950,19 +959,18 @@ std::string ArgsManager::GetChainName() const
         throw std::runtime_error("Invalid combination of -regtest, -signet, -testnet and -chain. Can use at most one.");
     }
     if (fRegTest)
-        return CBaseChainParams::REGTEST;
-    if (fSigNet) {
-        return CBaseChainParams::SIGNET;
-    }
+        return ChainTypeToString(ChainType::REGTEST);
+    if (fSigNet)
+        return ChainTypeToString(ChainType::SIGNET);
     if (fTestNet)
-        return CBaseChainParams::TESTNET;
+        return ChainTypeToString(ChainType::TESTNET);
 
-    return GetArg("-chain", CBaseChainParams::MAIN);
+    return GetArg("-chain", ChainTypeToString(ChainType::MAIN));
 }
 
 bool ArgsManager::UseDefaultSection(const std::string& arg) const
 {
-    return m_network == CBaseChainParams::MAIN || m_network_only_args.count(arg) == 0;
+    return m_network == ChainTypeToString(ChainType::MAIN) || m_network_only_args.count(arg) == 0;
 }
 
 util::SettingsValue ArgsManager::GetSetting(const std::string& arg) const
@@ -970,7 +978,7 @@ util::SettingsValue ArgsManager::GetSetting(const std::string& arg) const
     LOCK(cs_args);
     return util::GetSetting(
         m_settings, m_network, SettingName(arg), !UseDefaultSection(arg),
-        /*ignore_nonpersistent=*/false, /*get_chain_name=*/false);
+        /*ignore_nonpersistent=*/false, /*get_chain_type=*/false);
 }
 
 std::vector<util::SettingsValue> ArgsManager::GetSettingsList(const std::string& arg) const
