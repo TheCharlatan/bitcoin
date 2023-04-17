@@ -13,6 +13,7 @@
 #include <pubkey.h>
 #include <random.h>
 #include <stdexcept>
+#include <util/chaintype.h>
 #include <util/check.h>
 #include <util/fs.h>
 #include <util/string.h>
@@ -79,7 +80,7 @@ static constexpr CAmount CENT{1000000};
 struct BasicTestingSetup {
     node::NodeContext m_node; // keep as first member to be destructed last
 
-    explicit BasicTestingSetup(const std::string& chainName = CBaseChainParams::MAIN, const std::vector<const char*>& extra_args = {});
+    explicit BasicTestingSetup(const ChainType& chainType = ChainType::MAIN, const std::vector<const char*>& extra_args = {});
     ~BasicTestingSetup();
 
     const fs::path m_path_root;
@@ -93,7 +94,7 @@ struct BasicTestingSetup {
 struct ChainTestingSetup : public BasicTestingSetup {
     node::CacheSizes m_cache_sizes{};
 
-    explicit ChainTestingSetup(const std::string& chainName = CBaseChainParams::MAIN, const std::vector<const char*>& extra_args = {});
+    explicit ChainTestingSetup(const ChainType& chainType = ChainType::MAIN, const std::vector<const char*>& extra_args = {});
     ~ChainTestingSetup();
 };
 
@@ -106,7 +107,7 @@ struct TestingSetup : public ChainTestingSetup {
     void LoadVerifyActivateChainstate();
 
     explicit TestingSetup(
-        const std::string& chainName = CBaseChainParams::MAIN,
+        const ChainType& chainType = ChainType::MAIN,
         const std::vector<const char*>& extra_args = {},
         const bool coins_db_in_memory = true,
         const bool block_tree_db_in_memory = true);
@@ -115,7 +116,7 @@ struct TestingSetup : public ChainTestingSetup {
 /** Identical to TestingSetup, but chain set to regtest */
 struct RegTestingSetup : public TestingSetup {
     RegTestingSetup()
-        : TestingSetup{CBaseChainParams::REGTEST} {}
+        : TestingSetup{ChainType::REGTEST} {}
 };
 
 class CBlock;
@@ -127,7 +128,7 @@ class CScript;
  */
 struct TestChain100Setup : public TestingSetup {
     TestChain100Setup(
-        const std::string& chain_name = CBaseChainParams::REGTEST,
+        const ChainType& chain_type = ChainType::REGTEST,
         const std::vector<const char*>& extra_args = {},
         const bool coins_db_in_memory = true,
         const bool block_tree_db_in_memory = true);
@@ -194,7 +195,7 @@ struct TestChain100Setup : public TestingSetup {
  * be used in "hot loops", for example fuzzing or benchmarking.
  */
 template <class T = const BasicTestingSetup>
-std::unique_ptr<T> MakeNoLogFileContext(const std::string& chain_name = CBaseChainParams::REGTEST, const std::vector<const char*>& extra_args = {})
+std::unique_ptr<T> MakeNoLogFileContext(const ChainType& chain_type = ChainType::REGTEST, const std::vector<const char*>& extra_args = {})
 {
     const std::vector<const char*> arguments = Cat(
         {
@@ -203,7 +204,7 @@ std::unique_ptr<T> MakeNoLogFileContext(const std::string& chain_name = CBaseCha
         },
         extra_args);
 
-    return std::make_unique<T>(chain_name, arguments);
+    return std::make_unique<T>(chain_type, arguments);
 }
 
 CBlock getBlock13b8a();

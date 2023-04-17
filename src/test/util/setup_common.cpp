@@ -42,6 +42,7 @@
 #include <timedata.h>
 #include <txdb.h>
 #include <txmempool.h>
+#include <util/chaintype.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/thread.h>
@@ -97,7 +98,7 @@ std::ostream& operator<<(std::ostream& os, const uint256& num)
     return os;
 }
 
-BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args)
+BasicTestingSetup::BasicTestingSetup(const ChainType& chainType, const std::vector<const char*>& extra_args)
     : m_path_root{fs::temp_directory_path() / "test_common_" PACKAGE_NAME / g_insecure_rand_ctx_temp_path.rand256().ToString()},
       m_args{}
 {
@@ -131,7 +132,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
             throw std::runtime_error{error};
         }
     }
-    SelectParams(chainName);
+    SelectParams(chainType);
     SeedInsecureRand();
     if (G_TEST_LOG_FUN) LogInstance().PushBackCallback(G_TEST_LOG_FUN);
     InitLogging(*m_node.args);
@@ -162,8 +163,8 @@ BasicTestingSetup::~BasicTestingSetup()
     gArgs.ClearArgs();
 }
 
-ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args)
-    : BasicTestingSetup(chainName, extra_args)
+ChainTestingSetup::ChainTestingSetup(const ChainType& chainType, const std::vector<const char*>& extra_args)
+    : BasicTestingSetup(chainType, extra_args)
 {
     const CChainParams& chainparams = Params();
 
@@ -236,11 +237,11 @@ void TestingSetup::LoadVerifyActivateChainstate()
 }
 
 TestingSetup::TestingSetup(
-    const std::string& chainName,
+    const ChainType& chainType,
     const std::vector<const char*>& extra_args,
     const bool coins_db_in_memory,
     const bool block_tree_db_in_memory)
-    : ChainTestingSetup(chainName, extra_args),
+    : ChainTestingSetup(chainType, extra_args),
       m_coins_db_in_memory(coins_db_in_memory),
       m_block_tree_db_in_memory(block_tree_db_in_memory)
 {
@@ -267,11 +268,11 @@ TestingSetup::TestingSetup(
 }
 
 TestChain100Setup::TestChain100Setup(
-        const std::string& chain_name,
+        const ChainType& chain_type,
         const std::vector<const char*>& extra_args,
         const bool coins_db_in_memory,
         const bool block_tree_db_in_memory)
-    : TestingSetup{CBaseChainParams::REGTEST, extra_args, coins_db_in_memory, block_tree_db_in_memory}
+    : TestingSetup{ChainType::REGTEST, extra_args, coins_db_in_memory, block_tree_db_in_memory}
 {
     SetMockTime(1598887952);
     constexpr std::array<unsigned char, 32> vchKey = {
