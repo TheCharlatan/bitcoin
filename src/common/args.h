@@ -7,6 +7,7 @@
 
 #include <compat/compat.h>
 #include <sync.h>
+#include <util/chaintype.h>
 #include <util/fs.h>
 #include <util/settings.h>
 
@@ -324,9 +325,17 @@ protected:
 
     /**
      * Returns the appropriate chain name from the program arguments.
-     * @return CBaseChainParams::MAIN by default; raises runtime error if an invalid combination is given.
+     * @return ChainType::MAIN by default; raises runtime error if an invalid
+     * combination is given
      */
-    std::string GetChainName() const;
+    ChainType GetChainType() const;
+
+    /**
+     * Returns the appropriate chain name string from the program arguments.
+     * @return ChainType::MAIN string by default; raises runtime error if an
+     * invalid combination is given.
+     */
+    std::string GetChainTypeString() const;
 
     /**
      * Add argument
