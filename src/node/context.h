@@ -28,6 +28,9 @@ class ChainClient;
 class Init;
 class WalletLoader;
 } // namespace interfaces
+namespace node {
+class BlockManager;
+}
 
 namespace node {
 //! NodeContext struct containing references to chain state and connection
@@ -68,6 +71,9 @@ struct NodeContext {
     //! definitions for all the unique_ptr members.
     NodeContext();
     ~NodeContext();
+
+    //! Declare a helper to access the blockmanager
+    const BlockManager& GetBlockManager() const;
 };
 } // namespace node
 
