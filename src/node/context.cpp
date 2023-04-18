@@ -11,6 +11,7 @@
 #include <net.h>
 #include <net_processing.h>
 #include <netgroup.h>
+#include <node/blockstorage.h>
 #include <policy/fees.h>
 #include <scheduler.h>
 #include <txmempool.h>
@@ -19,4 +20,11 @@
 namespace node {
 NodeContext::NodeContext() = default;
 NodeContext::~NodeContext() = default;
+
+const BlockManager& NodeContext::GetBlockManager() const
+{
+    assert(chainman);
+    return chainman->m_blockman;
+}
+
 } // namespace node
