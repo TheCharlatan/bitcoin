@@ -18,6 +18,7 @@
 #include <set>
 #include <stdint.h>
 #include <string>
+#include <variant>
 #include <vector>
 
 class ArgsManager;
@@ -419,6 +420,8 @@ private:
      * @return Absolute path on success, otherwise an empty path when a non-directory path would be returned
      */
     const fs::path& GetDataDir(bool net_specific) const;
+
+    std::variant<ChainType, std::string> GetChainArg() const;
 
     // Helper function for LogArgs().
     void logArgsPrefix(
