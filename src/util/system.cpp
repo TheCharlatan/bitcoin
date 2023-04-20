@@ -51,7 +51,9 @@
 #include <string>
 #include <system_error>
 #include <thread>
+#include <tuple>
 #include <typeinfo>
+#include <variant>
 
 // Application startup time (used for uptime calculation)
 const int64_t nStartupTime = GetTime();
@@ -931,15 +933,19 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
 
 ChainType ArgsManager::GetChainType() const
 {
-    std::string chain_str = GetChainTypeString();
-    std::optional<ChainType> chain = ChainTypeFromString(chain_str);
-    if (!chain) {
-        throw std::runtime_error(strprintf("Unknown chain %s.", chain_str));
-    }
-    return *chain;
+    std::variant<ChainType, std::string> arg = GetChainArg();
+    if (auto* parsed = std::get_if<ChainType>(&arg)) return *parsed;
+    throw std::runtime_error(strprintf("Unknown chain %s.", std::get<std::string>(arg)));
 }
 
 std::string ArgsManager::GetChainTypeString() const
+{
+    auto arg = GetChainArg();
+    if (auto* parsed = std::get_if<ChainType>(&arg)) return ChainTypeToString(*parsed);
+    return std::get<std::string>(arg);
+}
+
+std::variant<ChainType, std::string> ArgsManager::GetChainArg() const
 {
     auto get_net = [&](const std::string& arg) {
         LOCK(cs_args);
@@ -953,19 +959,20 @@ std::string ArgsManager::GetChainTypeString() const
     const bool fRegTest = get_net("-regtest");
     const bool fSigNet  = get_net("-signet");
     const bool fTestNet = get_net("-testnet");
-    const bool is_chain_arg_set = IsArgSet("-chain");
+    const auto chain_arg = GetArg("-chain");
 
-    if ((int)is_chain_arg_set + (int)fRegTest + (int)fSigNet + (int)fTestNet > 1) {
+    if ((int)chain_arg.has_value() + (int)fRegTest + (int)fSigNet + (int)fTestNet > 1) {
         throw std::runtime_error("Invalid combination of -regtest, -signet, -testnet and -chain. Can use at most one.");
     }
-    if (fRegTest)
-        return ChainTypeToString(ChainType::REGTEST);
-    if (fSigNet)
-        return ChainTypeToString(ChainType::SIGNET);
-    if (fTestNet)
-        return ChainTypeToString(ChainType::TESTNET);
-
-    return GetArg("-chain", ChainTypeToString(ChainType::MAIN));
+    if (chain_arg) {
+        if (auto parsed = ChainTypeFromString(*chain_arg)) return *parsed;
+        // Not a known string, so return original string
+        return *chain_arg;
+    }
+    if (fRegTest) return ChainType::REGTEST;
+    if (fSigNet) return ChainType::SIGNET;
+    if (fTestNet) return ChainType::TESTNET;
+    return ChainType::MAIN;
 }
 
 bool ArgsManager::UseDefaultSection(const std::string& arg) const
