@@ -2679,37 +2679,35 @@ UniValue CreateUTXOSnapshot(
     Coin coin;
     std::vector<std::pair<uint32_t, Coin>> coins;
 
-    pcursor->GetKey(key);
-    last_hash = key.hash;
-    while (pcursor->Valid()) {
-        if (iter % 5000 == 0) node.rpc_interruption_point();
-        ++iter;
-        if (pcursor->GetKey(key) && pcursor->GetValue(coin)) {
-            std::cout << key.ToString() << "\n";
-            if (key.hash == last_hash) {
-                coins.push_back(std::make_pair(key.n, coin));
-            } else {
-                afile << last_hash;
-                afile << static_cast<uint16_t>(coins.size());
-                for (auto [vout, coin] : coins) {
-                    afile << vout;
-                    afile << coin;
-                }
-                last_hash = key.hash;
-                coins.clear();
-                coins.push_back(std::make_pair(key.n, coin));
-            }
-        }
-        pcursor->Next();
-    }
-
-    if (!coins.empty()) {
+    auto write_coins_to_file = [&](AutoFile& afile, const uint256& last_hash, const std::vector<std::pair<uint32_t, Coin>>& coins) {
         afile << last_hash;
         afile << static_cast<uint16_t>(coins.size());
         for (auto [vout, coin] : coins) {
             afile << vout;
             afile << coin;
         }
+    };
+
+    pcursor->GetKey(key);
+    last_hash = key.hash;
+    while (pcursor->Valid()) {
+        if (iter % 5000 == 0) node.rpc_interruption_point();
+        ++iter;
+        if (pcursor->GetKey(key) && pcursor->GetValue(coin)) {
+            if (key.hash == last_hash) {
+                coins.emplace_back(key.n, coin);
+            } else {
+                write_coins_to_file(afile, last_hash, coins);
+                last_hash = key.hash;
+                coins.clear();
+                coins.emplace_back(key.n, coin);
+            }
+        }
+        pcursor->Next();
+    }
+
+    if (!coins.empty()) {
+        write_coins_to_file(afile, last_hash, coins);
     }
 
     afile.fclose();
