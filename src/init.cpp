@@ -114,18 +114,19 @@ using kernel::DumpMempool;
 using kernel::ValidationCacheSizes;
 
 using node::ApplyArgsManOptions;
+using node::BlockManager;
 using node::CacheSizes;
 using node::CalculateCacheSizes;
 using node::DEFAULT_PERSIST_MEMPOOL;
 using node::DEFAULT_PRINTPRIORITY;
 using node::DEFAULT_STOPAFTERBLOCKIMPORT;
+using node::fReindex;
 using node::LoadChainstate;
 using node::MempoolPath;
-using node::ShouldPersistMempool;
 using node::NodeContext;
+using node::ShouldPersistMempool;
 using node::ThreadImport;
 using node::VerifyLoadedChainstate;
-using node::fReindex;
 
 static constexpr bool DEFAULT_PROXYRANDOMIZE{true};
 static constexpr bool DEFAULT_REST_ENABLE{false};
@@ -1036,7 +1037,7 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
         if (const auto error{ApplyArgsManOptions(args, chainman_opts_dummy)}) {
             return InitError(*error);
         }
-        node::BlockManager::Options blockman_opts_dummy{};
+        BlockManager::Options blockman_opts_dummy{};
         if (const auto error{ApplyArgsManOptions(args, blockman_opts_dummy)}) {
             return InitError(*error);
         }
@@ -1439,8 +1440,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     };
     Assert(!ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
-    node::BlockManager::Options blockman_opts{};
+    BlockManager::Options blockman_opts{};
     Assert(!ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
+
+    assert(!node.blockman);
+    node.blockman = std::make_unique<BlockManager>(blockman_opts);
 
     // cache size calculations
     CacheSizes cache_sizes = CalculateCacheSizes(args, g_enabled_filter_types.size());
@@ -1477,7 +1481,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     for (bool fLoaded = false; !fLoaded && !ShutdownRequested();) {
         node.mempool = std::make_unique<CTxMemPool>(mempool_opts);
 
-        node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
+        node.chainman = std::make_unique<ChainstateManager>(chainman_opts, *node.blockman);
         ChainstateManager& chainman = *node.chainman;
 
         node::ChainstateLoadOptions options;
