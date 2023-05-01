@@ -386,10 +386,11 @@ struct SnapshotTestSetup : TestChain100Setup {
             };
             BlockManager::Options blockman_opts{};
             ApplyArgsManOptions(gArgs, blockman_opts);
+            m_node.blockman = std::make_unique<BlockManager>(blockman_opts);
             // For robustness, ensure the old manager is destroyed before creating a
             // new one.
             m_node.chainman.reset();
-            m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
+            m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, *m_node.blockman);
         }
         return *Assert(m_node.chainman);
     }
