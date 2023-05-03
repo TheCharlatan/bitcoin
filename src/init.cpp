@@ -1420,7 +1420,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
 #if ENABLE_ZMQ
-    g_zmq_notification_interface = CZMQNotificationInterface::Create();
+    g_zmq_notification_interface = CZMQNotificationInterface::Create(
+        [&chain = node.chain](CBlock& block, const CBlockIndex* index) {
+            return chain->getBlockByIndex(block, index);
+        });
 
     if (g_zmq_notification_interface) {
         RegisterValidationInterface(g_zmq_notification_interface.get());
