@@ -19,6 +19,7 @@
 
 class ArgsManager;
 class CBlock;
+class CBlockIndex;
 class CBlockUndo;
 class CFeeRate;
 class CRPCCommand;
@@ -170,6 +171,9 @@ public:
     virtual bool findAncestorByHash(const uint256& block_hash,
         const uint256& ancestor_hash,
         const FoundBlock& ancestor_out={}) = 0;
+
+    //! Get a CBlock by its index and return whether successful.
+    virtual bool getBlockByIndex(CBlock& block, const CBlockIndex* pindex) = 0;
 
     //! Find most recent common ancestor between two blocks and optionally
     //! return block information.

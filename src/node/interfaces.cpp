@@ -565,6 +565,10 @@ public:
         const CChain& active = chainman().ActiveChain();
         return FillBlock(active.FindEarliestAtLeast(min_time, min_height), block, lock, active);
     }
+    bool getBlockByIndex(CBlock& block, const CBlockIndex* pindex) override
+    {
+        return node::ReadBlockFromDisk(block, pindex, Params().GetConsensus());
+    }
     bool findAncestorByHeight(const uint256& block_hash, int ancestor_height, const FoundBlock& ancestor_out) override
     {
         WAIT_LOCK(cs_main, lock);
