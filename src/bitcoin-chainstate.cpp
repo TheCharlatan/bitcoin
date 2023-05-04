@@ -119,7 +119,7 @@ int main(int argc, char* argv[])
         }
         void startShutdown(const kernel::ShutdownReason reason) override
         {
-            shutdown_requested = true;
+            m_shutdown_requested = true;
             std::cout << "Received start shutdown notification: " << ShutdownReasonToString(reason);
         }
     };
