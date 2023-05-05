@@ -310,7 +310,7 @@ static bool rest_block(const std::any& context,
 
     }
 
-    if (!chainman.m_blockman.ReadBlockFromDisk(block, pblockindex, chainman.GetParams().GetConsensus())) {
+    if (!chainman.m_blockman.ReadBlockFromDisk(block, pblockindex)) {
         return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
     }
 

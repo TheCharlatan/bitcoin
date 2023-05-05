@@ -404,7 +404,7 @@ static RPCHelpMan getrawtransaction()
 
     if (tx->IsCoinBase() ||
         !blockindex || is_block_pruned ||
-        !(chainman.m_blockman.UndoReadFromDisk(blockUndo, blockindex) && chainman.m_blockman.ReadBlockFromDisk(block, blockindex, Params().GetConsensus()))) {
+        !(chainman.m_blockman.UndoReadFromDisk(blockUndo, blockindex) && chainman.m_blockman.ReadBlockFromDisk(block, blockindex))) {
         TxToJSON(*tx, hash_block, result, chainman.ActiveChainstate());
         return result;
     }

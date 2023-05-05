@@ -97,7 +97,7 @@ static RPCHelpMan gettxoutproof()
             }
 
             CBlock block;
-            if (!chainman.m_blockman.ReadBlockFromDisk(block, pblockindex, chainman.GetConsensus())) {
+            if (!chainman.m_blockman.ReadBlockFromDisk(block, pblockindex)) {
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk");
             }
 
