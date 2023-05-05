@@ -240,8 +240,8 @@ public:
     void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune) const;
 
     /** Functions for disk access for blocks */
-    bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams) const;
-    bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams) const;
+    bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos) const;
+    bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex) const;
     bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start) const;
 
     bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex) const;
