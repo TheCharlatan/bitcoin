@@ -81,15 +81,8 @@ static constexpr int DEFAULT_CHECKLEVEL{3};
 // Setting the target to >= 550 MiB will make it likely we can respect the target.
 static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 550 * 1024 * 1024;
 
-/** Current sync state passed to tip changed callbacks. */
-enum class SynchronizationState {
-    INIT_REINDEX,
-    INIT_DOWNLOAD,
-    POST_INIT
-};
-
-extern GlobalMutex g_best_block_mutex;
 extern std::condition_variable g_best_block_cv;
+extern GlobalMutex g_best_block_mutex;
 /** Used to notify getblocktemplate RPC of new tips. */
 extern uint256 g_best_block;
 
@@ -103,13 +96,58 @@ void StopScriptCheckWorkerThreads();
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
-bool AbortNode(BlockValidationState& state, const std::string& strMessage, const bilingual_str& userMessage = bilingual_str{});
+bool AbortNode(BlockValidationState& state, const std::string& strMessage, std::function<void(const bilingual_str& str)> init_error_cb, const bilingual_str& userMessage = bilingual_str{});
 
 /** Guess verification progress (as a fraction between 0.0=genesis and 1.0=current tip). */
 double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex* pindex);
 
 /** Prune block files up to a given height */
 void PruneBlockFilesManual(Chainstate& active_chainstate, int nManualPruneHeight);
+
+/** Current sync state passed to tip changed callbacks. */
+enum class SynchronizationState {
+    INIT_REINDEX,
+    INIT_DOWNLOAD,
+    POST_INIT
+};
+
+class ChainstateNotificationInterface
+{
+public:
+    std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress_cb;
+    std::function<void(SynchronizationState state, CBlockIndex* index)> notify_block_tip_cb;
+    std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip_cb;
+    std::function<void(const std::string& strMessage)> alert_notify_cb;
+    std::function<void(const bilingual_str& str)> init_error_cb;
+
+    ChainstateNotificationInterface(
+        std::function<void(const std::string& title, int nProgress, bool resume_possible)> sp_cb,
+        std::function<void(SynchronizationState state, CBlockIndex* index)> nbt_cb,
+        std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> nht_cb,
+        std::function<void(const std::string& strMessage)> an_cb,
+        std::function<void(const bilingual_str& str)> ie_cb) : show_progress_cb(std::move(sp_cb)),
+                                                               notify_block_tip_cb(std::move(nbt_cb)),
+                                                               notify_header_tip_cb(std::move(nht_cb)),
+                                                               alert_notify_cb(std::move(an_cb)),
+                                                               init_error_cb(std::move(ie_cb))
+    {
+        if (!show_progress_cb) {
+            throw std::invalid_argument("a valid show progress callback function must be provided");
+        }
+        if (!notify_block_tip_cb) {
+            throw std::invalid_argument("a valid notify block tip callback function must be provided");
+        }
+        if (!alert_notify_cb) {
+            throw std::invalid_argument("a valid alert notify callback function must be provided");
+        }
+        if (!notify_header_tip_cb) {
+            throw std::invalid_argument("a valid notify header tip callback function must be provided");
+        }
+        if (!init_error_cb) {
+            throw std::invalid_argument("a valid init error callback function must be provided");
+        }
+    }
+};
 
 /**
 * Validation result for a single transaction mempool acceptance.
@@ -365,8 +403,11 @@ enum class VerifyDBResult {
 
 /** RAII wrapper for VerifyDB: Verify consistency of the block and coin databases */
 class CVerifyDB {
+private:
+    std::function<void(const std::string& title, int nProgress, bool resume_possible)> m_show_progress;
+
 public:
-    CVerifyDB();
+    explicit CVerifyDB(std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress);
     ~CVerifyDB();
     [[nodiscard]] VerifyDBResult VerifyDB(
         Chainstate& chainstate,
@@ -948,7 +989,9 @@ private:
 public:
     using Options = kernel::ChainstateManagerOpts;
 
-    explicit ChainstateManager(Options options, node::BlockManager::Options blockman_options);
+    ChainstateNotificationInterface m_notification_interface;
+
+    explicit ChainstateManager(Options options, node::BlockManager::Options blockman_options, ChainstateNotificationInterface notifiction_interface);
 
     const CChainParams& GetParams() const { return m_options.chainparams; }
     const Consensus::Params& GetConsensus() const { return m_options.chainparams.GetConsensus(); }
@@ -1039,9 +1082,7 @@ public:
     //! If the coins match (expected), then mark the validation chainstate for
     //! deletion and continue using the snapshot chainstate as active.
     //! Otherwise, revert to using the ibd chainstate and shutdown.
-    SnapshotCompletionResult MaybeCompleteSnapshotValidation(
-        std::function<void(bilingual_str)> shutdown_fnc =
-            [](bilingual_str msg) { AbortNode(msg.original, msg); })
+    SnapshotCompletionResult MaybeCompleteSnapshotValidation(std::function<void(bilingual_str)> shutdown_fnc)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! The most-work chain.

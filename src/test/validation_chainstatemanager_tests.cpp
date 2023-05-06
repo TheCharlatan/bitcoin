@@ -384,10 +384,17 @@ struct SnapshotTestSetup : TestChain100Setup {
             node::BlockManager::Options blockman_opts{
                 .chainparams = chainman_opts.chainparams,
             };
+            const ChainstateNotificationInterface notification_interface(
+                [](const std::string& title, int nProgress, bool resume_possible) {},
+                [](SynchronizationState state, CBlockIndex* index) {},
+                [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {},
+                [](const std::string& strMessage) {},
+                [](const bilingual_str& str) {});
             // For robustness, ensure the old manager is destroyed before creating a
             // new one.
             m_node.chainman.reset();
-            m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
+
+            m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts, notification_interface);
         }
         return *Assert(m_node.chainman);
     }

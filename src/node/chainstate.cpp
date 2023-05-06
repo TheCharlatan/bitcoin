@@ -200,14 +200,14 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
     // snapshot is actually validated? Because this entails unusual
     // filesystem operations to move leveldb data directories around, and that seems
     // too risky to do in the middle of normal runtime.
-    auto snapshot_completion = chainman.MaybeCompleteSnapshotValidation();
+    auto snapshot_completion = chainman.MaybeCompleteSnapshotValidation([&notification_interface = chainman.m_notification_interface](bilingual_str msg) { AbortNode(msg.original, notification_interface.init_error_cb, msg); });
 
     if (snapshot_completion == SnapshotCompletionResult::SKIPPED) {
         // do nothing; expected case
     } else if (snapshot_completion == SnapshotCompletionResult::SUCCESS) {
         LogPrintf("[snapshot] cleaning up unneeded background chainstate, then reinitializing\n");
         if (!chainman.ValidatedSnapshotCleanup()) {
-            AbortNode("Background chainstate cleanup failed unexpectedly.");
+            AbortNode("Background chainstate cleanup failed unexpectedly.", chainman.m_notification_interface.init_error_cb);
         }
 
         // Because ValidatedSnapshotCleanup() has torn down chainstates with
@@ -253,10 +253,7 @@ ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const C
                                                          "Only rebuild the block database if you are sure that your computer's date and time are correct")};
             }
 
-            VerifyDBResult result = CVerifyDB().VerifyDB(
-                *chainstate, chainman.GetConsensus(), chainstate->CoinsDB(),
-                options.check_level,
-                options.check_blocks);
+            VerifyDBResult result = CVerifyDB(chainstate->m_chainman.m_notification_interface.show_progress_cb).VerifyDB(*chainstate, chainman.GetConsensus(), chainstate->CoinsDB(), options.check_level, options.check_blocks);
             switch (result) {
             case VerifyDBResult::SUCCESS:
             case VerifyDBResult::SKIPPED_MISSING_BLOCKS:

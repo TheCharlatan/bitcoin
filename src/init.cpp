@@ -655,6 +655,26 @@ static void StartupNotify(const ArgsManager& args)
 }
 #endif
 
+static void AlertNotify(const std::string& strMessage)
+{
+    uiInterface.NotifyAlertChanged();
+#if HAVE_SYSTEM
+    std::string strCmd = gArgs.GetArg("-alertnotify", "");
+    if (strCmd.empty()) return;
+
+    // Alert text should be plain ascii coming from a trusted source, but to
+    // be safe we first strip anything not in safeChars, then add single quotes around
+    // the whole string before passing it to the shell:
+    std::string singleQuote("'");
+    std::string safeStatus = SanitizeString(strMessage);
+    safeStatus = singleQuote + safeStatus + singleQuote;
+    ReplaceAll(strCmd, "%s", safeStatus);
+
+    std::thread t(runCommand, strCmd);
+    t.detach(); // thread runs free
+#endif
+}
+
 static bool AppInitServers(NodeContext& node)
 {
     const ArgsManager& args = *Assert(node.args);
@@ -1446,6 +1466,23 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     };
     Assert(!ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
+    const ChainstateNotificationInterface notification_interface(
+        [](const std::string& title, int nProgress, bool resume_possible) {
+            uiInterface.ShowProgress(title, nProgress, resume_possible);
+        },
+        [](SynchronizationState state, CBlockIndex* index) {
+            uiInterface.NotifyBlockTip(state, index);
+        },
+        [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {
+            uiInterface.NotifyHeaderTip(state, height, timestamp, presync);
+        },
+        [](const std::string& strMessage) {
+            AlertNotify(strMessage);
+        },
+        [](const bilingual_str& str) {
+            InitError(str);
+        });
+
     // cache size calculations
     CacheSizes cache_sizes = CalculateCacheSizes(args, g_enabled_filter_types.size());
 
@@ -1481,7 +1518,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     for (bool fLoaded = false; !fLoaded && !ShutdownRequested();) {
         node.mempool = std::make_unique<CTxMemPool>(mempool_opts);
 
-        node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
+        node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts, notification_interface);
         ChainstateManager& chainman = *node.chainman;
 
         node::ChainstateLoadOptions options;

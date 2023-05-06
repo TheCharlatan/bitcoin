@@ -89,7 +89,23 @@ int main(int argc, char* argv[])
     const node::BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
     };
-    ChainstateManager chainman{chainman_opts, blockman_opts};
+    const ChainstateNotificationInterface notification_interface(
+        [](const std::string& title, int nProgress, bool resume_possible) {
+            std::cout << "Dummy show progress: " << title << ", " << nProgress << ", " << resume_possible << std::endl;
+        },
+        [](SynchronizationState state, CBlockIndex* index) {
+            std::cout << "Dummy notify block tip" << std::endl;
+        },
+        [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {
+            std::cout << "Dummy notify header tip: " << height << ", " << timestamp << ", " << presync << std::endl;
+        },
+        [](const std::string& strMessage) {
+            std::cout << "Dummy alert notify: " << strMessage << std::endl;
+        },
+        [](const bilingual_str& str) {
+            std::cout << "Dummy init error: " << str.original << std::endl;
+        });
+    ChainstateManager chainman{chainman_opts, blockman_opts, notification_interface};
 
     node::CacheSizes cache_sizes;
     cache_sizes.block_tree_db = 2 << 20;

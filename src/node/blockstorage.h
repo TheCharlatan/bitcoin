@@ -143,6 +143,8 @@ private:
 
     const kernel::BlockManagerOpts m_opts;
 
+    std::function<void(const bilingual_str& str)> m_init_error_cb;
+
 public:
     using Options = kernel::BlockManagerOpts;
 
