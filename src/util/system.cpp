@@ -7,7 +7,6 @@
 
 #include <logging.h>
 #include <util/string.h>
-#include <util/syserror.h>
 #include <util/time.h>
 
 #if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
@@ -111,15 +110,4 @@ int GetNumCores()
 int64_t GetStartupTime()
 {
     return nStartupTime;
-}
-
-void ScheduleBatchPriority()
-{
-#ifdef SCHED_BATCH
-    const static sched_param param{};
-    const int rc = pthread_setschedparam(pthread_self(), SCHED_BATCH, &param);
-    if (rc != 0) {
-        LogPrintf("Failed to pthread_setschedparam: %s\n", SysErrorString(rc));
-    }
-#endif
 }

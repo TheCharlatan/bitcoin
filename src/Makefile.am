@@ -277,6 +277,7 @@ BITCOIN_CORE_H = \
   txrequest.h \
   undo.h \
   util/asmap.h \
+  util/batchpriority.h \
   util/bip32.h \
   util/bitdeque.h \
   util/bytevectorhash.h \
@@ -705,6 +706,7 @@ libbitcoin_util_a_SOURCES = \
   support/cleanse.cpp \
   sync.cpp \
   util/asmap.cpp \
+  util/batchpriority.cpp \
   util/bip32.cpp \
   util/bytevectorhash.cpp \
   util/check.cpp \
@@ -955,6 +957,7 @@ libbitcoinkernel_la_SOURCES = \
   txdb.cpp \
   txmempool.cpp \
   uint256.cpp \
+  util/batchpriority.cpp \
   util/check.cpp \
   util/exception.cpp \
   util/fs.cpp \
@@ -969,7 +972,6 @@ libbitcoinkernel_la_SOURCES = \
   util/string.cpp \
   util/syscall_sandbox.cpp \
   util/syserror.cpp \
-  util/system.cpp \
   util/thread.cpp \
   util/threadnames.cpp \
   util/time.cpp \
