@@ -30,13 +30,13 @@
 #include <qt/macdockiconhandler.h>
 #endif
 
-#include <functional>
 #include <chain.h>
 #include <chainparams.h>
+#include <common/system.h>
+#include <functional>
 #include <interfaces/handler.h>
 #include <interfaces/node.h>
 #include <node/interface_ui.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
 
