@@ -33,7 +33,7 @@ static bool CheckFilterLookups(BlockFilterIndex& filter_index, const CBlockIndex
                                uint256& last_header, const BlockManager& blockman)
 {
     BlockFilter expected_filter;
-    if (!ComputeFilter(filter_index.GetFilterType(), block_index, expected_filter, blockman)) {
+    if (!ComputeFilter(filter_index.GetFilterType(), *block_index, expected_filter, blockman)) {
         BOOST_ERROR("ComputeFilter failed on block " << block_index->nHeight);
         return false;
     }

@@ -1423,7 +1423,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
 #if ENABLE_ZMQ
     g_zmq_notification_interface = CZMQNotificationInterface::Create(
-        [&chainman = node.chainman](CBlock& block, const CBlockIndex* index) {
+        [&chainman = node.chainman](CBlock& block, const CBlockIndex& index) {
             assert(chainman);
             return chainman->m_blockman.ReadBlockFromDisk(block, index);
         });

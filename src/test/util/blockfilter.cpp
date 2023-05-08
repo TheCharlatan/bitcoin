@@ -10,17 +10,17 @@
 
 using node::BlockManager;
 
-bool ComputeFilter(BlockFilterType filter_type, const CBlockIndex* block_index, BlockFilter& filter, const BlockManager& blockman)
+bool ComputeFilter(BlockFilterType filter_type, const CBlockIndex& block_index, BlockFilter& filter, const BlockManager& blockman)
 {
     LOCK(::cs_main);
 
     CBlock block;
-    if (!blockman.ReadBlockFromDisk(block, block_index->GetBlockPos())) {
+    if (!blockman.ReadBlockFromDisk(block, block_index.GetBlockPos())) {
         return false;
     }
 
     CBlockUndo block_undo;
-    if (block_index->nHeight > 0 && !blockman.UndoReadFromDisk(block_undo, block_index)) {
+    if (block_index.nHeight > 0 && !blockman.UndoReadFromDisk(block_undo, block_index)) {
         return false;
     }
 

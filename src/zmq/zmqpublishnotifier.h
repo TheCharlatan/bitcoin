@@ -49,10 +49,10 @@ public:
 class CZMQPublishRawBlockNotifier : public CZMQAbstractPublishNotifier
 {
 private:
-    const std::function<bool(CBlock&, const CBlockIndex*)> m_get_block_by_index;
+    const std::function<bool(CBlock&, const CBlockIndex&)> m_get_block_by_index;
 
 public:
-    CZMQPublishRawBlockNotifier(const std::function<bool(CBlock&, const CBlockIndex*)> get_block_by_index)
+    CZMQPublishRawBlockNotifier(const std::function<bool(CBlock&, const CBlockIndex&)> get_block_by_index)
         : m_get_block_by_index{get_block_by_index} {}
     bool NotifyBlock(const CBlockIndex *pindex) override;
 };
