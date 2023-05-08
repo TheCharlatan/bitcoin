@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparams.h>
+#include <common/system.h>
 #include <httpserver.h>
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
@@ -21,7 +22,6 @@
 #include <univalue.h>
 #include <util/check.h>
 #include <util/syscall_sandbox.h>
-#include <util/system.h>
 
 #include <stdint.h>
 #ifdef HAVE_MALLOC_INFO
