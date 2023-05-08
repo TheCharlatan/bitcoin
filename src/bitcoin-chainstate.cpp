@@ -90,6 +90,7 @@ int main(int argc, char* argv[])
             .notify_block_tip = [](SynchronizationState state, CBlockIndex* index) { std::cout << "Block tip changed" << std::endl; },
             .notify_header_tip = [](SynchronizationState, int64_t height, int64_t timestamp, bool presync) { std::cout << "Header tip changed: " << height << ", " << timestamp << ", " << presync << std::endl; },
             .show_progress = [](const std::string& title, int nProgress, bool resume_possible) { std::cout << "Progress: " << title << ", " << nProgress << ", " << resume_possible << std::endl; },
+            .do_warning = [](const bilingual_str& warning) { std::cout << "Warning: " << warning.original << std::endl; },
         },
     };
     const node::BlockManager::Options blockman_opts{

@@ -87,6 +87,7 @@
 #include <validation.h>
 #include <validationinterface.h>
 #include <walletinitinterface.h>
+#include <warnings.h>
 
 #include <algorithm>
 #include <condition_variable>
