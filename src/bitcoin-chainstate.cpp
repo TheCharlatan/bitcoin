@@ -95,6 +95,9 @@ int main(int argc, char* argv[])
         },
         [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {
             std::cout << "Dummy notify header tip: " << height << ", " << timestamp << ", " << presync << std::endl;
+        },
+        [](const std::string& title, int nProgress, bool resume_possible) {
+            std::cout << "Dummy show progress: " << title << ", " << nProgress << ", " << resume_possible << std::endl;
         });
     ChainstateManager chainman{chainman_opts, blockman_opts, notification_interface};
 

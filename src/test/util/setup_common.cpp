@@ -190,7 +190,8 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     };
     const ChainstateNotificationInterface notification_interface(
         [](SynchronizationState state, CBlockIndex* index) {},
-        [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {});
+        [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {},
+        [](const std::string& title, int nProgress, bool resume_possible) {});
     m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts, notification_interface);
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(DBParams{
         .path = m_args.GetDataDirNet() / "blocks" / "index",

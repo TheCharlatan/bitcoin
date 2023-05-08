@@ -113,11 +113,15 @@ uint256 g_best_block;
 
 ChainstateNotificationInterface::ChainstateNotificationInterface(
     std::function<void(SynchronizationState state, CBlockIndex* index)> notify_block_tip_cb,
-    std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip_cb) : m_notify_block_tip_cb(std::move(notify_block_tip_cb)),
-                                                                                                                             m_notify_header_tip_cb(std::move(notify_header_tip_cb))
+    std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip_cb,
+    std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress_cb)
+    : m_notify_block_tip_cb(std::move(notify_block_tip_cb)),
+      m_notify_header_tip_cb(std::move(notify_header_tip_cb)),
+      m_show_progress_cb(std::move(show_progress_cb))
 {
     assert(m_notify_block_tip_cb);
     assert(m_notify_header_tip_cb);
+    assert(m_show_progress_cb);
 }
 void ChainstateNotificationInterface::NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const
 {
@@ -126,6 +130,10 @@ void ChainstateNotificationInterface::NotifyBlockTip(SynchronizationState state,
 void ChainstateNotificationInterface::NotifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) const
 {
     return m_notify_header_tip_cb(state, height, timestamp, presync);
+}
+void ChainstateNotificationInterface::ShowProgress(const std::string& title, int nProgress, bool resume_possible) const
+{
+    return m_show_progress_cb(title, nProgress, resume_possible);
 }
 
 const CBlockIndex* Chainstate::FindForkInGlobalIndex(const CBlockLocator& locator) const
@@ -4165,14 +4173,21 @@ bool Chainstate::LoadChainTip()
     return true;
 }
 
-CVerifyDB::CVerifyDB()
+CVerifyDB::CVerifyDB(std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress)
+    : m_show_progress(std::move(show_progress))
 {
-    uiInterface.ShowProgress(_("Verifying blocks…").translated, 0, false);
+    assert(m_show_progress);
+    ShowProgress(_("Verifying blocks…").translated, 0, false);
+}
+
+void CVerifyDB::ShowProgress(const std::string& title, int nProgress, bool resume_possible) const
+{
+    m_show_progress(title, nProgress, resume_possible);
 }
 
 CVerifyDB::~CVerifyDB()
 {
-    uiInterface.ShowProgress("", 100, false);
+    ShowProgress("", 100, false);
 }
 
 VerifyDBResult CVerifyDB::VerifyDB(
@@ -4212,7 +4227,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
             LogPrintf("Verification progress: %d%%\n", percentageDone);
             reportDone = percentageDone / 10;
         }
-        uiInterface.ShowProgress(_("Verifying blocks…").translated, percentageDone, false);
+        ShowProgress(_("Verifying blocks…").translated, percentageDone, false);
         if (pindex->nHeight <= chainstate.m_chain.Height() - nCheckDepth) {
             break;
         }
@@ -4288,7 +4303,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
                 LogPrintf("Verification progress: %d%%\n", percentageDone);
                 reportDone = percentageDone / 10;
             }
-            uiInterface.ShowProgress(_("Verifying blocks…").translated, percentageDone, false);
+            ShowProgress(_("Verifying blocks…").translated, percentageDone, false);
             pindex = chainstate.m_chain.Next(pindex);
             CBlock block;
             if (!ReadBlockFromDisk(block, pindex, consensus_params)) {
@@ -4347,7 +4362,7 @@ bool Chainstate::ReplayBlocks()
     if (hashHeads.empty()) return true; // We're already in a consistent state.
     if (hashHeads.size() != 2) return error("ReplayBlocks(): unknown inconsistent state");
 
-    uiInterface.ShowProgress(_("Replaying blocks…").translated, 0, false);
+    m_chainman.m_notification_interface.ShowProgress(_("Replaying blocks…").translated, 0, false);
     LogPrintf("Replaying blocks\n");
 
     const CBlockIndex* pindexOld = nullptr;  // Old tip during the interrupted flush.
@@ -4394,13 +4409,13 @@ bool Chainstate::ReplayBlocks()
         const CBlockIndex& pindex{*Assert(pindexNew->GetAncestor(nHeight))};
 
         LogPrintf("Rolling forward %s (%i)\n", pindex.GetBlockHash().ToString(), nHeight);
-        uiInterface.ShowProgress(_("Replaying blocks…").translated, (int) ((nHeight - nForkHeight) * 100.0 / (pindexNew->nHeight - nForkHeight)) , false);
+        m_chainman.m_notification_interface.ShowProgress(_("Replaying blocks…").translated, (int)((nHeight - nForkHeight) * 100.0 / (pindexNew->nHeight - nForkHeight)), false);
         if (!RollforwardBlock(&pindex, cache)) return false;
     }
 
     cache.SetBestBlock(pindexNew->GetBlockHash());
     cache.Flush();
-    uiInterface.ShowProgress("", 100, false);
+    m_chainman.m_notification_interface.ShowProgress("", 100, false);
     return true;
 }
 

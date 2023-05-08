@@ -120,9 +120,14 @@ private:
 public:
     explicit ChainstateNotificationInterface(
         std::function<void(SynchronizationState state, CBlockIndex* index)> notify_block_tip,
-        std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip);
+        std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip,
+        std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress_cb);
+
     void NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const;
     void NotifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) const;
+    void ShowProgress(const std::string& title, int nProgress, bool resume_possible) const;
+
+    const std::function<void(const std::string& title, int nProgress, bool resume_possible)> m_show_progress_cb;
 };
 
 /**
@@ -379,8 +384,11 @@ enum class VerifyDBResult {
 
 /** RAII wrapper for VerifyDB: Verify consistency of the block and coin databases */
 class CVerifyDB {
+private:
+    std::function<void(const std::string& title, int nProgress, bool resume_possible)> m_show_progress;
+
 public:
-    CVerifyDB();
+    explicit CVerifyDB(std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress);
     ~CVerifyDB();
     [[nodiscard]] VerifyDBResult VerifyDB(
         Chainstate& chainstate,
@@ -388,6 +396,7 @@ public:
         CCoinsView& coinsview,
         int nCheckLevel,
         int nCheckDepth) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    void ShowProgress(const std::string& title, int nProgress, bool resume_possible) const;
 };
 
 enum DisconnectResult

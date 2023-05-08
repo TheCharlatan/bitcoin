@@ -1452,6 +1452,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         },
         [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {
             uiInterface.NotifyHeaderTip(state, height, timestamp, presync);
+        },
+        [](const std::string& title, int nProgress, bool resume_possible) {
+            uiInterface.ShowProgress(title, nProgress, resume_possible);
         });
 
     // cache size calculations
