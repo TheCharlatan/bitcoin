@@ -11,6 +11,7 @@
 #include <string>
 
 class CBlockIndex;
+struct bilingual_str;
 
 namespace node {
 class ValidationNotificationsImpl : public kernel::ValidationNotifications
@@ -21,6 +22,8 @@ public:
     void notifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override;
 
     void showProgress(const std::string& title, int nProgress, bool resume_possible) override;
+
+    void doWarning(const bilingual_str& warning) override;
 };
 } // namespace node
 

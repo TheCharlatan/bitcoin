@@ -10,6 +10,7 @@
 
 class CBlockIndex;
 enum class SynchronizationState;
+struct bilingual_str;
 
 namespace kernel {
 
@@ -25,6 +26,7 @@ public:
     virtual void notifyBlockTip(SynchronizationState state, CBlockIndex* index) = 0;
     virtual void notifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) = 0;
     virtual void showProgress(const std::string& title, int nProgress, bool resume_possible) = 0;
+    virtual void doWarning(const bilingual_str& warning) = 0;
 };
 } // namespace kernel
 
