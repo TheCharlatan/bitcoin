@@ -964,6 +964,7 @@ public:
     void NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const;
     void NotifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) const;
     void ShowProgress(const std::string& title, int nProgress, bool resume_possible) const;
+    void DoWarning(const bilingual_str& warning) const;
 
     kernel::ValidationNotifications& GetNotifications() const;
 
