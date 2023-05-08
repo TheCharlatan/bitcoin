@@ -12,6 +12,7 @@
 
 class CBlockIndex;
 enum class SynchronizationState;
+struct bilingual_str;
 
 namespace node {
 class KernelNotifications : public kernel::Notifications
@@ -22,6 +23,8 @@ public:
     void notifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override;
 
     void notifyProgress(const std::string& title, int progress_percent, bool resume_possible) override;
+
+    void notifyWarning(const bilingual_str& warning) override;
 };
 } // namespace node
 
