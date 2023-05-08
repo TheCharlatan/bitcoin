@@ -98,6 +98,10 @@ int main(int argc, char* argv[])
         {
             std::cout << "Progress: " << title << ", " << nProgress << ", " << resume_possible << std::endl;
         }
+        void doWarning(const bilingual_str& warning) override
+        {
+            std::cout << "Warning: " << warning.original << std::endl;
+        }
     };
 
     // SETUP: Chainstate
