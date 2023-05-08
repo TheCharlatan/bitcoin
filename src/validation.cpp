@@ -26,7 +26,6 @@
 #include <logging.h>
 #include <logging/timer.h>
 #include <node/blockstorage.h>
-#include <node/interface_ui.h>
 #include <node/utxo_snapshot.h>
 #include <policy/policy.h>
 #include <policy/rbf.h>
@@ -52,7 +51,6 @@
 #include <util/moneystr.h>
 #include <util/rbf.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/time.h>
 #include <util/trace.h>
 #include <util/translation.h>
@@ -114,14 +112,17 @@ uint256 g_best_block;
 ChainstateNotificationInterface::ChainstateNotificationInterface(
     std::function<void(SynchronizationState state, CBlockIndex* index)> notify_block_tip_cb,
     std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip_cb,
-    std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress_cb)
+    std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress_cb,
+    std::function<void(const bilingual_str& warning)> do_warning_cb)
     : m_notify_block_tip_cb(std::move(notify_block_tip_cb)),
       m_notify_header_tip_cb(std::move(notify_header_tip_cb)),
+      m_do_warning_cb(std::move(do_warning_cb)),
       m_show_progress_cb(std::move(show_progress_cb))
 {
     assert(m_notify_block_tip_cb);
     assert(m_notify_header_tip_cb);
     assert(m_show_progress_cb);
+    assert(m_do_warning_cb);
 }
 void ChainstateNotificationInterface::NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const
 {
@@ -135,6 +136,11 @@ void ChainstateNotificationInterface::ShowProgress(const std::string& title, int
 {
     return m_show_progress_cb(title, nProgress, resume_possible);
 }
+void ChainstateNotificationInterface::DoWarning(const bilingual_str& warning) const
+{
+    return m_do_warning_cb(warning);
+}
+
 
 const CBlockIndex* Chainstate::FindForkInGlobalIndex(const CBlockLocator& locator) const
 {
@@ -1667,26 +1673,6 @@ bool Chainstate::IsInitialBlockDownload() const
     return false;
 }
 
-static void AlertNotify(const std::string& strMessage)
-{
-    uiInterface.NotifyAlertChanged();
-#if HAVE_SYSTEM
-    std::string strCmd = gArgs.GetArg("-alertnotify", "");
-    if (strCmd.empty()) return;
-
-    // Alert text should be plain ascii coming from a trusted source, but to
-    // be safe we first strip anything not in safeChars, then add single quotes around
-    // the whole string before passing it to the shell:
-    std::string singleQuote("'");
-    std::string safeStatus = SanitizeString(strMessage);
-    safeStatus = singleQuote+safeStatus+singleQuote;
-    ReplaceAll(strCmd, "%s", safeStatus);
-
-    std::thread t(runCommand, strCmd);
-    t.detach(); // thread runs free
-#endif
-}
-
 void Chainstate::CheckForkWarningConditions()
 {
     AssertLockHeld(cs_main);
@@ -2627,16 +2613,6 @@ void Chainstate::PruneAndFlush()
     }
 }
 
-static void DoWarning(const bilingual_str& warning)
-{
-    static bool fWarned = false;
-    SetMiscWarning(warning);
-    if (!fWarned) {
-        AlertNotify(warning.original);
-        fWarned = true;
-    }
-}
-
 /** Private helper function that concatenates warning messages. */
 static void AppendWarning(bilingual_str& res, const bilingual_str& warn)
 {
@@ -2703,7 +2679,7 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
             if (state == ThresholdState::ACTIVE || state == ThresholdState::LOCKED_IN) {
                 const bilingual_str warning = strprintf(_("Unknown new rules activated (versionbit %i)"), bit);
                 if (state == ThresholdState::ACTIVE) {
-                    DoWarning(warning);
+                    m_chainman.m_notification_interface.DoWarning(warning);
                 } else {
                     AppendWarning(warning_messages, warning);
                 }

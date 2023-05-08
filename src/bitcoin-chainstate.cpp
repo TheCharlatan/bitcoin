@@ -98,6 +98,9 @@ int main(int argc, char* argv[])
         },
         [](const std::string& title, int nProgress, bool resume_possible) {
             std::cout << "Dummy show progress: " << title << ", " << nProgress << ", " << resume_possible << std::endl;
+        },
+        [](const bilingual_str& warning) {
+            std::cout << "Dummy warning: " << warning.original << std::endl;
         });
     ChainstateManager chainman{chainman_opts, blockman_opts, notification_interface};
 

@@ -116,16 +116,19 @@ class ChainstateNotificationInterface
 private:
     const std::function<void(SynchronizationState state, CBlockIndex* index)> m_notify_block_tip_cb;
     const std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> m_notify_header_tip_cb;
+    const std::function<void(const bilingual_str& warning)> m_do_warning_cb;
 
 public:
     explicit ChainstateNotificationInterface(
         std::function<void(SynchronizationState state, CBlockIndex* index)> notify_block_tip,
         std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip,
-        std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress_cb);
+        std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress_cb,
+        std::function<void(const bilingual_str& warning)> do_warning_cb);
 
     void NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const;
     void NotifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) const;
     void ShowProgress(const std::string& title, int nProgress, bool resume_possible) const;
+    void DoWarning(const bilingual_str& warning) const;
 
     const std::function<void(const std::string& title, int nProgress, bool resume_possible)> m_show_progress_cb;
 };

@@ -387,7 +387,9 @@ struct SnapshotTestSetup : TestChain100Setup {
             const ChainstateNotificationInterface notification_interface(
                 [](SynchronizationState state, CBlockIndex* index) {},
                 [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {},
-                [](const std::string& title, int nProgress, bool resume_possible) {});
+                [](const std::string& title, int nProgress, bool resume_possible) {},
+                [] (const bilingual_str& warning) {});
+
             // For robustness, ensure the old manager is destroyed before creating a
             // new one.
             m_node.chainman.reset();
