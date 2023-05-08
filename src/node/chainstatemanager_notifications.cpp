@@ -9,11 +9,11 @@
 #endif
 
 #include <common/args.h>
+#include <common/system.h>
 #include <kernel/chainstatemanager_opts.h>
 #include <node/interface_ui.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <warnings.h>
 
