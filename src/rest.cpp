@@ -8,6 +8,7 @@
 #include <blockfilter.h>
 #include <chain.h>
 #include <chainparams.h>
+#include <common/system.h>
 #include <core_io.h>
 #include <httpserver.h>
 #include <index/blockfilterindex.h>
@@ -25,7 +26,6 @@
 #include <sync.h>
 #include <txmempool.h>
 #include <util/check.h>
-#include <util/system.h>
 #include <validation.h>
 #include <version.h>
 

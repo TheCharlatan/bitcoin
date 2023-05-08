@@ -4,9 +4,9 @@
 
 #include <wallet/rpc/util.h>
 
+#include <common/system.h>
 #include <common/url.h>
 #include <rpc/util.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <wallet/context.h>
 #include <wallet/wallet.h>
