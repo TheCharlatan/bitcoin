@@ -86,6 +86,7 @@
 #include <validation.h>
 #include <validationinterface.h>
 #include <walletinitinterface.h>
+#include <warnings.h>
 
 #include <algorithm>
 #include <condition_variable>
@@ -656,6 +657,36 @@ static void StartupNotify(const ArgsManager& args)
     }
 }
 #endif
+
+static void AlertNotify(const std::string& strMessage)
+{
+    uiInterface.NotifyAlertChanged();
+#if HAVE_SYSTEM
+    std::string strCmd = gArgs.GetArg("-alertnotify", "");
+    if (strCmd.empty()) return;
+
+    // Alert text should be plain ascii coming from a trusted source, but to
+    // be safe we first strip anything not in safeChars, then add single quotes around
+    // the whole string before passing it to the shell:
+    std::string singleQuote("'");
+    std::string safeStatus = SanitizeString(strMessage);
+    safeStatus = singleQuote + safeStatus + singleQuote;
+    ReplaceAll(strCmd, "%s", safeStatus);
+
+    std::thread t(runCommand, strCmd);
+    t.detach(); // thread runs free
+#endif
+}
+
+static void DoWarning(const bilingual_str& warning)
+{
+    static bool fWarned = false;
+    SetMiscWarning(warning);
+    if (!fWarned) {
+        AlertNotify(warning.original);
+        fWarned = true;
+    }
+}
 
 static bool AppInitServers(NodeContext& node)
 {
@@ -1448,6 +1479,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         .notify_block_tip_callback = [](SynchronizationState state, CBlockIndex* index) { uiInterface.NotifyBlockTip(state, index); },
         .notify_header_tip_callback = [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) { uiInterface.NotifyHeaderTip(state, height, timestamp, presync); },
         .show_progress_callback = [](const std::string& title, int nProgress, bool resume_possible) { uiInterface.ShowProgress(title, nProgress, resume_possible); },
+        .do_warning_callback = [](const bilingual_str& warning) { DoWarning(warning); },
     };
     Assert(!ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
