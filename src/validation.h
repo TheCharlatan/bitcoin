@@ -965,6 +965,7 @@ public:
     void NotifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) const;
     void ShowProgress(const std::string& title, int nProgress, bool resume_possible) const;
     std::function<void(const std::string&, int, bool)> GetShowProgressCb() const;
+    void DoWarning(const bilingual_str& warning) const;
 
     /**
      * Alias for ::cs_main.

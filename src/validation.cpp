@@ -26,7 +26,6 @@
 #include <logging.h>
 #include <logging/timer.h>
 #include <node/blockstorage.h>
-#include <node/interface_ui.h>
 #include <node/utxo_snapshot.h>
 #include <policy/policy.h>
 #include <policy/rbf.h>
@@ -52,7 +51,6 @@
 #include <util/moneystr.h>
 #include <util/rbf.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/time.h>
 #include <util/trace.h>
 #include <util/translation.h>
@@ -1639,26 +1637,6 @@ bool Chainstate::IsInitialBlockDownload() const
     return false;
 }
 
-static void AlertNotify(const std::string& strMessage)
-{
-    uiInterface.NotifyAlertChanged();
-#if HAVE_SYSTEM
-    std::string strCmd = gArgs.GetArg("-alertnotify", "");
-    if (strCmd.empty()) return;
-
-    // Alert text should be plain ascii coming from a trusted source, but to
-    // be safe we first strip anything not in safeChars, then add single quotes around
-    // the whole string before passing it to the shell:
-    std::string singleQuote("'");
-    std::string safeStatus = SanitizeString(strMessage);
-    safeStatus = singleQuote+safeStatus+singleQuote;
-    ReplaceAll(strCmd, "%s", safeStatus);
-
-    std::thread t(runCommand, strCmd);
-    t.detach(); // thread runs free
-#endif
-}
-
 void Chainstate::CheckForkWarningConditions()
 {
     AssertLockHeld(cs_main);
@@ -2599,16 +2577,6 @@ void Chainstate::PruneAndFlush()
     }
 }
 
-static void DoWarning(const bilingual_str& warning)
-{
-    static bool fWarned = false;
-    SetMiscWarning(warning);
-    if (!fWarned) {
-        AlertNotify(warning.original);
-        fWarned = true;
-    }
-}
-
 /** Private helper function that concatenates warning messages. */
 static void AppendWarning(bilingual_str& res, const bilingual_str& warn)
 {
@@ -2675,7 +2643,7 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
             if (state == ThresholdState::ACTIVE || state == ThresholdState::LOCKED_IN) {
                 const bilingual_str warning = strprintf(_("Unknown new rules activated (versionbit %i)"), bit);
                 if (state == ThresholdState::ACTIVE) {
-                    DoWarning(warning);
+                    m_chainman.DoWarning(warning);
                 } else {
                     AppendWarning(warning_messages, warning);
                 }
@@ -3586,6 +3554,11 @@ void ChainstateManager::ShowProgress(const std::string& title, int nProgress, bo
 std::function<void(const std::string&, int, bool)> ChainstateManager::GetShowProgressCb() const
 {
     return m_options.notification_callbacks.show_progress;
+}
+
+void ChainstateManager::DoWarning(const bilingual_str& warning) const
+{
+    return m_options.notification_callbacks.do_warning(warning);
 }
 
 void ChainstateManager::UpdateUncommittedBlockStructures(CBlock& block, const CBlockIndex* pindexPrev) const
@@ -5644,6 +5617,7 @@ ChainstateManager::ChainstateManager(Options options, node::BlockManager::Option
     assert(m_options.notification_callbacks.notify_block_tip);
     assert(m_options.notification_callbacks.notify_header_tip);
     assert(m_options.notification_callbacks.show_progress);
+    assert(m_options.notification_callbacks.do_warning);
 }
 
 ChainstateManager::~ChainstateManager()
