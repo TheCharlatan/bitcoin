@@ -962,7 +962,7 @@ private:
 public:
     using Options = kernel::ChainstateManagerOpts;
 
-    explicit ChainstateManager(Options options, node::BlockManager::Options blockman_options);
+    explicit ChainstateManager(Options options, node::BlockManager::Options blockman_options, ChainstateNotificationInterface notification_interface);
 
     const CChainParams& GetParams() const { return m_options.chainparams; }
     const Consensus::Params& GetConsensus() const { return m_options.chainparams.GetConsensus(); }
@@ -988,6 +988,8 @@ public:
     //! A single BlockManager instance is shared across each constructed
     //! chainstate to avoid duplicating block metadata.
     node::BlockManager m_blockman;
+
+    ChainstateNotificationInterface m_notification_interface;
 
     /**
      * In order to efficiently track invalidity of headers, we keep the set of

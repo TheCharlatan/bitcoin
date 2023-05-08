@@ -1446,6 +1446,14 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     };
     Assert(!ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
+    const ChainstateNotificationInterface notification_interface(
+        [](SynchronizationState state, CBlockIndex* index) {
+            uiInterface.NotifyBlockTip(state, index);
+        },
+        [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {
+            uiInterface.NotifyHeaderTip(state, height, timestamp, presync);
+        });
+
     // cache size calculations
     CacheSizes cache_sizes = CalculateCacheSizes(args, g_enabled_filter_types.size());
 
@@ -1481,7 +1489,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     for (bool fLoaded = false; !fLoaded && !ShutdownRequested();) {
         node.mempool = std::make_unique<CTxMemPool>(mempool_opts);
 
-        node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
+        node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts, notification_interface);
         ChainstateManager& chainman = *node.chainman;
 
         node::ChainstateLoadOptions options;
