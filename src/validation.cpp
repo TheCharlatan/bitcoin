@@ -111,6 +111,23 @@ GlobalMutex g_best_block_mutex;
 std::condition_variable g_best_block_cv;
 uint256 g_best_block;
 
+ChainstateNotificationInterface::ChainstateNotificationInterface(
+    std::function<void(SynchronizationState state, CBlockIndex* index)> notify_block_tip_cb,
+    std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip_cb) : m_notify_block_tip_cb(std::move(notify_block_tip_cb)),
+                                                                                                                             m_notify_header_tip_cb(std::move(notify_header_tip_cb))
+{
+    assert(m_notify_block_tip_cb);
+    assert(m_notify_header_tip_cb);
+}
+void ChainstateNotificationInterface::NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const
+{
+    return m_notify_block_tip_cb(state, index);
+}
+void ChainstateNotificationInterface::NotifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) const
+{
+    return m_notify_header_tip_cb(state, height, timestamp, presync);
+}
+
 const CBlockIndex* Chainstate::FindForkInGlobalIndex(const CBlockLocator& locator) const
 {
     AssertLockHeld(cs_main);

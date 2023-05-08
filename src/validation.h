@@ -111,6 +111,20 @@ double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex* pin
 /** Prune block files up to a given height */
 void PruneBlockFilesManual(Chainstate& active_chainstate, int nManualPruneHeight);
 
+class ChainstateNotificationInterface
+{
+private:
+    const std::function<void(SynchronizationState state, CBlockIndex* index)> m_notify_block_tip_cb;
+    const std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> m_notify_header_tip_cb;
+
+public:
+    explicit ChainstateNotificationInterface(
+        std::function<void(SynchronizationState state, CBlockIndex* index)> notify_block_tip,
+        std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip);
+    void NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const;
+    void NotifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) const;
+};
+
 /**
 * Validation result for a single transaction mempool acceptance.
 */
