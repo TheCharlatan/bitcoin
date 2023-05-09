@@ -388,6 +388,7 @@ struct SnapshotTestSetup : TestChain100Setup {
             const BlockManager::Options blockman_opts{
                 .chainparams = chainman_opts.chainparams,
                 .blocks_dir = m_args.GetBlocksDirPath(),
+                .init_error_callback = chainman_opts.notification_callbacks.init_error,
             };
             // For robustness, ensure the old manager is destroyed before creating a
             // new one.

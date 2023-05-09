@@ -35,6 +35,7 @@ struct ChainstateManagerNotificationCallbacks {
     const std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip;
     const std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress;
     const std::function<void(const bilingual_str& warning)> do_warning;
+    const std::function<void(const bilingual_str& user_message)> init_error;
 };
 
 /**

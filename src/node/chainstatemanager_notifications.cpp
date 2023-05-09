@@ -65,6 +65,7 @@ ChainstateManagerNotificationCallbacks DefaultChainstateManagerNotifications()
         .notify_header_tip = [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) { uiInterface.NotifyHeaderTip(state, height, timestamp, presync); },
         .show_progress = [](const std::string& title, int nProgress, bool resume_possible) { uiInterface.ShowProgress(title, nProgress, resume_possible); },
         .do_warning = [](const bilingual_str& warning) { DoWarning(warning); },
+        .init_error = [](const bilingual_str& user_message) { InitError(user_message); },
     };
 }
 } // namespace node
