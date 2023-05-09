@@ -6,12 +6,12 @@
 #define BITCOIN_NODE_VALIDATION_NOTIFICATIONS_H
 
 #include <kernel/validation_notifications_interface.h>
+#include <util/translation.h>
 
 #include <cstdint>
 #include <string>
 
 class CBlockIndex;
-struct bilingual_str;
 
 namespace node {
 class ValidationNotificationsImpl : public kernel::ValidationNotifications
@@ -24,6 +24,8 @@ public:
     void showProgress(const std::string& title, int nProgress, bool resume_possible) override;
 
     void doWarning(const bilingual_str& warning) override;
+
+    bool fatalError(const std::string& strMessage, bilingual_str user_message = {}) override;
 };
 } // namespace node
 

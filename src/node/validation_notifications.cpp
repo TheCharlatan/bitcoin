@@ -11,7 +11,9 @@
 
 #include <common/args.h>
 #include <common/system.h>
+#include <logging.h>
 #include <node/interface_ui.h>
+#include <shutdown.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/translation.h>
@@ -71,6 +73,18 @@ void ValidationNotificationsImpl::showProgress(const std::string& title, int nPr
 void ValidationNotificationsImpl::doWarning(const bilingual_str& warning)
 {
     ::DoWarning(warning);
+}
+
+bool ValidationNotificationsImpl::fatalError(const std::string& strMessage, bilingual_str user_message)
+{
+    SetMiscWarning(Untranslated(strMessage));
+    LogPrintf("*** %s\n", strMessage);
+    if (user_message.empty()) {
+        user_message = _("A fatal internal error occurred, see debug.log for details");
+    }
+    InitError(user_message);
+    StartShutdown();
+    return false;
 }
 
 } // namespace node
