@@ -24,6 +24,8 @@ public:
     void showProgress(const std::string& title, int nProgress, bool resume_possible) override;
 
     void doWarning(const bilingual_str& warning) override;
+
+    bool fatalError(const std::string& strMessage, bilingual_str user_message = {}) override;
 };
 } // namespace node
 
