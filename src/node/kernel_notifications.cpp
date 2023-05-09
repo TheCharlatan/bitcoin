@@ -10,7 +10,9 @@
 
 #include <common/args.h>
 #include <common/system.h>
+#include <logging.h>
 #include <node/interface_ui.h>
+#include <shutdown.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/translation.h>
@@ -70,6 +72,17 @@ void KernelNotifications::progress(const std::string& title, int progress_percen
 void KernelNotifications::warning(const bilingual_str& warning)
 {
     DoWarning(warning);
+}
+
+void KernelNotifications::fatalError(const std::string& debug_message, bilingual_str user_message)
+{
+    SetMiscWarning(Untranslated(debug_message));
+    LogPrintf("*** %s\n", debug_message);
+    if (user_message.empty()) {
+        user_message = _("A fatal internal error occurred, see debug.log for details");
+    }
+    InitError(user_message);
+    StartShutdown();
 }
 
 } // namespace node
