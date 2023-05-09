@@ -25,6 +25,11 @@ public:
     void progress(const bilingual_str& title, int progress_percent, bool resume_possible) override;
 
     void warning(const bilingual_str& warning) override;
+
+    void fatalError(const std::string& debug_message, const bilingual_str& user_message = {}) override;
+
+    //! Useful for tests, can be set to false to avoid shutdown on fatal error.
+    bool m_shutdown_on_fatal_error{true};
 };
 } // namespace node
 
