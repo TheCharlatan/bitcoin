@@ -26,10 +26,12 @@
 #include <node/chainstate.h>
 #include <scheduler.h>
 #include <script/sigcache.h>
+#include <shutdown.h>
 #include <util/chaintype.h>
 #include <util/thread.h>
 #include <validation.h>
 #include <validationinterface.h>
+#include <warnings.h>
 
 #include <cassert>
 #include <filesystem>
@@ -102,6 +104,18 @@ int main(int argc, char* argv[])
         {
             std::cout << "Warning: " << warning.original << std::endl;
         }
+
+        bool fatalError(const std::string& strMessage, bilingual_str user_message) override
+        {
+            SetMiscWarning(Untranslated(strMessage));
+            LogPrintf("*** %s\n", strMessage);
+            if (user_message.empty()) {
+                user_message = _("A fatal internal error occurred, see debug.log for details");
+            }
+            std::cout << "Warning: " << user_message.original << std::endl;
+            StartShutdown();
+            return false;
+        }
     };
 
     // SETUP: Chainstate
@@ -114,6 +128,7 @@ int main(int argc, char* argv[])
     const node::BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
         .blocks_dir = gArgs.GetBlocksDirPath(),
+        .notifications = *chainman_opts.notifications,
     };
     ChainstateManager chainman{chainman_opts, blockman_opts};
 

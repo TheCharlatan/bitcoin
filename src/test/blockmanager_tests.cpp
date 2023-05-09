@@ -5,15 +5,17 @@
 #include <chainparams.h>
 #include <node/blockstorage.h>
 #include <node/context.h>
+#include <node/validation_notifications.h>
 #include <util/chaintype.h>
 #include <validation.h>
 
 #include <boost/test/unit_test.hpp>
 #include <test/util/setup_common.h>
 
-using node::BlockManager;
 using node::BLOCK_SERIALIZATION_HEADER_SIZE;
+using node::BlockManager;
 using node::MAX_BLOCKFILE_SIZE;
+using node::ValidationNotificationsImpl;
 
 // use BasicTestingSetup here for the data directory configuration, setup, and cleanup
 BOOST_FIXTURE_TEST_SUITE(blockmanager_tests, BasicTestingSetup)
@@ -21,9 +23,11 @@ BOOST_FIXTURE_TEST_SUITE(blockmanager_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(blockmanager_find_block_pos)
 {
     const auto params {CreateChainParams(ArgsManager{}, ChainType::MAIN)};
+    ValidationNotificationsImpl notifications{};
     const BlockManager::Options blockman_opts{
         .chainparams = *params,
         .blocks_dir = m_args.GetBlocksDirPath(),
+        .notifications = notifications,
     };
     BlockManager blockman{blockman_opts};
     CChain chain {};
