@@ -90,7 +90,11 @@ int main(int argc, char* argv[])
 
     class KernelNotifications : public kernel::Notifications
     {
+    private:
+        std::atomic<bool>& m_shutdown_requested;
+
     public:
+        KernelNotifications(std::atomic<bool>& shutdown_requested) : m_shutdown_requested{shutdown_requested} {}
         void blockTip(SynchronizationState, CBlockIndex&) override
         {
             std::cout << "Block tip changed" << std::endl;
@@ -107,8 +111,14 @@ int main(int argc, char* argv[])
         {
             std::cout << "Warning: " << warning.original << std::endl;
         }
+        void fatalError(const std::string& debug_message, const bilingual_str& user_message) override
+        {
+            m_shutdown_requested = true;
+            std::cerr << "Error: " << debug_message << std::endl;
+            std::cerr << (user_message.empty() ? "A fatal internal error occurred." : user_message.original) << std::endl;
+        }
     };
-    auto notifications = std::make_unique<KernelNotifications>();
+    auto notifications = std::make_unique<KernelNotifications>(shutdown_requested);
 
     // SETUP: Chainstate
     const ChainstateManager::Options chainman_opts{
@@ -122,6 +132,7 @@ int main(int argc, char* argv[])
         .chainparams = chainman_opts.chainparams,
         .blocks_dir = gArgs.GetBlocksDirPath(),
         .shutdown_requested = chainman_opts.shutdown_requested,
+        .notifications = chainman_opts.notifications,
     };
     ChainstateManager chainman{chainman_opts, blockman_opts};
 

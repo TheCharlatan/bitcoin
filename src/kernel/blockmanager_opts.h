@@ -5,6 +5,7 @@
 #ifndef BITCOIN_KERNEL_BLOCKMANAGER_OPTS_H
 #define BITCOIN_KERNEL_BLOCKMANAGER_OPTS_H
 
+#include <kernel/notifications_interface.h>
 #include <util/fs.h>
 
 #include <atomic>
@@ -27,6 +28,7 @@ struct BlockManagerOpts {
     bool stop_after_block_import{DEFAULT_STOPAFTERBLOCKIMPORT};
     const fs::path blocks_dir;
     std::atomic<bool>& shutdown_requested;
+    Notifications& notifications;
 };
 
 } // namespace kernel
