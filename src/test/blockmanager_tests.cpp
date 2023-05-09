@@ -24,7 +24,8 @@ BOOST_AUTO_TEST_CASE(blockmanager_find_block_pos)
     node::BlockManager::Options blockman_opts{
         .chainparams = *params,
     };
-    BlockManager blockman{blockman_opts};
+    auto mock_init_error = [](bilingual_str msg) {};
+    BlockManager blockman{blockman_opts, mock_init_error};
     CChain chain {};
     // simulate adding a genesis block normally
     BOOST_CHECK_EQUAL(blockman.SaveBlockToDisk(params->GenesisBlock(), 0, chain, nullptr).nPos, BLOCK_SERIALIZATION_HEADER_SIZE);

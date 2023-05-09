@@ -200,14 +200,17 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
     // snapshot is actually validated? Because this entails unusual
     // filesystem operations to move leveldb data directories around, and that seems
     // too risky to do in the middle of normal runtime.
-    auto snapshot_completion = chainman.MaybeCompleteSnapshotValidation();
+    auto snapshot_completion = chainman.MaybeCompleteSnapshotValidation(
+        [&notification_interface = chainman.m_notification_interface](bilingual_str msg) {
+            AbortNode(msg.original, notification_interface.m_init_error_cb, msg);
+        });
 
     if (snapshot_completion == SnapshotCompletionResult::SKIPPED) {
         // do nothing; expected case
     } else if (snapshot_completion == SnapshotCompletionResult::SUCCESS) {
         LogPrintf("[snapshot] cleaning up unneeded background chainstate, then reinitializing\n");
         if (!chainman.ValidatedSnapshotCleanup()) {
-            AbortNode("Background chainstate cleanup failed unexpectedly.");
+            AbortNode("Background chainstate cleanup failed unexpectedly.", chainman.InitErrorCb());
         }
 
         // Because ValidatedSnapshotCleanup() has torn down chainstates with

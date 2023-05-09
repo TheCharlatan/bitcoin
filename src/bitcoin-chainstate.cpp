@@ -101,6 +101,9 @@ int main(int argc, char* argv[])
         },
         [](const bilingual_str& warning) {
             std::cout << "Dummy warning: " << warning.original << std::endl;
+        },
+        [](const bilingual_str& user_message) {
+            std::cout << "Dummy user message: " << user_message.original << std::endl;
         });
     ChainstateManager chainman{chainman_opts, blockman_opts, notification_interface};
 

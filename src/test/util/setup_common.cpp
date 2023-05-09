@@ -192,7 +192,8 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
         [](SynchronizationState state, CBlockIndex* index) {},
         [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {},
         [](const std::string& title, int nProgress, bool resume_possible) {},
-        [](const bilingual_str& warning) {});
+        [](const bilingual_str& warning) {},
+        [](const bilingual_str& user_message) {});
     m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts, notification_interface);
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(DBParams{
         .path = m_args.GetDataDirNet() / "blocks" / "index",

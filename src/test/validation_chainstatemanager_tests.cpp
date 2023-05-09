@@ -388,7 +388,8 @@ struct SnapshotTestSetup : TestChain100Setup {
                 [](SynchronizationState state, CBlockIndex* index) {},
                 [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {},
                 [](const std::string& title, int nProgress, bool resume_possible) {},
-                [] (const bilingual_str& warning) {});
+                [](const bilingual_str& warning) {},
+                [] (const bilingual_str& user_message) {});
 
             // For robustness, ensure the old manager is destroyed before creating a
             // new one.

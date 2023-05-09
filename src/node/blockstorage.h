@@ -143,12 +143,15 @@ private:
 
     const kernel::BlockManagerOpts m_opts;
 
+    std::function<void(const bilingual_str& str)> m_init_error_cb;
+
 public:
     using Options = kernel::BlockManagerOpts;
 
-    explicit BlockManager(Options opts)
+    explicit BlockManager(Options opts, std::function<void(const bilingual_str& user_message)> init_error_cb)
         : m_prune_mode{opts.prune_target > 0},
-          m_opts{std::move(opts)} {};
+          m_opts{std::move(opts)},
+          m_init_error_cb{init_error_cb} {};
 
     std::atomic<bool> m_importing{false};
 

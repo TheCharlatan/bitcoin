@@ -533,7 +533,7 @@ void BlockManager::FlushUndoFile(int block_file, bool finalize)
 {
     FlatFilePos undo_pos_old(block_file, m_blockfile_info[block_file].nUndoSize);
     if (!UndoFileSeq().Flush(undo_pos_old, finalize)) {
-        AbortNode("Flushing undo file to disk failed. This is likely the result of an I/O error.");
+        AbortNode("Flushing undo file to disk failed. This is likely the result of an I/O error.", m_init_error_cb);
     }
 }
 
@@ -552,7 +552,7 @@ void BlockManager::FlushBlockFile(bool fFinalize, bool finalize_undo)
 
     FlatFilePos block_pos_old(m_last_blockfile, m_blockfile_info[m_last_blockfile].nSize);
     if (!BlockFileSeq().Flush(block_pos_old, fFinalize)) {
-        AbortNode("Flushing block file to disk failed. This is likely the result of an I/O error.");
+        AbortNode("Flushing block file to disk failed. This is likely the result of an I/O error.", m_init_error_cb);
     }
     // we do not always flush the undo file, as the chain tip may be lagging behind the incoming blocks,
     // e.g. during IBD or a sync after a node going offline
@@ -664,7 +664,7 @@ bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigne
         bool out_of_space;
         size_t bytes_allocated = BlockFileSeq().Allocate(pos, nAddSize, out_of_space);
         if (out_of_space) {
-            return AbortNode("Disk space is too low!", _("Disk space is too low!"));
+            return AbortNode("Disk space is too low!", m_init_error_cb, _("Disk space is too low!"));
         }
         if (bytes_allocated != 0 && IsPruneMode()) {
             m_check_for_pruning = true;
@@ -688,7 +688,7 @@ bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFileP
     bool out_of_space;
     size_t bytes_allocated = UndoFileSeq().Allocate(pos, nAddSize, out_of_space);
     if (out_of_space) {
-        return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
+        return AbortNode(state, "Disk space is too low!", m_init_error_cb, _("Disk space is too low!"));
     }
     if (bytes_allocated != 0 && IsPruneMode()) {
         m_check_for_pruning = true;
@@ -730,7 +730,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
             return error("ConnectBlock(): FindUndoPos failed");
         }
         if (!UndoWriteToDisk(blockundo, _pos, block.pprev->GetBlockHash(), GetParams().MessageStart())) {
-            return AbortNode(state, "Failed to write undo data");
+            return AbortNode(state, "Failed to write undo data", m_init_error_cb);
         }
         // rev files are written in block height order, whereas blk files are written as blocks come in (often out of order)
         // we want to flush the rev (undo) file once we've written the last block, which is indicated by the last height
@@ -848,7 +848,7 @@ FlatFilePos BlockManager::SaveBlockToDisk(const CBlock& block, int nHeight, CCha
     }
     if (!position_known) {
         if (!WriteBlockToDisk(block, blockPos, GetParams().MessageStart())) {
-            AbortNode("Failed to write block");
+            AbortNode("Failed to write block", m_init_error_cb);
             return FlatFilePos();
         }
     }

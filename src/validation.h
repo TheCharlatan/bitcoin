@@ -103,7 +103,7 @@ void StopScriptCheckWorkerThreads();
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
-bool AbortNode(BlockValidationState& state, const std::string& strMessage, const bilingual_str& userMessage = bilingual_str{});
+bool AbortNode(BlockValidationState& state, const std::string& strMessage, std::function<void(const bilingual_str& user_message)> init_error, const bilingual_str& userMessage = bilingual_str{});
 
 /** Guess verification progress (as a fraction between 0.0=genesis and 1.0=current tip). */
 double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex* pindex);
@@ -123,14 +123,17 @@ public:
         std::function<void(SynchronizationState state, CBlockIndex* index)> notify_block_tip,
         std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip,
         std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress_cb,
-        std::function<void(const bilingual_str& warning)> do_warning_cb);
+        std::function<void(const bilingual_str& warning)> do_warning_cb,
+        std::function<void(const bilingual_str& user_message)> init_error_cb);
 
     void NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const;
     void NotifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) const;
     void ShowProgress(const std::string& title, int nProgress, bool resume_possible) const;
     void DoWarning(const bilingual_str& warning) const;
+    void InitError(const bilingual_str& user_message) const;
 
     const std::function<void(const std::string& title, int nProgress, bool resume_possible)> m_show_progress_cb;
+    const std::function<void(const bilingual_str& user_message)> m_init_error_cb;
 };
 
 /**
@@ -982,6 +985,11 @@ public:
     const arith_uint256& MinimumChainWork() const { return *Assert(m_options.minimum_chain_work); }
     const uint256& AssumedValidBlock() const { return *Assert(m_options.assumed_valid_block); }
 
+    std::function<void(const bilingual_str&)> InitErrorCb()
+    {
+        return m_notification_interface.m_init_error_cb;
+    }
+
     /**
      * Alias for ::cs_main.
      * Should be used in new code to make it easier to make ::cs_main a member
@@ -1001,7 +1009,7 @@ public:
     //! chainstate to avoid duplicating block metadata.
     node::BlockManager m_blockman;
 
-    ChainstateNotificationInterface m_notification_interface;
+    const ChainstateNotificationInterface m_notification_interface;
 
     /**
      * In order to efficiently track invalidity of headers, we keep the set of
@@ -1068,9 +1076,7 @@ public:
     //! deletion and continue using the snapshot chainstate as active.
     //! Otherwise, revert to using the ibd chainstate and shutdown.
     SnapshotCompletionResult MaybeCompleteSnapshotValidation(
-        std::function<void(bilingual_str)> shutdown_fnc =
-            [](bilingual_str msg) { AbortNode(msg.original, msg); })
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+        std::function<void(bilingual_str)> shutdown_fnc) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! The most-work chain.
     Chainstate& ActiveChainstate() const;

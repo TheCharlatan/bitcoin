@@ -1489,6 +1489,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         },
         [](const bilingual_str& warning) {
             DoWarning(warning);
+        },
+        [](const bilingual_str& user_message) {
+            InitError(user_message);
         });
 
     // cache size calculations
