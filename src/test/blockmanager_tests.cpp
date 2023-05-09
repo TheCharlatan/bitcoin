@@ -24,6 +24,7 @@ BOOST_AUTO_TEST_CASE(blockmanager_find_block_pos)
     const BlockManager::Options blockman_opts{
         .chainparams = *params,
         .blocks_dir = m_args.GetBlocksDirPath(),
+        .init_error_callback = [](bilingual_str msg) {},
     };
     BlockManager blockman{blockman_opts};
     CChain chain {};

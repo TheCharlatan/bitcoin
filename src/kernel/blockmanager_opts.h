@@ -6,6 +6,7 @@
 #define BITCOIN_KERNEL_BLOCKMANAGER_OPTS_H
 
 #include <util/fs.h>
+#include <util/translation.h>
 
 #include <cstdint>
 
@@ -25,6 +26,7 @@ struct BlockManagerOpts {
     bool fast_prune{false};
     bool stop_after_block_import{DEFAULT_STOPAFTERBLOCKIMPORT};
     const fs::path blocks_dir;
+    const std::function<void(const bilingual_str& str)> init_error_callback;
 };
 
 } // namespace kernel

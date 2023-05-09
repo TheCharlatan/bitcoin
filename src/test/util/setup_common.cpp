@@ -190,10 +190,12 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
         .notify_header_tip_callback = [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {},
         .show_progress_callback = [](const std::string& title, int nProgress, bool resume_possible) {},
         .do_warning_callback = [](const bilingual_str& warning) {},
+        .init_error_callback = [](const bilingual_str& user_message) {},
     };
     const BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
         .blocks_dir = m_args.GetBlocksDirPath(),
+        .init_error_callback = [](bilingual_str msg) {},
     };
     m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(DBParams{

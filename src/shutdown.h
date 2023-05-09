@@ -9,7 +9,7 @@
 #include <util/translation.h> // For bilingual_str
 
 /** Abort with a message */
-bool AbortNode(const std::string& strMessage, bilingual_str user_message = bilingual_str{});
+bool AbortNode(const std::string& strMessage, std::function<void(const bilingual_str& user_message)> init_error, bilingual_str user_message = bilingual_str{});
 
 /** Initialize shutdown state. This must be called before using either StartShutdown(),
  * AbortShutdown() or WaitForShutdown(). Calling ShutdownRequested() is always safe.

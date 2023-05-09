@@ -1480,13 +1480,16 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         .notify_header_tip_callback = [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) { uiInterface.NotifyHeaderTip(state, height, timestamp, presync); },
         .show_progress_callback = [](const std::string& title, int nProgress, bool resume_possible) { uiInterface.ShowProgress(title, nProgress, resume_possible); },
         .do_warning_callback = [](const bilingual_str& warning) { DoWarning(warning); },
+        .init_error_callback = [](const bilingual_str& user_message) { InitError(user_message); },
     };
     Assert(!ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
     BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
         .blocks_dir = args.GetBlocksDirPath(),
-    };
+        .init_error_callback = [](const bilingual_str& user_message) {
+            InitError(user_message);
+        }};
     Assert(!ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
     // cache size calculations

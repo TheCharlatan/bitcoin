@@ -385,6 +385,7 @@ struct SnapshotTestSetup : TestChain100Setup {
                 .notify_header_tip_callback = [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {},
                 .show_progress_callback = [](const std::string& title, int nProgress, bool resume_possible) {},
                 .do_warning_callback = [](const bilingual_str& warning) {},
+                .init_error_callback = [](const bilingual_str& user_message) {},
             };
             const BlockManager::Options blockman_opts{
                 .chainparams = chainman_opts.chainparams,

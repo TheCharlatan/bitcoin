@@ -49,6 +49,7 @@ struct ChainstateManagerOpts {
     std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip_callback;
     std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress_callback;
     std::function<void(const bilingual_str& warning)> do_warning_callback;
+    std::function<void(const bilingual_str& user_message)> init_error_callback;
 };
 
 } // namespace kernel
