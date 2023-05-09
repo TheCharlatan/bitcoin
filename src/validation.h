@@ -103,7 +103,7 @@ void StopScriptCheckWorkerThreads();
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
-bool AbortNode(BlockValidationState& state, const std::string& strMessage, const bilingual_str& userMessage = bilingual_str{});
+bool AbortNode(BlockValidationState& state, const std::string& strMessage, const std::function<void(const bilingual_str& user_message)>& init_error, const bilingual_str& userMessage = bilingual_str{});
 
 /** Guess verification progress (as a fraction between 0.0=genesis and 1.0=current tip). */
 double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex* pindex);
@@ -966,6 +966,7 @@ public:
     void ShowProgress(const std::string& title, int nProgress, bool resume_possible) const;
     std::function<void(const std::string&, int, bool)> GetShowProgressCb() const;
     void DoWarning(const bilingual_str& warning) const;
+    const std::function<void(const bilingual_str&)>& GetInitErrorCb() const;
 
     /**
      * Alias for ::cs_main.
@@ -1051,9 +1052,7 @@ public:
     //! deletion and continue using the snapshot chainstate as active.
     //! Otherwise, revert to using the ibd chainstate and shutdown.
     SnapshotCompletionResult MaybeCompleteSnapshotValidation(
-        std::function<void(bilingual_str)> shutdown_fnc =
-            [](bilingual_str msg) { AbortNode(msg.original, msg); })
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+        std::function<void(bilingual_str)> shutdown_fnc) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! The most-work chain.
     Chainstate& ActiveChainstate() const;

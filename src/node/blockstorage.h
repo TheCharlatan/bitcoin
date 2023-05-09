@@ -154,7 +154,10 @@ public:
 
     explicit BlockManager(Options opts)
         : m_prune_mode{opts.prune_target > 0},
-          m_opts{std::move(opts)} {};
+          m_opts{std::move(opts)}
+    {
+        assert(m_opts.init_error_callback);
+    };
 
     std::atomic<bool> m_importing{false};
 
