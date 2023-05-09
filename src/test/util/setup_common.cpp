@@ -184,7 +184,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
 
     m_cache_sizes = CalculateCacheSizes(m_args);
 
-    m_node.notifications = std::make_unique<KernelNotifications>();
+    m_node.notifications = std::make_unique<KernelNotifications>(m_node.exit_status);
 
     const ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
@@ -196,6 +196,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
     const BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
         .blocks_dir = m_args.GetBlocksDirPath(),
+        .notifications = chainman_opts.notifications,
     };
     m_node.chainman = std::make_unique<ChainstateManager>(m_node.kernel->interrupt, chainman_opts, blockman_opts);
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(DBParams{
