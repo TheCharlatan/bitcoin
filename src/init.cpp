@@ -1037,6 +1037,7 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
             .chainparams = chainman_opts_dummy.chainparams,
             .blocks_dir = args.GetBlocksDirPath(),
             .shutdown_requested = chainman_opts_dummy.shutdown_requested,
+            .notifications = chainman_opts_dummy.notifications,
         };
         auto blockman_result{ApplyArgsManOptions(args, blockman_opts_dummy)};
         if (!blockman_result) {
@@ -1453,6 +1454,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         .chainparams = chainman_opts.chainparams,
         .blocks_dir = args.GetBlocksDirPath(),
         .shutdown_requested = chainman_opts.shutdown_requested,
+        .notifications = chainman_opts.notifications,
     };
     Assert(ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
