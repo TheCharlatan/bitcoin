@@ -18,4 +18,9 @@ void KernelNotifications::notifyHeaderTip(SynchronizationState state, int64_t he
     uiInterface.NotifyHeaderTip(state, height, timestamp, presync);
 }
 
+void KernelNotifications::notifyProgress(const std::string& title, int progress_percent, bool resume_possible)
+{
+    uiInterface.ShowProgress(title, progress_percent, resume_possible);
+}
+
 } // namespace node
