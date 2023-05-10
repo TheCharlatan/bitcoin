@@ -365,8 +365,12 @@ enum class VerifyDBResult {
 
 /** RAII wrapper for VerifyDB: Verify consistency of the block and coin databases */
 class CVerifyDB {
+private:
+    const std::function<void(const std::string& title, int nProgress, bool resume_possible)> m_show_progress;
+    void ShowProgress(const std::string& title, int nProgress, bool resume_possible) const;
+
 public:
-    CVerifyDB();
+    explicit CVerifyDB(std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress);
     ~CVerifyDB();
     [[nodiscard]] VerifyDBResult VerifyDB(
         Chainstate& chainstate,
@@ -959,6 +963,8 @@ public:
 
     void NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const;
     void NotifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) const;
+    void ShowProgress(const std::string& title, int nProgress, bool resume_possible) const;
+    std::function<void(const std::string&, int, bool)> GetShowProgressCb() const;
 
     /**
      * Alias for ::cs_main.
