@@ -36,7 +36,7 @@ std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, c
 const CChainParams &Params();
 
 /**
- * Sets the params returned by Params() to those for the given chain name.
+ * Sets the params returned by Params() to those for the given chain type.
  */
 void SelectParams(const ChainType chain);
 
