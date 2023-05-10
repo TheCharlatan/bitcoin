@@ -3578,6 +3578,16 @@ void ChainstateManager::NotifyHeaderTip(SynchronizationState state, int64_t heig
     return m_options.notification_callbacks.notify_header_tip(state, height, timestamp, presync);
 }
 
+void ChainstateManager::ShowProgress(const std::string& title, int nProgress, bool resume_possible) const
+{
+    return m_options.notification_callbacks.show_progress(title, nProgress, resume_possible);
+}
+
+std::function<void(const std::string&, int, bool)> ChainstateManager::GetShowProgressCb() const
+{
+    return m_options.notification_callbacks.show_progress;
+}
+
 void ChainstateManager::UpdateUncommittedBlockStructures(CBlock& block, const CBlockIndex* pindexPrev) const
 {
     int commitpos = GetWitnessCommitmentIndex(block);
@@ -4155,14 +4165,21 @@ bool Chainstate::LoadChainTip()
     return true;
 }
 
-CVerifyDB::CVerifyDB()
+CVerifyDB::CVerifyDB(std::function<void(const std::string& title, int nProgress, bool resume_possible)> show_progress)
+    : m_show_progress(std::move(show_progress))
 {
-    uiInterface.ShowProgress(_("Verifying blocks…").translated, 0, false);
+    assert(m_show_progress);
+    ShowProgress(_("Verifying blocks…").translated, 0, false);
+}
+
+void CVerifyDB::ShowProgress(const std::string& title, int nProgress, bool resume_possible) const
+{
+    m_show_progress(title, nProgress, resume_possible);
 }
 
 CVerifyDB::~CVerifyDB()
 {
-    uiInterface.ShowProgress("", 100, false);
+    ShowProgress("", 100, false);
 }
 
 VerifyDBResult CVerifyDB::VerifyDB(
@@ -4202,7 +4219,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
             LogPrintf("Verification progress: %d%%\n", percentageDone);
             reportDone = percentageDone / 10;
         }
-        uiInterface.ShowProgress(_("Verifying blocks…").translated, percentageDone, false);
+        ShowProgress(_("Verifying blocks…").translated, percentageDone, false);
         if (pindex->nHeight <= chainstate.m_chain.Height() - nCheckDepth) {
             break;
         }
@@ -4278,7 +4295,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
                 LogPrintf("Verification progress: %d%%\n", percentageDone);
                 reportDone = percentageDone / 10;
             }
-            uiInterface.ShowProgress(_("Verifying blocks…").translated, percentageDone, false);
+            ShowProgress(_("Verifying blocks…").translated, percentageDone, false);
             pindex = chainstate.m_chain.Next(pindex);
             CBlock block;
             if (!chainstate.m_blockman.ReadBlockFromDisk(block, *pindex)) {
@@ -4337,7 +4354,7 @@ bool Chainstate::ReplayBlocks()
     if (hashHeads.empty()) return true; // We're already in a consistent state.
     if (hashHeads.size() != 2) return error("ReplayBlocks(): unknown inconsistent state");
 
-    uiInterface.ShowProgress(_("Replaying blocks…").translated, 0, false);
+    m_chainman.ShowProgress(_("Replaying blocks…").translated, 0, false);
     LogPrintf("Replaying blocks\n");
 
     const CBlockIndex* pindexOld = nullptr;  // Old tip during the interrupted flush.
@@ -4384,13 +4401,13 @@ bool Chainstate::ReplayBlocks()
         const CBlockIndex& pindex{*Assert(pindexNew->GetAncestor(nHeight))};
 
         LogPrintf("Rolling forward %s (%i)\n", pindex.GetBlockHash().ToString(), nHeight);
-        uiInterface.ShowProgress(_("Replaying blocks…").translated, (int) ((nHeight - nForkHeight) * 100.0 / (pindexNew->nHeight - nForkHeight)) , false);
+        m_chainman.ShowProgress(_("Replaying blocks…").translated, (int)((nHeight - nForkHeight) * 100.0 / (pindexNew->nHeight - nForkHeight)), false);
         if (!RollforwardBlock(&pindex, cache)) return false;
     }
 
     cache.SetBestBlock(pindexNew->GetBlockHash());
     cache.Flush();
-    uiInterface.ShowProgress("", 100, false);
+    m_chainman.ShowProgress("", 100, false);
     return true;
 }
 
@@ -5626,6 +5643,7 @@ ChainstateManager::ChainstateManager(Options options, node::BlockManager::Option
 {
     assert(m_options.notification_callbacks.notify_block_tip);
     assert(m_options.notification_callbacks.notify_header_tip);
+    assert(m_options.notification_callbacks.show_progress);
 }
 
 ChainstateManager::~ChainstateManager()

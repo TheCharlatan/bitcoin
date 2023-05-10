@@ -253,10 +253,7 @@ ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const C
                                                          "Only rebuild the block database if you are sure that your computer's date and time are correct")};
             }
 
-            VerifyDBResult result = CVerifyDB().VerifyDB(
-                *chainstate, chainman.GetConsensus(), chainstate->CoinsDB(),
-                options.check_level,
-                options.check_blocks);
+            VerifyDBResult result = CVerifyDB(chainman.GetShowProgressCb()).VerifyDB(*chainstate, chainman.GetConsensus(), chainstate->CoinsDB(), options.check_level, options.check_blocks);
             switch (result) {
             case VerifyDBResult::SUCCESS:
             case VerifyDBResult::SKIPPED_MISSING_BLOCKS:

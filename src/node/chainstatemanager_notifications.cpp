@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <string>
 
 using kernel::ChainstateManagerNotificationCallbacks;
 
@@ -21,6 +22,7 @@ ChainstateManagerNotificationCallbacks DefaultChainstateManagerNotifications()
     return ChainstateManagerNotificationCallbacks{
         .notify_block_tip = [](SynchronizationState state, CBlockIndex* index) { uiInterface.NotifyBlockTip(state, index); },
         .notify_header_tip = [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) { uiInterface.NotifyHeaderTip(state, height, timestamp, presync); },
+        .show_progress = [](const std::string& title, int nProgress, bool resume_possible) { uiInterface.ShowProgress(title, nProgress, resume_possible); },
     };
 }
 } // namespace node
