@@ -13,4 +13,9 @@ void KernelNotifications::notifyBlockTip(SynchronizationState state, CBlockIndex
     uiInterface.NotifyBlockTip(state, index);
 }
 
+void KernelNotifications::notifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)
+{
+    uiInterface.NotifyHeaderTip(state, height, timestamp, presync);
+}
+
 } // namespace node
