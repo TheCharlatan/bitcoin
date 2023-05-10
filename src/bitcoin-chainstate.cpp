@@ -86,6 +86,9 @@ int main(int argc, char* argv[])
         .chainparams = *chainparams,
         .datadir = gArgs.GetDataDirNet(),
         .adjusted_time_callback = NodeClock::now,
+        .notification_callbacks = ChainstateManager::NotificationCallbacks{
+            .notify_block_tip = [](SynchronizationState state, CBlockIndex* index) { std::cout << "Block tip changed" << std::endl; },
+        },
     };
     const node::BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,

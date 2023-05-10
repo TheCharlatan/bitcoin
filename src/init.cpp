@@ -43,6 +43,7 @@
 #include <node/caches.h>
 #include <node/chainstate.h>
 #include <node/chainstatemanager_args.h>
+#include <node/chainstatemanager_notifications.h>
 #include <node/context.h>
 #include <node/interface_ui.h>
 #include <node/mempool_args.h>
@@ -122,6 +123,7 @@ using node::CacheSizes;
 using node::CalculateCacheSizes;
 using node::DEFAULT_PERSIST_MEMPOOL;
 using node::DEFAULT_PRINTPRIORITY;
+using node::DefaultChainstateManagerNotifications;
 using node::fReindex;
 using node::LoadChainstate;
 using node::MempoolPath;
@@ -1445,6 +1447,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         .chainparams = chainparams,
         .datadir = args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
+        .notification_callbacks = DefaultChainstateManagerNotifications(),
     };
     Assert(!ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 

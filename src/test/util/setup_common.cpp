@@ -22,6 +22,7 @@
 #include <net_processing.h>
 #include <node/blockstorage.h>
 #include <node/chainstate.h>
+#include <node/chainstatemanager_notifications.h>
 #include <node/context.h>
 #include <node/mempool_args.h>
 #include <node/miner.h>
@@ -64,6 +65,7 @@ using node::ApplyArgsManOptions;
 using node::BlockAssembler;
 using node::BlockManager;
 using node::CalculateCacheSizes;
+using node::DefaultChainstateManagerNotifications;
 using node::LoadChainstate;
 using node::RegenerateCommitments;
 using node::VerifyLoadedChainstate;
@@ -186,6 +188,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
         .datadir = m_args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
         .check_block_index = true,
+        .notification_callbacks = DefaultChainstateManagerNotifications(),
     };
     const BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,

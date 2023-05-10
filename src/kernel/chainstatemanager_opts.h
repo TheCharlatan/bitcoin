@@ -15,12 +15,24 @@
 #include <functional>
 #include <optional>
 
+class CBlockIndex;
 class CChainParams;
+enum class SynchronizationState;
 
 static constexpr bool DEFAULT_CHECKPOINTS_ENABLED{true};
 static constexpr auto DEFAULT_MAX_TIP_AGE{24h};
 
 namespace kernel {
+
+/**
+ * A struct containing callback functions to issue notifications from the
+ * `ChainstateManager`. More ergonomically referred to as
+ * `ChainstateManager::NotificationCallbacks` due to the using-declaration in
+ * `ChainstateManager`.
+ */
+struct ChainstateManagerNotificationCallbacks {
+    const std::function<void(SynchronizationState state, CBlockIndex* index)> notify_block_tip;
+};
 
 /**
  * An options struct for `ChainstateManager`, more ergonomically referred to as
@@ -42,6 +54,8 @@ struct ChainstateManagerOpts {
     DBOptions block_tree_db{};
     DBOptions coins_db{};
     CoinsViewOptions coins_view{};
+
+    const ChainstateManagerNotificationCallbacks notification_callbacks;
 };
 
 } // namespace kernel
