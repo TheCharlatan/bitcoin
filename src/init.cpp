@@ -50,6 +50,7 @@
 #include <node/miner.h>
 #include <node/txreconciliation.h>
 #include <node/validation_cache_args.h>
+#include <node/validation_notifications.h>
 #include <policy/feerate.h>
 #include <policy/fees.h>
 #include <policy/fees_args.h>
@@ -128,6 +129,7 @@ using node::MempoolPath;
 using node::NodeContext;
 using node::ShouldPersistMempool;
 using node::ThreadImport;
+using node::ValidationNotificationsImpl;
 using node::VerifyLoadedChainstate;
 
 static constexpr bool DEFAULT_PROXYRANDOMIZE{true};
@@ -1445,6 +1447,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         .chainparams = chainparams,
         .datadir = args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
+        .notifications = std::make_shared<ValidationNotificationsImpl>(),
     };
     Assert(!ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 

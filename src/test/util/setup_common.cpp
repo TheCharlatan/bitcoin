@@ -26,6 +26,7 @@
 #include <node/mempool_args.h>
 #include <node/miner.h>
 #include <node/validation_cache_args.h>
+#include <node/validation_notifications.h>
 #include <noui.h>
 #include <policy/fees.h>
 #include <policy/fees_args.h>
@@ -66,6 +67,7 @@ using node::BlockManager;
 using node::CalculateCacheSizes;
 using node::LoadChainstate;
 using node::RegenerateCommitments;
+using node::ValidationNotificationsImpl;
 using node::VerifyLoadedChainstate;
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
@@ -186,6 +188,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
         .datadir = m_args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
         .check_block_index = true,
+        .notifications = std::make_shared<ValidationNotificationsImpl>(),
     };
     const BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,

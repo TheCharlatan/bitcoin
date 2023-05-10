@@ -187,6 +187,7 @@ BITCOIN_CORE_H = \
   kernel/mempool_options.h \
   kernel/mempool_persist.h \
   kernel/validation_cache_sizes.h \
+  kernel/validation_notifications_interface.h \
   key.h \
   key_io.h \
   logging.h \
@@ -207,6 +208,7 @@ BITCOIN_CORE_H = \
   node/caches.h \
   node/chainstate.h \
   node/chainstatemanager_args.h \
+  node/validation_notifications.h \
   node/coin.h \
   node/coins_view_args.h \
   node/connection_types.h \
@@ -399,6 +401,7 @@ libbitcoin_node_a_SOURCES = \
   node/caches.cpp \
   node/chainstate.cpp \
   node/chainstatemanager_args.cpp \
+  node/validation_notifications.cpp \
   node/coin.cpp \
   node/coins_view_args.cpp \
   node/connection_types.cpp \
