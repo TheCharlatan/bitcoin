@@ -364,9 +364,14 @@ enum class VerifyDBResult {
 };
 
 /** RAII wrapper for VerifyDB: Verify consistency of the block and coin databases */
-class CVerifyDB {
+class CVerifyDB
+{
+private:
+    kernel::ValidationNotifications& m_notifications;
+    void ShowProgress(const std::string& title, int nProgress, bool resume_possible) const;
+
 public:
-    CVerifyDB();
+    explicit CVerifyDB(kernel::ValidationNotifications& notifications);
     ~CVerifyDB();
     [[nodiscard]] VerifyDBResult VerifyDB(
         Chainstate& chainstate,
@@ -958,6 +963,9 @@ public:
 
     void NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const;
     void NotifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) const;
+    void ShowProgress(const std::string& title, int nProgress, bool resume_possible) const;
+
+    kernel::ValidationNotifications& GetNotifications() const;
 
     /**
      * Alias for ::cs_main.

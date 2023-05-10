@@ -36,6 +36,7 @@
 #include <functional>
 #include <iosfwd>
 #include <memory>
+#include <string>
 
 int main(int argc, char* argv[])
 {
@@ -92,6 +93,10 @@ int main(int argc, char* argv[])
         void notifyHeaderTip(SynchronizationState, int64_t height, int64_t timestamp, bool presync) override
         {
             std::cout << "Header tip changed: " << height << ", " << timestamp << ", " << presync << std::endl;
+        }
+        void showProgress(const std::string& title, int nProgress, bool resume_possible) override
+        {
+            std::cout << "Progress: " << title << ", " << nProgress << ", " << resume_possible << std::endl;
         }
     };
 
