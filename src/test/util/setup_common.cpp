@@ -188,6 +188,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
         .check_block_index = true,
         .notify_block_tip_callback = [](SynchronizationState state, CBlockIndex* index) {},
         .notify_header_tip_callback = [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {},
+        .show_progress_callback = [](const std::string& title, int nProgress, bool resume_possible) {},
     };
     const BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
