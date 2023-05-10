@@ -8,6 +8,7 @@
 #include <kernel/validation_notifications_interface.h>
 
 #include <cstdint>
+#include <string>
 
 class CBlockIndex;
 
@@ -18,6 +19,8 @@ public:
     void notifyBlockTip(SynchronizationState state, CBlockIndex* index) override;
 
     void notifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override;
+
+    void showProgress(const std::string& title, int nProgress, bool resume_possible) override;
 };
 } // namespace node
 

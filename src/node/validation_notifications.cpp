@@ -19,4 +19,9 @@ void ValidationNotificationsImpl::notifyHeaderTip(SynchronizationState state, in
     uiInterface.NotifyHeaderTip(state, height, timestamp, presync);
 }
 
+void ValidationNotificationsImpl::showProgress(const std::string& title, int nProgress, bool resume_possible)
+{
+    uiInterface.ShowProgress(title, nProgress, resume_possible);
+}
+
 } // namespace node
