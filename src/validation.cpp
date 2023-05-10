@@ -72,6 +72,7 @@ using kernel::CCoinsStats;
 using kernel::CoinStatsHashType;
 using kernel::ComputeUTXOStats;
 using kernel::LoadMempool;
+using kernel::Notifications;
 
 using fsbridge::FopenFn;
 using node::BlockManager;
@@ -3206,7 +3207,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                 GetMainSignals().UpdatedBlockTip(pindexNewTip, pindexFork, fInitialDownload);
 
                 // Always notify the UI if a new block tip was connected
-                uiInterface.NotifyBlockTip(GetSynchronizationState(fInitialDownload), pindexNewTip);
+                m_chainman.GetNotifications().notifyBlockTip(GetSynchronizationState(fInitialDownload), pindexNewTip);
             }
         }
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
@@ -3403,7 +3404,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
 
     // Only notify about a new block tip if the active chain was modified.
     if (pindex_was_in_chain) {
-        uiInterface.NotifyBlockTip(GetSynchronizationState(IsInitialBlockDownload()), to_mark_failed->pprev);
+        m_chainman.GetNotifications().notifyBlockTip(GetSynchronizationState(IsInitialBlockDownload()), to_mark_failed->pprev);
     }
     return true;
 }
@@ -3566,6 +3567,11 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
         block.fChecked = true;
 
     return true;
+}
+
+Notifications& ChainstateManager::GetNotifications() const
+{
+    return m_options.notifications;
 }
 
 void ChainstateManager::UpdateUncommittedBlockStructures(CBlock& block, const CBlockIndex* pindexPrev) const
