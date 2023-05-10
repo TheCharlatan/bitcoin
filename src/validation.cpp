@@ -3206,7 +3206,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                 GetMainSignals().UpdatedBlockTip(pindexNewTip, pindexFork, fInitialDownload);
 
                 // Always notify the UI if a new block tip was connected
-                uiInterface.NotifyBlockTip(GetSynchronizationState(fInitialDownload), pindexNewTip);
+                m_chainman.NotifyBlockTip(GetSynchronizationState(fInitialDownload), pindexNewTip);
             }
         }
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
@@ -3403,7 +3403,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
 
     // Only notify about a new block tip if the active chain was modified.
     if (pindex_was_in_chain) {
-        uiInterface.NotifyBlockTip(GetSynchronizationState(IsInitialBlockDownload()), to_mark_failed->pprev);
+        m_chainman.NotifyBlockTip(GetSynchronizationState(IsInitialBlockDownload()), to_mark_failed->pprev);
     }
     return true;
 }
@@ -3566,6 +3566,11 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
         block.fChecked = true;
 
     return true;
+}
+
+void ChainstateManager::NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const
+{
+    return m_options.notifications->notifyBlockTip(state, index);
 }
 
 void ChainstateManager::UpdateUncommittedBlockStructures(CBlock& block, const CBlockIndex* pindexPrev) const
@@ -5607,6 +5612,7 @@ static ChainstateManager::Options&& Flatten(ChainstateManager::Options&& opts)
     if (!opts.minimum_chain_work.has_value()) opts.minimum_chain_work = UintToArith256(opts.chainparams.GetConsensus().nMinimumChainWork);
     if (!opts.assumed_valid_block.has_value()) opts.assumed_valid_block = opts.chainparams.GetConsensus().defaultAssumeValid;
     Assert(opts.adjusted_time_callback);
+    Assert(opts.notifications);
     return std::move(opts);
 }
 

@@ -5,6 +5,7 @@
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <node/utxo_snapshot.h>
+#include <node/validation_notifications.h>
 #include <random.h>
 #include <rpc/blockchain.h>
 #include <sync.h>
@@ -24,6 +25,7 @@
 
 using node::BlockManager;
 using node::SnapshotMetadata;
+using node::ValidationNotificationsImpl;
 
 BOOST_FIXTURE_TEST_SUITE(validation_chainstatemanager_tests, ChainTestingSetup)
 
@@ -381,6 +383,7 @@ struct SnapshotTestSetup : TestChain100Setup {
                 .chainparams = ::Params(),
                 .datadir = m_args.GetDataDirNet(),
                 .adjusted_time_callback = GetAdjustedTime,
+                .notifications = std::make_shared<ValidationNotificationsImpl>(),
             };
             const BlockManager::Options blockman_opts{
                 .chainparams = chainman_opts.chainparams,

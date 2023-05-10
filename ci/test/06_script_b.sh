@@ -59,6 +59,7 @@ if [ "${RUN_TIDY}" = "true" ]; then
            src/node/minisketchwrapper.cpp \
            src/node/utxo_snapshot.cpp \
            src/node/validation_cache_args.cpp \
+           src/node/validation_notifications.cpp \
            src/policy/feerate.cpp \
            src/policy/packages.cpp \
            src/policy/settings.cpp \
