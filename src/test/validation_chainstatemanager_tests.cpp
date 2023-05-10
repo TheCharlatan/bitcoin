@@ -381,6 +381,7 @@ struct SnapshotTestSetup : TestChain100Setup {
                 .chainparams = ::Params(),
                 .datadir = m_args.GetDataDirNet(),
                 .adjusted_time_callback = GetAdjustedTime,
+                .notify_block_tip_callback = [](SynchronizationState state, CBlockIndex* index) {},
             };
             const BlockManager::Options blockman_opts{
                 .chainparams = chainman_opts.chainparams,

@@ -186,6 +186,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
         .datadir = m_args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
         .check_block_index = true,
+        .notify_block_tip_callback = [](SynchronizationState state, CBlockIndex* index) {},
     };
     const BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,

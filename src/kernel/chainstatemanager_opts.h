@@ -15,7 +15,9 @@
 #include <functional>
 #include <optional>
 
+class CBlockIndex;
 class CChainParams;
+enum class SynchronizationState;
 
 static constexpr bool DEFAULT_CHECKPOINTS_ENABLED{true};
 static constexpr auto DEFAULT_MAX_TIP_AGE{24h};
@@ -42,6 +44,8 @@ struct ChainstateManagerOpts {
     DBOptions block_tree_db{};
     DBOptions coins_db{};
     CoinsViewOptions coins_view{};
+
+    std::function<void(SynchronizationState state, CBlockIndex* index)> notify_block_tip_callback;
 };
 
 } // namespace kernel
