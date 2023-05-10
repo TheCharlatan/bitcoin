@@ -3097,7 +3097,7 @@ static bool NotifyHeaderTip(Chainstate& chainstate) LOCKS_EXCLUDED(cs_main) {
     }
     // Send block tip changed notifications without cs_main
     if (fNotify) {
-        uiInterface.NotifyHeaderTip(GetSynchronizationState(fInitialBlockDownload), pindexHeader->nHeight, pindexHeader->nTime, false);
+        chainstate.m_chainman.NotifyHeaderTip(GetSynchronizationState(fInitialBlockDownload), pindexHeader->nHeight, pindexHeader->nTime, false);
     }
     return fNotify;
 }
@@ -3573,6 +3573,11 @@ void ChainstateManager::NotifyBlockTip(SynchronizationState state, CBlockIndex* 
     return m_options.notification_callbacks.notify_block_tip(state, index);
 }
 
+void ChainstateManager::NotifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) const
+{
+    return m_options.notification_callbacks.notify_header_tip(state, height, timestamp, presync);
+}
+
 void ChainstateManager::UpdateUncommittedBlockStructures(CBlock& block, const CBlockIndex* pindexPrev) const
 {
     int commitpos = GetWitnessCommitmentIndex(block);
@@ -3897,7 +3902,7 @@ bool ChainstateManager::ProcessNewBlockHeaders(const std::vector<CBlockHeader>& 
             }
         }
     }
-    if (NotifyHeaderTip(ActiveChainstate())) {
+    if (::NotifyHeaderTip(ActiveChainstate())) {
         if (ActiveChainstate().IsInitialBlockDownload() && ppindex && *ppindex) {
             const CBlockIndex& last_accepted{**ppindex};
             const int64_t blocks_left{(GetTime() - last_accepted.GetBlockTime()) / GetConsensus().nPowTargetSpacing};
@@ -3925,7 +3930,7 @@ void ChainstateManager::ReportHeadersPresync(const arith_uint256& work, int64_t 
         m_last_presync_update = now;
     }
     bool initial_download = chainstate.IsInitialBlockDownload();
-    uiInterface.NotifyHeaderTip(GetSynchronizationState(initial_download), height, timestamp, /*presync=*/true);
+    NotifyHeaderTip(GetSynchronizationState(initial_download), height, timestamp, /*presync=*/true);
     if (initial_download) {
         const int64_t blocks_left{(GetTime() - timestamp) / GetConsensus().nPowTargetSpacing};
         const double progress{100.0 * height / (height + blocks_left)};
@@ -4048,7 +4053,7 @@ bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& blo
         }
     }
 
-    NotifyHeaderTip(ActiveChainstate());
+    ::NotifyHeaderTip(ActiveChainstate());
 
     BlockValidationState state; // Only used to report errors, not invalidity - ignore it
     if (!ActiveChainstate().ActivateBestChain(state, block)) {
@@ -5620,6 +5625,7 @@ ChainstateManager::ChainstateManager(Options options, node::BlockManager::Option
       m_blockman{std::move(blockman_options)}
 {
     assert(m_options.notification_callbacks.notify_block_tip);
+    assert(m_options.notification_callbacks.notify_header_tip);
 }
 
 ChainstateManager::~ChainstateManager()

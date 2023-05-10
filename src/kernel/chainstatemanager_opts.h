@@ -32,6 +32,7 @@ namespace kernel {
  */
 struct ChainstateManagerNotificationCallbacks {
     const std::function<void(SynchronizationState state, CBlockIndex* index)> notify_block_tip;
+    const std::function<void(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)> notify_header_tip;
 };
 
 /**

@@ -88,6 +88,7 @@ int main(int argc, char* argv[])
         .adjusted_time_callback = NodeClock::now,
         .notification_callbacks = ChainstateManager::NotificationCallbacks{
             .notify_block_tip = [](SynchronizationState state, CBlockIndex* index) { std::cout << "Block tip changed" << std::endl; },
+            .notify_header_tip = [](SynchronizationState, int64_t height, int64_t timestamp, bool presync) { std::cout << "Header tip changed: " << height << ", " << timestamp << ", " << presync << std::endl; },
         },
     };
     const node::BlockManager::Options blockman_opts{
