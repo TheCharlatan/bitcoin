@@ -7,6 +7,7 @@
 #include <kernel/chainstatemanager_opts.h>
 #include <node/interface_ui.h>
 
+#include <cstdint>
 #include <functional>
 
 using kernel::ChainstateManagerNotificationCallbacks;
@@ -19,6 +20,7 @@ ChainstateManagerNotificationCallbacks DefaultChainstateManagerNotifications()
 {
     return ChainstateManagerNotificationCallbacks{
         .notify_block_tip = [](SynchronizationState state, CBlockIndex* index) { uiInterface.NotifyBlockTip(state, index); },
+        .notify_header_tip = [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) { uiInterface.NotifyHeaderTip(state, height, timestamp, presync); },
     };
 }
 } // namespace node
