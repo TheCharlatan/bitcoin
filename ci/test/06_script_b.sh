@@ -54,6 +54,7 @@ if [ "${RUN_TIDY}" = "true" ]; then
            src/kernel \
            src/node/blockmanager_args.cpp \
            src/node/chainstate.cpp \
+           src/node/chainstatemanager_notifications.cpp \
            src/node/chainstatemanager_args.cpp \
            src/node/mempool_args.cpp \
            src/node/minisketchwrapper.cpp \

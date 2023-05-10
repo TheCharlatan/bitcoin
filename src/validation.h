@@ -947,6 +947,7 @@ private:
 
 public:
     using Options = kernel::ChainstateManagerOpts;
+    using NotificationCallbacks = kernel::ChainstateManagerNotificationCallbacks;
 
     explicit ChainstateManager(Options options, node::BlockManager::Options blockman_options);
 
@@ -955,6 +956,8 @@ public:
     bool ShouldCheckBlockIndex() const { return *Assert(m_options.check_block_index); }
     const arith_uint256& MinimumChainWork() const { return *Assert(m_options.minimum_chain_work); }
     const uint256& AssumedValidBlock() const { return *Assert(m_options.assumed_valid_block); }
+
+    void NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const;
 
     /**
      * Alias for ::cs_main.
