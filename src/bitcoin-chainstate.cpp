@@ -87,6 +87,7 @@ int main(int argc, char* argv[])
         .datadir = gArgs.GetDataDirNet(),
         .adjusted_time_callback = NodeClock::now,
         .notify_block_tip_callback = [](SynchronizationState state, CBlockIndex* index) { std::cout << "Block tip changed" << std::endl; },
+        .notify_header_tip_callback = [](SynchronizationState, int64_t height, int64_t timestamp, bool presync) { std::cout << "Header tip changed: " << height << ", " << timestamp << ", " << presync << std::endl; },
     };
     const node::BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,

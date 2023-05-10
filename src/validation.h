@@ -957,6 +957,7 @@ public:
     const uint256& AssumedValidBlock() const { return *Assert(m_options.assumed_valid_block); }
 
     void NotifyBlockTip(SynchronizationState state, CBlockIndex* index) const;
+    void NotifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) const;
 
     /**
      * Alias for ::cs_main.

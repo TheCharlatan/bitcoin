@@ -1446,6 +1446,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         .datadir = args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
         .notify_block_tip_callback = [](SynchronizationState state, CBlockIndex* index) { uiInterface.NotifyBlockTip(state, index); },
+        .notify_header_tip_callback = [](SynchronizationState state, int64_t height, int64_t timestamp, bool presync) { uiInterface.NotifyHeaderTip(state, height, timestamp, presync); },
     };
     Assert(!ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
