@@ -14,4 +14,9 @@ void ValidationNotificationsImpl::notifyBlockTip(SynchronizationState state, CBl
     uiInterface.NotifyBlockTip(state, index);
 }
 
+void ValidationNotificationsImpl::notifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)
+{
+    uiInterface.NotifyHeaderTip(state, height, timestamp, presync);
+}
+
 } // namespace node

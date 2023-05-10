@@ -5,6 +5,8 @@
 #ifndef BITCOIN_KERNEL_VALIDATION_NOTIFICATIONS_INTERFACE_H
 #define BITCOIN_KERNEL_VALIDATION_NOTIFICATIONS_INTERFACE_H
 
+#include <cstdint>
+
 class CBlockIndex;
 enum class SynchronizationState;
 
@@ -20,6 +22,7 @@ public:
     virtual ~ValidationNotifications(){};
 
     virtual void notifyBlockTip(SynchronizationState state, CBlockIndex* index) = 0;
+    virtual void notifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) = 0;
 };
 } // namespace kernel
 

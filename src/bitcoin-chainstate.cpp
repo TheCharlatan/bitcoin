@@ -89,6 +89,10 @@ int main(int argc, char* argv[])
         {
             std::cout << "Block tip changed" << std::endl;
         }
+        void notifyHeaderTip(SynchronizationState, int64_t height, int64_t timestamp, bool presync) override
+        {
+            std::cout << "Header tip changed: " << height << ", " << timestamp << ", " << presync << std::endl;
+        }
     };
 
     // SETUP: Chainstate

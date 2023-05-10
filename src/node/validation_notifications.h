@@ -7,6 +7,8 @@
 
 #include <kernel/validation_notifications_interface.h>
 
+#include <cstdint>
+
 class CBlockIndex;
 
 namespace node {
@@ -14,6 +16,8 @@ class ValidationNotificationsImpl : public kernel::ValidationNotifications
 {
 public:
     void notifyBlockTip(SynchronizationState state, CBlockIndex* index) override;
+
+    void notifyHeaderTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override;
 };
 } // namespace node
 
