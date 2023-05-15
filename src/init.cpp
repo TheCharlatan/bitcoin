@@ -1478,16 +1478,15 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (const auto err{ApplyArgsManOptions(args, chainparams, mempool_opts)}) {
         return InitError(*err);
     }
-    mempool_opts.check_ratio = std::clamp<int>(mempool_opts.check_ratio, 0, 1'000'000);
 
-    int64_t descendant_limit_bytes = mempool_opts.limits.descendant_size_vbytes * 40;
-    if (mempool_opts.max_size_bytes < 0 || mempool_opts.max_size_bytes < descendant_limit_bytes) {
-        return InitError(strprintf(_("-maxmempool must be at least %d MB"), std::ceil(descendant_limit_bytes / 1'000'000.0)));
-    }
+    std::optional<bilingual_str> error{};
     LogPrintf("* Using %.1f MiB for in-memory UTXO set (plus up to %.1f MiB of unused mempool space)\n", cache_sizes.coins * (1.0 / 1024 / 1024), mempool_opts.max_size_bytes * (1.0 / 1024 / 1024));
 
     for (bool fLoaded = false; !fLoaded && !ShutdownRequested();) {
-        node.mempool = std::make_unique<CTxMemPool>(mempool_opts);
+        node.mempool = std::make_unique<CTxMemPool>(mempool_opts, error);
+        if (error) {
+            return InitError(*error);
+        }
 
         node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
         ChainstateManager& chainman = *node.chainman;

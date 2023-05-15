@@ -52,7 +52,9 @@ FUZZ_TARGET_INIT(partially_downloaded_block, initialize_pdb)
 
     CBlockHeaderAndShortTxIDs cmpctblock{*block};
 
-    CTxMemPool pool{MemPoolOptionsForTest(g_setup->m_node)};
+    std::optional<bilingual_str> error{};
+    CTxMemPool pool{MemPoolOptionsForTest(g_setup->m_node), error};
+    Assert(!error);
     PartiallyDownloadedBlock pdb{&pool};
 
     // Set of available transactions (mempool or extra_txn)

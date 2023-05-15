@@ -38,7 +38,9 @@ FUZZ_TARGET_INIT(rbf, initialize_rbf)
         return;
     }
 
-    CTxMemPool pool{MemPoolOptionsForTest(g_setup->m_node)};
+    std::optional<bilingual_str> error;
+    CTxMemPool pool{MemPoolOptionsForTest(g_setup->m_node), error};
+    Assert(!error);
 
     LIMITED_WHILE(fuzzed_data_provider.ConsumeBool(), 10000)
     {

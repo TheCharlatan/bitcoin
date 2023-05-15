@@ -384,8 +384,8 @@ void CTxMemPoolEntry::UpdateAncestorState(int64_t modifySize, CAmount modifyFee,
     assert(int(nSigOpCostWithAncestors) >= 0);
 }
 
-CTxMemPool::CTxMemPool(const Options& opts)
-    : m_check_ratio{opts.check_ratio},
+CTxMemPool::CTxMemPool(const Options& opts, std::optional<bilingual_str>& error)
+    : m_check_ratio{std::clamp<int>(opts.check_ratio, 0 , 1'000'000)},
       minerPolicyEstimator{opts.estimator},
       m_max_size_bytes{opts.max_size_bytes},
       m_expiry{opts.expiry},
@@ -398,6 +398,10 @@ CTxMemPool::CTxMemPool(const Options& opts)
       m_full_rbf{opts.full_rbf},
       m_limits{opts.limits}
 {
+    int64_t descendant_limit_bytes = m_limits.descendant_size_vbytes * 40;
+    if (m_max_size_bytes < 0 || m_max_size_bytes < descendant_limit_bytes) {
+        error = strprintf(_("-maxmempool must be at least %d MB"), std::ceil(descendant_limit_bytes / 1'000'000.0));
+    }
 }
 
 bool CTxMemPool::isSpent(const COutPoint& outpoint) const

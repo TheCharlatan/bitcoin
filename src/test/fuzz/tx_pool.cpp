@@ -117,7 +117,7 @@ void MockTime(FuzzedDataProvider& fuzzed_data_provider, const Chainstate& chains
     SetMockTime(time);
 }
 
-CTxMemPool MakeMempool(FuzzedDataProvider& fuzzed_data_provider, const NodeContext& node)
+std::unique_ptr<CTxMemPool> MakeMempool(FuzzedDataProvider& fuzzed_data_provider, const NodeContext& node)
 {
     // Take the default options for tests...
     CTxMemPool::Options mempool_opts{MemPoolOptionsForTest(node)};
@@ -128,7 +128,10 @@ CTxMemPool MakeMempool(FuzzedDataProvider& fuzzed_data_provider, const NodeConte
     mempool_opts.require_standard = fuzzed_data_provider.ConsumeBool();
 
     // ...and construct a CTxMemPool from it
-    return CTxMemPool{mempool_opts};
+    std::optional<bilingual_str> error{};
+    auto mempool = std::make_unique<CTxMemPool>(mempool_opts, error);
+    Assert(!error);
+    return mempool;
 }
 
 FUZZ_TARGET_INIT(tx_pool_standard, initialize_tx_pool)
@@ -152,8 +155,8 @@ FUZZ_TARGET_INIT(tx_pool_standard, initialize_tx_pool)
     constexpr CAmount SUPPLY_TOTAL{COINBASE_MATURITY * 50 * COIN};
 
     SetMempoolConstraints(*node.args, fuzzed_data_provider);
-    CTxMemPool tx_pool_{MakeMempool(fuzzed_data_provider, node)};
-    MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&tx_pool_);
+    auto tx_pool_{MakeMempool(fuzzed_data_provider, node)};
+    MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(tx_pool_.release());
 
     chainstate.SetMempool(&tx_pool);
 
@@ -327,8 +330,8 @@ FUZZ_TARGET_INIT(tx_pool, initialize_tx_pool)
     }
 
     SetMempoolConstraints(*node.args, fuzzed_data_provider);
-    CTxMemPool tx_pool_{MakeMempool(fuzzed_data_provider, node)};
-    MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&tx_pool_);
+    auto tx_pool_{MakeMempool(fuzzed_data_provider, node)};
+    MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(tx_pool_.release());
 
     chainstate.SetMempool(&tx_pool);
 
