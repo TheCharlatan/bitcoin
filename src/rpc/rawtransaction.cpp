@@ -360,7 +360,7 @@ static RPCHelpMan getrawtransaction()
     }
 
     uint256 hash_block;
-    const CTransactionRef tx = GetTransaction(blockindex, node.mempool.get(), hash, hash_block, chainman.m_blockman);
+    const CTransactionRef tx = GetTransaction(blockindex, node.mempool.get(), hash, chainman.m_blockman, hash_block);
     if (!tx) {
         std::string errmsg;
         if (blockindex) {
