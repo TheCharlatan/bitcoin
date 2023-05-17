@@ -91,6 +91,11 @@ bool ShutdownRequested()
     return fRequestShutdown;
 }
 
+std::atomic<bool>& GetRequestShutdownGlobal()
+{
+    return fRequestShutdown;
+}
+
 void WaitForShutdown()
 {
 #ifdef WIN32

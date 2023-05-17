@@ -8,6 +8,7 @@
 #include <node/utxo_snapshot.h>
 #include <random.h>
 #include <rpc/blockchain.h>
+#include <shutdown.h>
 #include <sync.h>
 #include <test/util/chainstate.h>
 #include <test/util/random.h>
@@ -385,10 +386,12 @@ struct SnapshotTestSetup : TestChain100Setup {
                 .datadir = m_args.GetDataDirNet(),
                 .adjusted_time_callback = GetAdjustedTime,
                 .notifications = *m_node.notifications,
+                .shutdown_requested = GetRequestShutdownGlobal(),
             };
             const BlockManager::Options blockman_opts{
                 .chainparams = chainman_opts.chainparams,
                 .blocks_dir = m_args.GetBlocksDirPath(),
+                .shutdown_requested = chainman_opts.shutdown_requested,
             };
             // For robustness, ensure the old manager is destroyed before creating a
             // new one.

@@ -1026,6 +1026,7 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
             .chainparams = chainparams,
             .datadir = args.GetDataDirNet(),
             .notifications = notifications,
+            .shutdown_requested = GetRequestShutdownGlobal(),
         };
         if (const auto error{ApplyArgsManOptions(args, chainman_opts_dummy)}) {
             return InitError(*error);
@@ -1033,6 +1034,7 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
         BlockManager::Options blockman_opts_dummy{
             .chainparams = chainman_opts_dummy.chainparams,
             .blocks_dir = args.GetBlocksDirPath(),
+            .shutdown_requested = chainman_opts_dummy.shutdown_requested,
         };
         if (const auto error{ApplyArgsManOptions(args, blockman_opts_dummy)}) {
             return InitError(*error);
@@ -1439,12 +1441,14 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         .datadir = args.GetDataDirNet(),
         .adjusted_time_callback = GetAdjustedTime,
         .notifications = *node.notifications,
+        .shutdown_requested = GetRequestShutdownGlobal(),
     };
     Assert(!ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
     BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
         .blocks_dir = args.GetBlocksDirPath(),
+        .shutdown_requested = chainman_opts.shutdown_requested,
     };
     Assert(!ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
