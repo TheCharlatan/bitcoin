@@ -5,6 +5,7 @@
 #include <chainparams.h>
 #include <node/blockstorage.h>
 #include <node/context.h>
+#include <shutdown.h>
 #include <util/chaintype.h>
 #include <validation.h>
 
@@ -24,6 +25,7 @@ BOOST_AUTO_TEST_CASE(blockmanager_find_block_pos)
     const BlockManager::Options blockman_opts{
         .chainparams = *params,
         .blocks_dir = m_args.GetBlocksDirPath(),
+        .shutdown_requested = GetRequestShutdownGlobal(),
     };
     BlockManager blockman{blockman_opts};
     CChain chain {};

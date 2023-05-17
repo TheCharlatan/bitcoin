@@ -84,6 +84,10 @@ int main(int argc, char* argv[])
 
     GetMainSignals().RegisterBackgroundSignalScheduler(scheduler);
 
+    // Declare shutdown requested atomic. Setting it to true stops long-running
+    // functions in the kernel.
+    std::atomic<bool> shutdown_requested{false};
+
     class KernelNotifications : public kernel::Notifications
     {
     public:
@@ -112,10 +116,12 @@ int main(int argc, char* argv[])
         .datadir = gArgs.GetDataDirNet(),
         .adjusted_time_callback = NodeClock::now,
         .notifications = *notifications,
+        .shutdown_requested = shutdown_requested,
     };
     const node::BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
         .blocks_dir = gArgs.GetBlocksDirPath(),
+        .shutdown_requested = chainman_opts.shutdown_requested,
     };
     ChainstateManager chainman{chainman_opts, blockman_opts};
 

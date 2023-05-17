@@ -13,6 +13,7 @@
 #include <uint256.h>
 #include <util/time.h>
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -45,6 +46,7 @@ struct ChainstateManagerOpts {
     DBOptions coins_db{};
     CoinsViewOptions coins_view{};
     Notifications& notifications;
+    std::atomic<bool>& shutdown_requested;
 };
 
 } // namespace kernel

@@ -7,6 +7,7 @@
 
 #include <util/fs.h>
 
+#include <atomic>
 #include <cstdint>
 
 class CChainParams;
@@ -25,6 +26,7 @@ struct BlockManagerOpts {
     bool fast_prune{false};
     bool stop_after_block_import{DEFAULT_STOPAFTERBLOCKIMPORT};
     const fs::path blocks_dir;
+    std::atomic<bool>& shutdown_requested;
 };
 
 } // namespace kernel
