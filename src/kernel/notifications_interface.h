@@ -15,6 +15,14 @@ enum class SynchronizationState;
 
 namespace kernel {
 
+enum class ShutdownReason {
+    StopAtHeight,
+    StopAfterBlockImport,
+    FailedConnectingBestBlock,
+};
+
+std::string ShutdownReasonToString(ShutdownReason reason);
+
 /**
  * A base class defining functions for notifying about certain kernel
  * events.
@@ -34,6 +42,7 @@ public:
     //! from. After this notification is sent, whatever function triggered the
     //! error should also return an error code or raise an exception.
     virtual void fatalError(const std::string& debug_message, const bilingual_str& user_message = {}) {}
+    virtual void startShutdown(const ShutdownReason reason) {}
 };
 } // namespace kernel
 
