@@ -192,10 +192,12 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
         .adjusted_time_callback = GetAdjustedTime,
         .check_block_index = true,
         .notifications = *m_node.notifications,
+        .shutdown_requested = GetRequestShutdownGlobal(),
     };
     const BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
         .blocks_dir = m_args.GetBlocksDirPath(),
+        .shutdown_requested = chainman_opts.shutdown_requested,
     };
     m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(DBParams{

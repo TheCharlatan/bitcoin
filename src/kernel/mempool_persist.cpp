@@ -9,7 +9,6 @@
 #include <logging.h>
 #include <primitives/transaction.h>
 #include <serialize.h>
-#include <shutdown.h>
 #include <streams.h>
 #include <sync.h>
 #include <txmempool.h>
@@ -95,7 +94,7 @@ bool LoadMempool(CTxMemPool& pool, const fs::path& load_path, Chainstate& active
             } else {
                 ++expired;
             }
-            if (ShutdownRequested())
+            if (active_chainstate.m_chainman.ShutdownRequested())
                 return false;
         }
         std::map<uint256, CAmount> mapDeltas;

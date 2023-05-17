@@ -8,6 +8,8 @@
 
 #include <util/translation.h> // For bilingual_str
 
+#include <atomic>
+
 /** Abort with a message */
 bool AbortNode(const std::string& strMessage, bilingual_str user_message = bilingual_str{});
 
@@ -26,6 +28,8 @@ void AbortShutdown();
 
 /** Returns true if a shutdown is requested, false otherwise. */
 bool ShutdownRequested();
+
+std::atomic<bool>& GetRequestShutdownGlobal();
 
 /** Wait for StartShutdown to be called in any thread. This can only be used
  * from a single thread.
