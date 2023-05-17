@@ -82,4 +82,12 @@ void KernelNotifications::fatalError(const std::string& debug_message, const bil
     if (m_shutdown_on_fatal_error) StartShutdown();
 }
 
+void KernelNotifications::interrupt(const kernel::InterruptReason reason)
+{
+    if (!ShutdownRequested()) {
+        LogPrintf("Starting shutdown: %s\n", InterruptReasonToString(reason));
+    }
+    StartShutdown();
+}
+
 } // namespace node

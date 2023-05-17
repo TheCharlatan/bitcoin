@@ -38,7 +38,6 @@
 #include <reverse_iterator.h>
 #include <script/script.h>
 #include <script/sigcache.h>
-#include <shutdown.h>
 #include <signet.h>
 #include <tinyformat.h>
 #include <txdb.h>
@@ -73,6 +72,7 @@ using kernel::CoinStatsHashType;
 using kernel::ComputeUTXOStats;
 using kernel::LoadMempool;
 using kernel::Notifications;
+using kernel::InterruptReason;
 
 using fsbridge::FopenFn;
 using node::BlockManager;
@@ -1849,6 +1849,12 @@ bool FatalError(Notifications& notifications, BlockValidationState& state, const
     return state.Error(strMessage);
 }
 
+void ChainstateManager::Interrupt(InterruptReason reason)
+{
+    m_interrupt();
+    GetNotifications().interrupt(reason);
+}
+
 /**
  * Restore the UTXO in a Coin at a given COutPoint
  * @param undo The Coin to be restored.
@@ -3180,7 +3186,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
         }
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
-        if (nStopAtHeight && pindexNewTip && pindexNewTip->nHeight >= nStopAtHeight) StartShutdown();
+        if (nStopAtHeight && pindexNewTip && pindexNewTip->nHeight >= nStopAtHeight) m_chainman.GetNotifications().interrupt(InterruptReason::StopAtHeight);
 
         if (WITH_LOCK(::cs_main, return m_disabled)) {
             // Background chainstate has reached the snapshot base block, so exit.
@@ -5579,7 +5585,7 @@ static ChainstateManager::Options&& Flatten(ChainstateManager::Options&& opts)
     return std::move(opts);
 }
 
-ChainstateManager::ChainstateManager(const util::SignalInterrupt& interrupt, Options options, node::BlockManager::Options blockman_options)
+ChainstateManager::ChainstateManager(util::SignalInterrupt& interrupt, Options options, node::BlockManager::Options blockman_options)
     : m_interrupt{interrupt},
       m_options{Flatten(std::move(options))},
       m_blockman{interrupt, std::move(blockman_options)} {}
