@@ -2871,10 +2871,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     if (this != &m_chainman.ActiveChainstate()) {
         // This call may set `m_disabled`, which is referenced immediately afterwards in
         // ActivateBestChain, so that we stop connecting blocks past the snapshot base.
-        m_chainman.MaybeCompleteSnapshotValidation(
-            [&notifications = m_chainman.GetNotifications()](bilingual_str msg) {
-                notifications.fatalError(msg.original, msg);
-            });
+        m_chainman.MaybeCompleteSnapshotValidation();
     }
 
     connectTrace.BlockConnected(pindexNew, std::move(pthisBlock));
@@ -5385,8 +5382,7 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
 //      through IsUsable() checks, or
 //
 //  (ii) giving each chainstate its own lock instead of using cs_main for everything.
-SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
-      std::function<void(bilingual_str)> shutdown_fnc)
+SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation()
 {
     AssertLockHeld(cs_main);
     if (m_ibd_chainstate.get() == &this->ActiveChainstate() ||
@@ -5435,7 +5431,7 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
 
         m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
 
-        shutdown_fnc(user_error);
+        GetNotifications().fatalError(user_error.original, user_error);
     };
 
     if (index_new.GetBlockHash() != snapshot_blockhash) {

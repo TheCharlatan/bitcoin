@@ -200,10 +200,7 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
     // snapshot is actually validated? Because this entails unusual
     // filesystem operations to move leveldb data directories around, and that seems
     // too risky to do in the middle of normal runtime.
-    auto snapshot_completion = chainman.MaybeCompleteSnapshotValidation(
-        [&chainman](bilingual_str msg) {
-            chainman.GetNotifications().fatalError(msg.original, msg);
-        });
+    auto snapshot_completion = chainman.MaybeCompleteSnapshotValidation();
 
     if (snapshot_completion == SnapshotCompletionResult::SKIPPED) {
         // do nothing; expected case
