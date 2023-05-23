@@ -372,9 +372,10 @@ public:
     }
     std::unique_ptr<Handler> handleNotifyBlockTip(NotifyBlockTipFn fn) override
     {
-        return MakeSignalHandler(::uiInterface.NotifyBlockTip_connect([fn](SynchronizationState sync_state, const CBlockIndex* block) {
-            fn(sync_state, BlockTip{block->nHeight, block->GetBlockTime(), block->GetBlockHash()},
-                GuessVerificationProgress(Params().TxData(), block));
+        return MakeSignalHandler(::uiInterface.NotifyBlockTip_connect([fn](SynchronizationState sync_state, int64_t height, int64_t timestamp, const uint256& block_hash, double verification_progress) {
+            // fn(sync_state, BlockTip{block->nHeight, block->GetBlockTime(), block->GetBlockHash()},
+            // GuessVerificationProgress(Params().TxData(), block));
+            fn(sync_state, BlockTip{(int)height, timestamp, block_hash}, verification_progress);
         }));
     }
     std::unique_ptr<Handler> handleNotifyHeaderTip(NotifyHeaderTipFn fn) override

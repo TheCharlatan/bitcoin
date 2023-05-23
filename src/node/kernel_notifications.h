@@ -18,7 +18,7 @@ namespace node {
 class KernelNotifications : public kernel::Notifications
 {
 public:
-    void blockTip(SynchronizationState state, CBlockIndex& index) override;
+    void blockTip(SynchronizationState state, int64_t height, int64_t timestamp, const uint256& block_hash, double verification_progress) override;
 
     void headerTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override;
 

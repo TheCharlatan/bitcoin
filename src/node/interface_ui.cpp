@@ -4,6 +4,7 @@
 
 #include <node/interface_ui.h>
 
+#include <uint256.h>
 #include <util/string.h>
 #include <util/translation.h>
 
@@ -53,7 +54,7 @@ void CClientUIInterface::NotifyNumConnectionsChanged(int newNumConnections) { re
 void CClientUIInterface::NotifyNetworkActiveChanged(bool networkActive) { return g_ui_signals.NotifyNetworkActiveChanged(networkActive); }
 void CClientUIInterface::NotifyAlertChanged() { return g_ui_signals.NotifyAlertChanged(); }
 void CClientUIInterface::ShowProgress(const std::string& title, int nProgress, bool resume_possible) { return g_ui_signals.ShowProgress(title, nProgress, resume_possible); }
-void CClientUIInterface::NotifyBlockTip(SynchronizationState s, const CBlockIndex* i) { return g_ui_signals.NotifyBlockTip(s, i); }
+void CClientUIInterface::NotifyBlockTip(SynchronizationState s, int64_t height, int64_t timestamp, const uint256& block_hash, double verification_progress) { return g_ui_signals.NotifyBlockTip(s, height, timestamp, block_hash, verification_progress); }
 void CClientUIInterface::NotifyHeaderTip(SynchronizationState s, int64_t height, int64_t timestamp, bool presync) { return g_ui_signals.NotifyHeaderTip(s, height, timestamp, presync); }
 void CClientUIInterface::BannedListChanged() { return g_ui_signals.BannedListChanged(); }
 

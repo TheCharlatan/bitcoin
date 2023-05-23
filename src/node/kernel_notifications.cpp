@@ -11,6 +11,7 @@
 #include <common/args.h>
 #include <common/system.h>
 #include <node/interface_ui.h>
+#include <uint256.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/translation.h>
@@ -52,9 +53,9 @@ static void DoWarning(const bilingual_str& warning)
 
 namespace node {
 
-void KernelNotifications::blockTip(SynchronizationState state, CBlockIndex& index)
+void KernelNotifications::blockTip(SynchronizationState state, int64_t height, int64_t timestamp, const uint256& block_hash, double verification_progress)
 {
-    uiInterface.NotifyBlockTip(state, &index);
+    uiInterface.NotifyBlockTip(state, height, timestamp, block_hash, verification_progress);
 }
 
 void KernelNotifications::headerTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)

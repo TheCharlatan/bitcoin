@@ -395,13 +395,15 @@ static void registerSignalHandler(int signal, void(*handler)(int))
 static boost::signals2::connection rpc_notify_block_change_connection;
 static void OnRPCStarted()
 {
-    rpc_notify_block_change_connection = uiInterface.NotifyBlockTip_connect(std::bind(RPCNotifyBlockChange, std::placeholders::_2));
+    rpc_notify_block_change_connection = uiInterface.NotifyBlockTip_connect([](SynchronizationState sync_state, int64_t height, int64_t timestamp, const uint256& block_hash, double verification_progress) {
+        RPCNotifyBlockChange(height, block_hash);
+    });
 }
 
 static void OnRPCStopped()
 {
     rpc_notify_block_change_connection.disconnect();
-    RPCNotifyBlockChange(nullptr);
+    RPCNotifyBlockChange(0, uint256{});
     g_best_block_cv.notify_all();
     LogPrint(BCLog::RPC, "RPC stopped.\n");
 }
@@ -638,15 +640,13 @@ static bool fHaveGenesis = false;
 static GlobalMutex g_genesis_wait_mutex;
 static std::condition_variable g_genesis_wait_cv;
 
-static void BlockNotifyGenesisWait(const CBlockIndex* pBlockIndex)
+static void BlockNotifyGenesisWait()
 {
-    if (pBlockIndex != nullptr) {
-        {
-            LOCK(g_genesis_wait_mutex);
-            fHaveGenesis = true;
-        }
-        g_genesis_wait_cv.notify_all();
+    {
+        LOCK(g_genesis_wait_mutex);
+        fHaveGenesis = true;
     }
+    g_genesis_wait_cv.notify_all();
 }
 
 #if HAVE_SYSTEM
@@ -1653,7 +1653,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // No locking, as this happens before any background thread is started.
     boost::signals2::connection block_notify_genesis_wait_connection;
     if (WITH_LOCK(chainman.GetMutex(), return chainman.ActiveChain().Tip() == nullptr)) {
-        block_notify_genesis_wait_connection = uiInterface.NotifyBlockTip_connect(std::bind(BlockNotifyGenesisWait, std::placeholders::_2));
+        block_notify_genesis_wait_connection = uiInterface.NotifyBlockTip_connect(std::bind(BlockNotifyGenesisWait));
     } else {
         fHaveGenesis = true;
     }
@@ -1661,10 +1661,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 #if HAVE_SYSTEM
     const std::string block_notify = args.GetArg("-blocknotify", "");
     if (!block_notify.empty()) {
-        uiInterface.NotifyBlockTip_connect([block_notify](SynchronizationState sync_state, const CBlockIndex* pBlockIndex) {
-            if (sync_state != SynchronizationState::POST_INIT || !pBlockIndex) return;
+        uiInterface.NotifyBlockTip_connect([block_notify](SynchronizationState sync_state, int64_t height, int64_t timestamp, const uint256& block_hash, double verification_progress) {
+            if (sync_state != SynchronizationState::POST_INIT) return;
             std::string command = block_notify;
-            ReplaceAll(command, "%s", pBlockIndex->GetBlockHash().GetHex());
+            ReplaceAll(command, "%s", block_hash.GetHex());
             std::thread t(runCommand, command);
             t.detach(); // thread runs free
         });

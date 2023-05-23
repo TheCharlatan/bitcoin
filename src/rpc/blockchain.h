@@ -35,7 +35,7 @@ static constexpr int NUM_GETBLOCKSTATS_PERCENTILES = 5;
 double GetDifficulty(const CBlockIndex* blockindex);
 
 /** Callback for when block tip changed. */
-void RPCNotifyBlockChange(const CBlockIndex*);
+void RPCNotifyBlockChange(uint64_t height, const uint256& block_hash);
 
 /** Block description to JSON */
 UniValue blockToJSON(node::BlockManager& blockman, const CBlock& block, const CBlockIndex* tip, const CBlockIndex* blockindex, TxVerbosity verbosity) LOCKS_EXCLUDED(cs_main);

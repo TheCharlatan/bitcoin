@@ -240,12 +240,13 @@ static RPCHelpMan getbestblockhash()
     };
 }
 
-void RPCNotifyBlockChange(const CBlockIndex* pindex)
+void RPCNotifyBlockChange(int64_t height, const uint256& block_hash)
 {
-    if(pindex) {
+    // if(pindex) {
+    {
         LOCK(cs_blockchange);
-        latestblock.hash = pindex->GetBlockHash();
-        latestblock.height = pindex->nHeight;
+        latestblock.hash = block_hash;
+        latestblock.height = height;
     }
     cond_blockchange.notify_all();
 }
