@@ -5,7 +5,6 @@
 
 #include <warnings.h>
 
-#include <common/system.h>
 #include <sync.h>
 #include <util/string.h>
 #include <util/translation.h>

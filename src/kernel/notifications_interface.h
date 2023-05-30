@@ -36,6 +36,7 @@ public:
     virtual void headerTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {}
     virtual void progress(const bilingual_str& title, int progress_percent, bool resume_possible) {}
     virtual void warning(const bilingual_str& warning) {}
+    virtual void largeWorkInvalidChain(bool found) {}
 
     //! The fatal error notification is sent to notify the user and start
     //! shutting down if an error happens in kernel code that can't be recovered

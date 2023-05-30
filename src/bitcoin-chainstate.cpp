@@ -111,6 +111,10 @@ int main(int argc, char* argv[])
         {
             std::cout << "Warning: " << warning.original << std::endl;
         }
+        void largeWorkInvalidChain(bool found) override
+        {
+            std::cout << "Invalid chain with large work found." << std::endl;
+        }
         void fatalError(const std::string& debug_message, const bilingual_str& user_message) override
         {
             m_shutdown_requested = true;

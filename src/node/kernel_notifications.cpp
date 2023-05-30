@@ -74,6 +74,11 @@ void KernelNotifications::warning(const bilingual_str& warning)
     DoWarning(warning);
 }
 
+void KernelNotifications::largeWorkInvalidChain(bool found)
+{
+    SetfLargeWorkInvalidChainFound(found);
+}
+
 void KernelNotifications::fatalError(const std::string& debug_message, const bilingual_str& user_message)
 {
     SetMiscWarning(Untranslated(debug_message));

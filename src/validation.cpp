@@ -55,7 +55,6 @@
 #include <util/trace.h>
 #include <util/translation.h>
 #include <validationinterface.h>
-#include <warnings.h>
 
 #include <algorithm>
 #include <cassert>
@@ -1651,9 +1650,9 @@ void Chainstate::CheckForkWarningConditions()
 
     if (m_chainman.m_best_invalid && m_chainman.m_best_invalid->nChainWork > m_chain.Tip()->nChainWork + (GetBlockProof(*m_chain.Tip()) * 6)) {
         LogPrintf("%s: Warning: Found invalid chain at least ~6 blocks longer than our best chain.\nChain state database corruption likely.\n", __func__);
-        SetfLargeWorkInvalidChainFound(true);
+        m_chainman.GetNotifications().largeWorkInvalidChain(true);
     } else {
-        SetfLargeWorkInvalidChainFound(false);
+        m_chainman.GetNotifications().largeWorkInvalidChain(false);
     }
 }
 

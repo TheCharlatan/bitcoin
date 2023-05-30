@@ -26,6 +26,8 @@ public:
 
     void warning(const bilingual_str& warning) override;
 
+    void largeWorkInvalidChain(bool found) override;
+
     void fatalError(const std::string& debug_message, const bilingual_str& user_message = {}) override;
 
     void startShutdown(const kernel::ShutdownReason trigger) override;
