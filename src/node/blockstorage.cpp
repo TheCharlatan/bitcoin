@@ -524,15 +524,17 @@ bool BlockManager::UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex& in
     return true;
 }
 
-void BlockManager::FlushUndoFile(int block_file, bool finalize)
+bool BlockManager::FlushUndoFile(int block_file, bool finalize)
 {
     FlatFilePos undo_pos_old(block_file, m_blockfile_info[block_file].nUndoSize);
     if (!UndoFileSeq().Flush(undo_pos_old, finalize)) {
         m_opts.notifications.flushError("Flushing undo file to disk failed. This is likely the result of an I/O error.");
+        return false;
     }
+    return true;
 }
 
-void BlockManager::FlushBlockFile(bool fFinalize, bool finalize_undo)
+bool BlockManager::FlushBlockFile(bool fFinalize, bool finalize_undo)
 {
     LOCK(cs_LastBlockFile);
 
@@ -541,17 +543,21 @@ void BlockManager::FlushBlockFile(bool fFinalize, bool finalize_undo)
         // chainstate init, when we call ChainstateManager::MaybeRebalanceCaches() (which
         // then calls FlushStateToDisk()), resulting in a call to this function before we
         // have populated `m_blockfile_info` via LoadBlockIndexDB().
-        return;
+        return true;
     }
     assert(static_cast<int>(m_blockfile_info.size()) > m_last_blockfile);
 
     FlatFilePos block_pos_old(m_last_blockfile, m_blockfile_info[m_last_blockfile].nSize);
     if (!BlockFileSeq().Flush(block_pos_old, fFinalize)) {
         m_opts.notifications.flushError("Flushing block file to disk failed. This is likely the result of an I/O error.");
+        return false;
     }
     // we do not always flush the undo file, as the chain tip may be lagging behind the incoming blocks,
     // e.g. during IBD or a sync after a node going offline
-    if (!fFinalize || finalize_undo) FlushUndoFile(m_last_blockfile, finalize_undo);
+    if (!fFinalize || finalize_undo) {
+        return FlushUndoFile(m_last_blockfile, finalize_undo);
+    }
+    return true;
 }
 
 uint64_t BlockManager::CalculateCurrentUsage()
@@ -644,7 +650,9 @@ bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigne
         if (!fKnown) {
             LogPrint(BCLog::BLOCKSTORAGE, "Leaving block file %i: %s\n", m_last_blockfile, m_blockfile_info[m_last_blockfile].ToString());
         }
-        FlushBlockFile(!fKnown, finalize_undo);
+        if (!FlushBlockFile(!fKnown, finalize_undo)) {
+            return false;
+        }
         m_last_blockfile = nFile;
     }
 
@@ -734,7 +742,9 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
         // with the block writes (usually when a synced up node is getting newly mined blocks) -- this case is caught in
         // the FindBlockPos function
         if (_pos.nFile < m_last_blockfile && static_cast<uint32_t>(block.nHeight) == m_blockfile_info[_pos.nFile].nHeightLast) {
-            FlushUndoFile(_pos.nFile, true);
+            if (!FlushUndoFile(_pos.nFile, true)) {
+                return false;
+            }
         }
 
         // update nUndoPos in block index
