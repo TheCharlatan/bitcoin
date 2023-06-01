@@ -28,6 +28,11 @@ void CThreadInterrupt::operator()()
     cond.notify_all();
 }
 
+void CThreadInterrupt::sleep()
+{
+    while (sleep_for(Clock::duration::max()));
+}
+
 bool CThreadInterrupt::sleep_for(Clock::duration rel_time)
 {
     WAIT_LOCK(mut, lock);

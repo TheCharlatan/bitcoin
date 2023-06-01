@@ -16,6 +16,11 @@
     A helper class for interruptible sleeps. Calling operator() will interrupt
     any current sleep, and after that point operator bool() will return true
     until reset.
+
+    This class should not be used in a signal handler. If sending an interrupt
+    from a signal handler is neccessary, the \ref SignalInterrupt class can be
+    used instead.
+
 */
 class CThreadInterrupt
 {
@@ -25,6 +30,7 @@ public:
     explicit operator bool() const;
     void operator()() EXCLUSIVE_LOCKS_REQUIRED(!mut);
     void reset();
+    void sleep() EXCLUSIVE_LOCKS_REQUIRED(!mut);
     bool sleep_for(Clock::duration rel_time) EXCLUSIVE_LOCKS_REQUIRED(!mut);
 
 private:
