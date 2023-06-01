@@ -12,11 +12,18 @@
 #include <chrono>
 #include <condition_variable>
 
-/*
-    A helper class for interruptible sleeps. Calling operator() will interrupt
-    any current sleep, and after that point operator bool() will return true
-    until reset.
-*/
+/**
+ * A helper class for interruptible sleeps. Calling operator() will interrupt
+ * any current sleep, and after that point operator bool() will return true
+ * until reset.
+ *
+ * This class should not be used in a signal handler. If sending an interrupt
+ * from a signal handler is neccessary, the \ref SignalInterrupt class can be
+ * used instead. See the commit message of
+ * https://github.com/bitcoin/bitcoin/commit/cd03513dc2fcccaa142e9632a28b38efd0056436
+ * for this reasoning.
+ */
+
 class CThreadInterrupt
 {
 public:
