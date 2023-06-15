@@ -10,6 +10,7 @@
 #include <kernel/blockmanager_opts.h>
 #include <kernel/chainparams.h>
 #include <kernel/cs_main.h>
+#include <kernel/fatal_condition.h>
 #include <protocol.h>
 #include <sync.h>
 #include <txdb.h>
@@ -250,7 +251,7 @@ public:
     void CleanupBlockRevFiles() const;
 };
 
-void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const fs::path& mempool_path);
+[[nodiscard]] util::Result<void, FatalCondition> ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const fs::path& mempool_path);
 } // namespace node
 
 #endif // BITCOIN_NODE_BLOCKSTORAGE_H

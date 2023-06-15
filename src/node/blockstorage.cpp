@@ -875,7 +875,7 @@ public:
     }
 };
 
-void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const fs::path& mempool_path)
+util::Result<void, FatalCondition> ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const fs::path& mempool_path)
 {
     SetSyscallSandboxPolicy(SyscallSandboxPolicy::INITIALIZATION_LOAD_BLOCKS);
     ScheduleBatchPriority();
@@ -902,7 +902,7 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
                 chainman.ActiveChainstate().LoadExternalBlockFile(file, &pos, &blocks_with_unknown_parent);
                 if (ShutdownRequested()) {
                     LogPrintf("Shutdown requested. Exit %s\n", __func__);
-                    return;
+                    return {};
                 }
                 nFile++;
             }
@@ -921,7 +921,7 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
                 chainman.ActiveChainstate().LoadExternalBlockFile(file);
                 if (ShutdownRequested()) {
                     LogPrintf("Shutdown requested. Exit %s\n", __func__);
-                    return;
+                    return {};
                 }
             } else {
                 LogPrintf("Warning: Could not open blocks file %s\n", fs::PathToString(path));
@@ -936,18 +936,18 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
         for (Chainstate* chainstate : WITH_LOCK(::cs_main, return chainman.GetAll())) {
             BlockValidationState state;
             if (!chainstate->ActivateBestChain(state, nullptr)) {
-                AbortNode(strprintf("Failed to connect best block (%s)", state.ToString()));
-                return;
+                return {util::Error{Untranslated(strprintf("Failed to connect best block (%s)", state.ToString()))}, FatalCondition::ConnectBestBlockFailed};
             }
         }
 
         if (chainman.m_blockman.StopAfterBlockImport()) {
             LogPrintf("Stopping after block import\n");
             StartShutdown();
-            return;
+            return {};
         }
     } // End scope of ImportingNow
     chainman.ActiveChainstate().LoadMempool(mempool_path);
     g_indexes_ready_to_sync = true;
+    return {};
 }
 } // namespace node
