@@ -24,6 +24,7 @@
 #include <logging/timer.h>
 #include <net.h>
 #include <net_processing.h>
+#include <node/abort.h>
 #include <node/blockstorage.h>
 #include <node/context.h>
 #include <node/transaction.h>
@@ -57,7 +58,9 @@
 using kernel::CCoinsStats;
 using kernel::CoinStatsHashType;
 
+using node::AbortNode;
 using node::BlockManager;
+using node::CheckFatal;
 using node::NodeContext;
 using node::SnapshotMetadata;
 
@@ -2782,7 +2785,7 @@ static RPCHelpMan loadtxoutset()
             RPC_INTERNAL_ERROR,
             "Timed out waiting for base block header to appear in headers chain");
     }
-    if (!chainman.ActivateSnapshot(afile, metadata, false)) {
+    if (!CheckFatal(chainman.ActivateSnapshot(afile, metadata, false), node.shutdown, node.exit_status)) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to load UTXO snapshot " + fs::PathToString(path));
     }
 
