@@ -1151,9 +1151,11 @@ util::Result<void, FatalCondition> ImportBlocks(ChainstateManager& chainman, std
                     break; // This error is logged in OpenBlockFile
                 }
                 LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
-                chainman.LoadExternalBlockFile(file, &pos, &blocks_with_unknown_parent);
+                if (auto res{chainman.LoadExternalBlockFile(file, &pos, &blocks_with_unknown_parent)}; !res) {
+                    return res;
+                }
                 if (chainman.m_interrupt) {
-                    LogPrintf("Interrupt requested. Exit %s\n", __func__);
+                    LogPrintf("Shutdown requested. Exit %s\n", __func__);
                     return {};
                 }
                 nFile++;
@@ -1170,9 +1172,11 @@ util::Result<void, FatalCondition> ImportBlocks(ChainstateManager& chainman, std
             CAutoFile file{fsbridge::fopen(path, "rb"), CLIENT_VERSION};
             if (!file.IsNull()) {
                 LogPrintf("Importing blocks file %s...\n", fs::PathToString(path));
-                chainman.LoadExternalBlockFile(file);
+                if (auto res{chainman.LoadExternalBlockFile(file)}; !res) {
+                    return res;
+                }
                 if (chainman.m_interrupt) {
-                    LogPrintf("Interrupt requested. Exit %s\n", __func__);
+                    LogPrintf("Shutdown requested. Exit %s\n", __func__);
                     return {};
                 }
             } else {

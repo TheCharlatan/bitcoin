@@ -52,6 +52,7 @@
 #include <util/fs_helpers.h>
 #include <util/hasher.h>
 #include <util/moneystr.h>
+#include <util/result.h>
 #include <util/rbf.h>
 #include <util/signalinterrupt.h>
 #include <util/strencodings.h>
@@ -4622,7 +4623,7 @@ bool Chainstate::LoadGenesisBlock()
     return true;
 }
 
-void ChainstateManager::LoadExternalBlockFile(
+util::Result<void, FatalCondition> ChainstateManager::LoadExternalBlockFile(
     CAutoFile& file_in,
     FlatFilePos* dbp,
     std::multimap<uint256, FlatFilePos>* blocks_with_unknown_parent)
@@ -4640,7 +4641,7 @@ void ChainstateManager::LoadExternalBlockFile(
         // such as a block fails to deserialize.
         uint64_t nRewind = blkdat.GetPos();
         while (!blkdat.eof()) {
-            if (m_interrupt) return;
+            if (m_interrupt) return {};
 
             blkdat.SetPos(nRewind);
             nRewind++; // start one byte further next time, in case of failure
@@ -4795,9 +4796,11 @@ void ChainstateManager::LoadExternalBlockFile(
             }
         }
     } catch (const std::runtime_error& e) {
-        GetNotifications().fatalError(std::string("System error: ") + e.what());
+        LogPrintf("Loaded %i blocks from external file in %dms\n", nLoaded, Ticks<std::chrono::milliseconds>(SteadyClock::now() - start));
+        return {util::Error{Untranslated(strprintf("Error: %s", e.what()))}, FatalCondition::BlockFileImportSystemError};
     }
     LogPrintf("Loaded %i blocks from external file in %dms\n", nLoaded, Ticks<std::chrono::milliseconds>(SteadyClock::now() - start));
+    return {};
 }
 
 void ChainstateManager::CheckBlockIndex()
