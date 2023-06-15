@@ -5686,7 +5686,7 @@ std::optional<int> ChainstateManager::GetSnapshotBaseHeight() const
     return base ? std::make_optional(base->nHeight) : std::nullopt;
 }
 
-bool ChainstateManager::ValidatedSnapshotCleanup()
+util::Result<void, FatalCondition> ChainstateManager::ValidatedSnapshotCleanup()
 {
     AssertLockHeld(::cs_main);
     auto get_storage_path = [](auto& chainstate) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) -> std::optional<fs::path> {
@@ -5700,7 +5700,10 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
 
     if (!this->IsSnapshotValidated()) {
         // No need to clean up.
-        return false;
+        return {
+            util::Error{Untranslated("Validated snapshot cleanup stopped, nothing to clean up")},
+            FatalCondition::SnapshotAlreadyValidated
+        };
     }
     // If either path doesn't exist, that means at least one of the chainstates
     // is in-memory, in which case we can't do on-disk cleanup. You'd better be
@@ -5708,7 +5711,7 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
     if (!ibd_chainstate_path_maybe || !snapshot_chainstate_path_maybe) {
         LogPrintf("[snapshot] snapshot chainstate cleanup cannot happen with " /* Continued */
                   "in-memory chainstates. You are testing, right?\n");
-        return false;
+        return {util::Error{}, FatalCondition::NoChainstatePaths};
     }
 
     const auto& snapshot_chainstate_path = *snapshot_chainstate_path_maybe;
@@ -5733,20 +5736,19 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
     auto rename_failed_abort = [](
                                    fs::path p_old,
                                    fs::path p_new,
-                                   const fs::filesystem_error& err) {
+                                   const fs::filesystem_error& err) -> util::Result<void, FatalCondition> {
         LogPrintf("%s: error renaming file (%s): %s\n",
                 __func__, fs::PathToString(p_old), err.what());
-        AbortNode(strprintf(
+        return {util::Error{Untranslated(strprintf(
             "Rename of '%s' -> '%s' failed. "
             "Cannot clean up the background chainstate leveldb directory.",
-            fs::PathToString(p_old), fs::PathToString(p_new)));
+            fs::PathToString(p_old), fs::PathToString(p_new)))}, FatalCondition::ChainstateRenameFailed};
     };
 
     try {
         fs::rename(ibd_chainstate_path, tmp_old);
     } catch (const fs::filesystem_error& e) {
-        rename_failed_abort(ibd_chainstate_path, tmp_old, e);
-        throw;
+        return rename_failed_abort(ibd_chainstate_path, tmp_old, e);
     }
 
     LogPrintf("[snapshot] moving snapshot chainstate (%s) to " /* Continued */
@@ -5756,8 +5758,7 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
     try {
         fs::rename(snapshot_chainstate_path, ibd_chainstate_path);
     } catch (const fs::filesystem_error& e) {
-        rename_failed_abort(snapshot_chainstate_path, ibd_chainstate_path, e);
-        throw;
+        return rename_failed_abort(snapshot_chainstate_path, ibd_chainstate_path, e);
     }
 
     if (!DeleteCoinsDBFromDisk(tmp_old, /*is_snapshot=*/false)) {
@@ -5770,5 +5771,5 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
         LogPrintf("[snapshot] deleted background chainstate directory (%s)\n",
                   fs::PathToString(ibd_chainstate_path));
     }
-    return true;
+    return {};
 }

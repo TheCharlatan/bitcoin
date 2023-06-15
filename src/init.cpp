@@ -1534,6 +1534,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
 
         if (!result && (result.GetFailure() == node::ChainstateLoadError::FAILURE_INCOMPATIBLE_DB ||
+                        result.GetFailure() == node::ChainstateLoadError::FATAL ||
                         result.GetFailure() == node::ChainstateLoadError::FAILURE_INSUFFICIENT_DBCACHE)) {
             return InitError(util::ErrorString(result));
         }

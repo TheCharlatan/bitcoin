@@ -207,8 +207,8 @@ util::Result<void, ChainstateLoadError> LoadChainstate(ChainstateManager& chainm
         // do nothing; expected case
     } else if (snapshot_completion == SnapshotCompletionResult::SUCCESS) {
         LogPrintf("[snapshot] cleaning up unneeded background chainstate, then reinitializing\n");
-        if (!chainman.ValidatedSnapshotCleanup()) {
-            return {util::Error{"Background chainstate cleanup failed unexpectedly."}, ChainstateLoadError::FATAL};
+        if (auto res{chainman.ValidatedSnapshotCleanup()}; !res) {
+            return {util::Error{ErrorString(res)}, ChainstateLoadError::FATAL};
         }
 
         // Because ValidatedSnapshotCleanup() has torn down chainstates with
