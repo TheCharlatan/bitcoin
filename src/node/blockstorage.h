@@ -12,13 +12,16 @@
 #include <kernel/blockmanager_opts.h>
 #include <kernel/chainparams.h>
 #include <kernel/cs_main.h>
+#include <kernel/fatal_condition.h>
 #include <kernel/messagestartchars.h>
 #include <primitives/block.h>
 #include <streams.h>
+#include <protocol.h>
 #include <sync.h>
 #include <uint256.h>
 #include <util/fs.h>
 #include <util/hasher.h>
+#include <util/result.h>
 
 #include <array>
 #include <atomic>
@@ -370,7 +373,7 @@ public:
     void CleanupBlockRevFiles() const;
 };
 
-void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFiles);
+[[nodiscard]] util::Result<void, FatalCondition> ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFiles);
 } // namespace node
 
 #endif // BITCOIN_NODE_BLOCKSTORAGE_H

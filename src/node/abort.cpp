@@ -5,7 +5,9 @@
 #include <node/abort.h>
 
 #include <logging.h>
+#include <kernel/fatal_condition.h>
 #include <node/interface_ui.h>
+#include <util/result.h>
 #include <util/signalinterrupt.h>
 #include <util/translation.h>
 #include <warnings.h>

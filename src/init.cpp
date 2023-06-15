@@ -41,6 +41,7 @@
 #include <net_processing.h>
 #include <netbase.h>
 #include <netgroup.h>
+#include <node/abort.h>
 #include <node/blockmanager_args.h>
 #include <node/blockstorage.h>
 #include <node/caches.h>
@@ -118,20 +119,22 @@ using kernel::DumpMempool;
 using kernel::LoadMempool;
 using kernel::ValidationCacheSizes;
 
+using node::AbortNode;
 using node::ApplyArgsManOptions;
 using node::BlockManager;
 using node::CacheSizes;
 using node::CalculateCacheSizes;
+using node::CheckFatal;
 using node::DEFAULT_PERSIST_MEMPOOL;
 using node::DEFAULT_PRINTPRIORITY;
 using node::DEFAULT_STOPATHEIGHT;
 using node::fReindex;
+using node::ImportBlocks;
 using node::KernelNotifications;
 using node::LoadChainstate;
 using node::MempoolPath;
 using node::NodeContext;
 using node::ShouldPersistMempool;
-using node::ImportBlocks;
 using node::VerifyLoadedChainstate;
 
 static constexpr bool DEFAULT_PROXYRANDOMIZE{true};
@@ -1705,7 +1708,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     chainman.m_thread_load = std::thread(&util::TraceThread, "initload", [=, &chainman, &args, &node] {
         // Import blocks
-        ImportBlocks(chainman, vImportFiles);
+        (void) CheckFatal(ImportBlocks(chainman, vImportFiles), node.shutdown, node.exit_status);
         if (args.GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
             LogPrintf("Stopping after block import\n");
             if (!(*Assert(node.shutdown))()) {
@@ -1717,7 +1720,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         // Start indexes initial sync
         if (!StartIndexBackgroundSync(node)) {
             bilingual_str err_str = _("Failed to start indexes, shutting down..");
-            chainman.GetNotifications().fatalError(err_str.original, err_str);
+            AbortNode(node.shutdown, node.exit_status, err_str.original, err_str);
             return;
         }
         // Load mempool from disk

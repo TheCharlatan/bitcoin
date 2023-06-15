@@ -1142,7 +1142,7 @@ public:
     }
 };
 
-void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFiles)
+util::Result<void, FatalCondition> ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFiles)
 {
     ScheduleBatchPriority();
 
@@ -1168,7 +1168,7 @@ void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFile
                 chainman.LoadExternalBlockFile(file, &pos, &blocks_with_unknown_parent);
                 if (chainman.m_interrupt) {
                     LogPrintf("Interrupt requested. Exit %s\n", __func__);
-                    return;
+                    return {};
                 }
                 nFile++;
             }
@@ -1187,7 +1187,7 @@ void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFile
                 chainman.LoadExternalBlockFile(file);
                 if (chainman.m_interrupt) {
                     LogPrintf("Interrupt requested. Exit %s\n", __func__);
-                    return;
+                    return {};
                 }
             } else {
                 LogPrintf("Warning: Could not open blocks file %s\n", fs::PathToString(path));
@@ -1202,11 +1202,11 @@ void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFile
         for (Chainstate* chainstate : WITH_LOCK(::cs_main, return chainman.GetAll())) {
             BlockValidationState state;
             if (!chainstate->ActivateBestChain(state, nullptr)) {
-                chainman.GetNotifications().fatalError(strprintf("Failed to connect best block (%s)", state.ToString()));
-                return;
+                return {util::Error{Untranslated(strprintf("Failed to connect best block (%s)", state.ToString()))}, FatalCondition::ConnectBestBlockFailed};
             }
         }
-    } // End scope of ImportingNow
+    } // End of scope of ImportingNow
+    return {};
 }
 
 std::ostream& operator<<(std::ostream& os, const BlockfileType& type) {
