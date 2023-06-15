@@ -6,6 +6,7 @@
 #define BITCOIN_KERNEL_FATAL_CONDITION_H
 
 enum class FatalCondition {
+    BlockFileImportSystemError,
     ConnectBestBlockFailed,
 };
 
