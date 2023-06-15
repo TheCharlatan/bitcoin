@@ -1528,6 +1528,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                 fLoaded = true;
                 LogPrintf(" block index %15dms\n", Ticks<std::chrono::milliseconds>(SteadyClock::now() - load_block_index_start_time));
             }
+            if (!result && result.GetFailure() == node::ChainstateLoadError::FATAL) {
+                return InitError(ErrorString(result));
+            }
         }
 
         if (!result && (result.GetFailure() == node::ChainstateLoadError::FAILURE_INCOMPATIBLE_DB ||
