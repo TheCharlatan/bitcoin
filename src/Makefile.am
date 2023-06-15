@@ -184,6 +184,7 @@ BITCOIN_CORE_H = \
   kernel/coinstats.h \
   kernel/context.h \
   kernel/cs_main.h \
+  kernel/fatal_condition.h \
   kernel/mempool_entry.h \
   kernel/mempool_limits.h \
   kernel/mempool_options.h \
