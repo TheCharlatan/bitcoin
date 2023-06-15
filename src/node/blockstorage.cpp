@@ -13,6 +13,7 @@
 #include <hash.h>
 #include <kernel/blockmanager_opts.h>
 #include <kernel/chainparams.h>
+#include <kernel/fatal_error.h>
 #include <kernel/messagestartchars.h>
 #include <kernel/notifications_interface.h>
 #include <logging.h>
@@ -1146,9 +1147,10 @@ public:
     }
 };
 
-void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFiles)
+util::Result<void, kernel::FatalError> ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFiles)
 {
     ScheduleBatchPriority();
+    util::Result<void, kernel::FatalError> result{};
 
     {
         ImportingNow imp{chainman.m_blockman.m_importing};
@@ -1170,9 +1172,9 @@ void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFile
                 }
                 LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
                 chainman.LoadExternalBlockFile(file, &pos, &blocks_with_unknown_parent);
-                if (chainman.m_interrupt) {
+                if (chainman.m_interrupt || IsFatal(result)) {
                     LogPrintf("Interrupt requested. Exit %s\n", __func__);
-                    return;
+                    return result;
                 }
                 nFile++;
             }
@@ -1189,9 +1191,9 @@ void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFile
             if (!file.IsNull()) {
                 LogPrintf("Importing blocks file %s...\n", fs::PathToString(path));
                 chainman.LoadExternalBlockFile(file);
-                if (chainman.m_interrupt) {
+                if (chainman.m_interrupt || IsFatal(result)) {
                     LogPrintf("Interrupt requested. Exit %s\n", __func__);
-                    return;
+                    return result;
                 }
             } else {
                 LogPrintf("Warning: Could not open blocks file %s\n", fs::PathToString(path));
@@ -1206,11 +1208,12 @@ void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFile
         for (Chainstate* chainstate : WITH_LOCK(::cs_main, return chainman.GetAll())) {
             BlockValidationState state;
             if (!chainstate->ActivateBestChain(state, nullptr)) {
-                chainman.GetNotifications().fatalError(strprintf("Failed to connect best block (%s)", state.ToString()));
-                return;
+                result.Set({util::Error{Untranslated(strprintf("Failed to connect best block (%s)", state.ToString()))}, kernel::FatalError::ConnectBestBlockFailed});
+                return result;
             }
         }
-    } // End scope of ImportingNow
+    } // End of scope of ImportingNow
+    return result;
 }
 
 std::ostream& operator<<(std::ostream& os, const BlockfileType& type) {
