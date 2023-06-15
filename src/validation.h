@@ -1168,7 +1168,7 @@ public:
     //! directories are moved or deleted.
     //!
     //! @sa node/chainstate:LoadChainstate()
-    bool ValidatedSnapshotCleanup() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    [[nodiscard]] util::Result<void, FatalCondition> ValidatedSnapshotCleanup() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     ~ChainstateManager();
 };
