@@ -5034,7 +5034,7 @@ static bool DeleteCoinsDBFromDisk(const fs::path db_path, bool is_snapshot)
     return destroyed && !fs::exists(db_path);
 }
 
-bool ChainstateManager::ActivateSnapshot(
+util::Result<bool, FatalCondition> ChainstateManager::ActivateSnapshot(
         AutoFile& coins_file,
         const SnapshotMetadata& metadata,
         bool in_memory)
@@ -5115,8 +5115,13 @@ bool ChainstateManager::ActivateSnapshot(
             snapshot_chainstate.reset();
             bool removed = DeleteCoinsDBFromDisk(*snapshot_datadir, /*is_snapshot=*/true);
             if (!removed) {
-                AbortNode(strprintf("Failed to remove snapshot chainstate dir (%s). "
-                    "Manually remove it before restarting.\n", fs::PathToString(*snapshot_datadir)));
+                return {
+                    util::Error{Untranslated(strprintf(
+                        "Failed to remove snapshot chainstate dir (%s). "
+                        "Manually remove it before restarting.\n",
+                        fs::PathToString(*snapshot_datadir)))},
+                    FatalCondition::SnapshotChainstateDirRemovalFailed
+                };
             }
         }
         return false;

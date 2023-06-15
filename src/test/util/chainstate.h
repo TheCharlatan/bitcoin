@@ -92,7 +92,7 @@ CreateAndActivateUTXOSnapshot(
             0 == WITH_LOCK(node.chainman->GetMutex(), return node.chainman->ActiveHeight()));
     }
 
-    return node.chainman->ActivateSnapshot(auto_infile, metadata, in_memory_chainstate);
+    return Assert(node.chainman->ActivateSnapshot(auto_infile, metadata, in_memory_chainstate)).value();
 }
 
 
