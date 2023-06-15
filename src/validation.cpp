@@ -5227,7 +5227,7 @@ Chainstate& ChainstateManager::InitializeChainstate(CTxMemPool* mempool)
     return destroyed && !fs::exists(db_path);
 }
 
-bool ChainstateManager::ActivateSnapshot(
+util::Result<bool, kernel::FatalError> ChainstateManager::ActivateSnapshot(
         AutoFile& coins_file,
         const SnapshotMetadata& metadata,
         bool in_memory)
@@ -5292,7 +5292,7 @@ bool ChainstateManager::ActivateSnapshot(
             static_cast<size_t>(current_coinstip_cache_size * SNAPSHOT_CACHE_PERC));
     }
 
-    auto cleanup_bad_snapshot = [&](const char* reason) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+    auto cleanup_bad_snapshot = [&](const char* reason) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) -> util::Result<bool, kernel::FatalError> {
         LogPrintf("[snapshot] activation failed - %s\n", reason);
         this->MaybeRebalanceCaches();
 
@@ -5305,8 +5305,12 @@ bool ChainstateManager::ActivateSnapshot(
             snapshot_chainstate.reset();
             bool removed = DeleteCoinsDBFromDisk(*snapshot_datadir, /*is_snapshot=*/true);
             if (!removed) {
-                GetNotifications().fatalError(strprintf("Failed to remove snapshot chainstate dir (%s). "
-                    "Manually remove it before restarting.\n", fs::PathToString(*snapshot_datadir)));
+                return {
+                    util::Error{Untranslated(strprintf(
+                        "Failed to remove snapshot chainstate dir (%s). "
+                        "Manually remove it before restarting.\n",
+                        fs::PathToString(*snapshot_datadir)))},
+                    kernel::FatalError::SnapshotChainstateDirRemovalFailed};
             }
         }
         return false;

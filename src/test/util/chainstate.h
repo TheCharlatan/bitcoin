@@ -7,6 +7,7 @@
 
 #include <clientversion.h>
 #include <logging.h>
+#include <kernel/fatal_error.h>
 #include <node/context.h>
 #include <node/utxo_snapshot.h>
 #include <rpc/blockchain.h>
@@ -121,7 +122,7 @@ CreateAndActivateUTXOSnapshot(
         new_active.m_chain.SetTip(*(tip->pprev));
     }
 
-    bool res = node.chainman->ActivateSnapshot(auto_infile, metadata, in_memory_chainstate);
+    bool res = UnwrapFatalError(node.chainman->ActivateSnapshot(auto_infile, metadata, in_memory_chainstate));
 
     // Restore the old tip.
     new_active.m_chain.SetTip(*tip);
