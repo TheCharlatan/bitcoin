@@ -20,6 +20,7 @@
 #include <kernel/chainparams.h>
 #include <kernel/chainstatemanager_opts.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
+#include <kernel/fatal_condition.h>
 #include <node/blockstorage.h>
 #include <policy/feerate.h>
 #include <policy/packages.h>
@@ -1131,7 +1132,7 @@ public:
      *                                              unknown parent, key is parent block hash
      *                                              (only used for reindex)
      * */
-    void LoadExternalBlockFile(
+    [[nodiscard]] util::Result<void, FatalCondition> LoadExternalBlockFile(
         AutoFile& file_in,
         FlatFilePos* dbp = nullptr,
         std::multimap<uint256, FlatFilePos>* blocks_with_unknown_parent = nullptr);
