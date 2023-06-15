@@ -899,7 +899,9 @@ util::Result<void, FatalCondition> ThreadImport(ChainstateManager& chainman, std
                     break; // This error is logged in OpenBlockFile
                 }
                 LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
-                chainman.ActiveChainstate().LoadExternalBlockFile(file, &pos, &blocks_with_unknown_parent);
+                if (auto res{chainman.ActiveChainstate().LoadExternalBlockFile(file, &pos, &blocks_with_unknown_parent)}; !res) {
+                    return res;
+                }
                 if (ShutdownRequested()) {
                     LogPrintf("Shutdown requested. Exit %s\n", __func__);
                     return {};
@@ -918,7 +920,9 @@ util::Result<void, FatalCondition> ThreadImport(ChainstateManager& chainman, std
             FILE* file = fsbridge::fopen(path, "rb");
             if (file) {
                 LogPrintf("Importing blocks file %s...\n", fs::PathToString(path));
-                chainman.ActiveChainstate().LoadExternalBlockFile(file);
+                if (auto res{chainman.ActiveChainstate().LoadExternalBlockFile(file)}; !res) {
+                    return res;
+                }
                 if (ShutdownRequested()) {
                     LogPrintf("Shutdown requested. Exit %s\n", __func__);
                     return {};
