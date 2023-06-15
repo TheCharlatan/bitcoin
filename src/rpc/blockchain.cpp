@@ -24,6 +24,7 @@
 #include <logging/timer.h>
 #include <net.h>
 #include <net_processing.h>
+#include <node/abort.h>
 #include <node/blockstorage.h>
 #include <node/context.h>
 #include <node/transaction.h>
@@ -2785,7 +2786,11 @@ static RPCHelpMan loadtxoutset()
             RPC_INTERNAL_ERROR,
             "Timed out waiting for base block header to appear in headers chain");
     }
-    if (!chainman.ActivateSnapshot(afile, metadata, false)) {
+    auto res{chainman.ActivateSnapshot(afile, metadata, false)};
+    if (!res) {
+        node::AbortNode(node.exit_status, ErrorString(res).original, ErrorString(res));
+    }
+    if (!res.value()) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to load UTXO snapshot " + fs::PathToString(path));
     }
     CBlockIndex* new_tip{WITH_LOCK(::cs_main, return chainman.ActiveTip())};

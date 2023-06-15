@@ -8,6 +8,7 @@
 enum class FatalCondition {
     BlockFileImportSystemError,
     ConnectBestBlockFailed,
+    SnapshotChainstateDirRemovalFailed,
 };
 
 #endif // BITCOIN_KERNEL_FATAL_CONDITION_H
