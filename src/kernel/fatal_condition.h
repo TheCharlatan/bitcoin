@@ -11,7 +11,11 @@ enum class FatalCondition {
     ConnectBestBlockFailed,
     NoChainstatePaths,
     SnapshotAlreadyValidated,
+    SnapshotBaseBlockhashMismatch,
     SnapshotChainstateDirRemovalFailed,
+    SnapshotHashMismatch,
+    SnapshotMissingChainparams,
+    SnapshotStatsFailed,
 };
 
 #endif // BITCOIN_KERNEL_FATAL_CONDITION_H

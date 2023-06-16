@@ -1060,7 +1060,8 @@ public:
     //! If the coins match (expected), then mark the validation chainstate for
     //! deletion and continue using the snapshot chainstate as active.
     //! Otherwise, revert to using the ibd chainstate and shutdown.
-    SnapshotCompletionResult MaybeCompleteSnapshotValidation() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    [[nodiscard]] util::Result<SnapshotCompletionResult, FatalCondition> MaybeCompleteSnapshotValidation()
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! Returns nullptr if no snapshot has been loaded.
     const CBlockIndex* GetSnapshotBaseBlock() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
