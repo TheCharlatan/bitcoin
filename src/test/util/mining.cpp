@@ -8,6 +8,7 @@
 #include <consensus/merkle.h>
 #include <consensus/validation.h>
 #include <key_io.h>
+#include <kernel/fatal_error.h>
 #include <node/context.h>
 #include <pow.h>
 #include <primitives/transaction.h>
@@ -96,7 +97,7 @@ COutPoint MineBlock(const NodeContext& node, std::shared_ptr<CBlock>& block)
     bool new_block;
     BlockValidationStateCatcher bvsc{block->GetHash()};
     RegisterValidationInterface(&bvsc);
-    const bool processed{chainman.ProcessNewBlock(block, true, true, &new_block)};
+    const bool processed{UnwrapFatalError(chainman.ProcessNewBlock(block, true, true, &new_block))};
     const bool duplicate{!new_block && processed};
     assert(!duplicate);
     UnregisterValidationInterface(&bvsc);
