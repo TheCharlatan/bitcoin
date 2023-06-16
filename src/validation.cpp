@@ -2869,7 +2869,9 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     if (this != &m_chainman.ActiveChainstate()) {
         // This call may set `m_disabled`, which is referenced immediately afterwards in
         // ActivateBestChain, so that we stop connecting blocks past the snapshot base.
-        m_chainman.MaybeCompleteSnapshotValidation();
+        if (auto err = m_chainman.MaybeCompleteSnapshotValidation(); !err) {
+            LogPrintf("Chainstate snapshot validation failed.");
+        }
     }
 
     connectTrace.BlockConnected(pindexNew, std::move(pthisBlock));
@@ -5385,8 +5387,7 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
 //      through IsUsable() checks, or
 //
 //  (ii) giving each chainstate its own lock instead of using cs_main for everything.
-SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
-      std::function<void(bilingual_str)> shutdown_fnc)
+util::Result<SnapshotCompletionResult, FatalCondition> ChainstateManager::MaybeCompleteSnapshotValidation()
 {
     AssertLockHeld(cs_main);
     if (m_ibd_chainstate.get() == &this->ActiveChainstate() ||
@@ -5409,8 +5410,10 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
     assert(SnapshotBlockhash());
     uint256 snapshot_blockhash = *Assert(SnapshotBlockhash());
 
+    bilingual_str user_error;
+
     auto handle_invalid_snapshot = [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
-        bilingual_str user_error = strprintf(_(
+        user_error = strprintf(_(
             "%s failed to validate the -assumeutxo snapshot state. "
             "This indicates a hardware problem, or a bug in the software, or a "
             "bad software modification that allowed an invalid snapshot to be "
@@ -5434,8 +5437,6 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
         assert(this->IsUsable(m_ibd_chainstate.get()));
 
         m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
-
-        shutdown_fnc(user_error);
     };
 
     if (index_new.GetBlockHash() != snapshot_blockhash) {
@@ -5443,7 +5444,7 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
           "snapshot base block %s (height %d). Snapshot is not valid.",
           index_new.ToString(), snapshot_blockhash.ToString(), snapshot_base_height);
         handle_invalid_snapshot();
-        return SnapshotCompletionResult::BASE_BLOCKHASH_MISMATCH;
+        return {util::Error{user_error}, FatalCondition::SnapshotBaseBlockhashMismatch};
     }
 
     assert(index_new.nHeight == snapshot_base_height);
@@ -5463,7 +5464,7 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
         LogPrintf("[snapshot] assumeutxo data not found for height " /* Continued */
             "(%d) - refusing to validate snapshot\n", curr_height);
         handle_invalid_snapshot();
-        return SnapshotCompletionResult::MISSING_CHAINPARAMS;
+        return {util::Error{user_error}, FatalCondition::SnapshotMissingChainparams};
     }
 
     const AssumeutxoData& au_data = *maybe_au_data;
@@ -5487,7 +5488,7 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
         // prevents us from validating the snapshot, so we should shut down and let the
         // user handle the issue manually.
         handle_invalid_snapshot();
-        return SnapshotCompletionResult::STATS_FAILED;
+        return {util::Error{user_error}, FatalCondition::SnapshotStatsFailed};
     }
     const auto& ibd_stats = *maybe_ibd_stats;
 
@@ -5502,7 +5503,7 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
             ibd_stats.hashSerialized.ToString(),
             au_data.hash_serialized.ToString());
         handle_invalid_snapshot();
-        return SnapshotCompletionResult::HASH_MISMATCH;
+        return {util::Error{user_error}, FatalCondition::SnapshotHashMismatch};
     }
 
     LogPrintf("[snapshot] snapshot beginning at %s has been fully validated\n",
