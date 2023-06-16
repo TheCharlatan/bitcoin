@@ -13,6 +13,7 @@ enum class FatalCondition {
     NoChainstatePaths,
     ReadBlockFailed,
     SnapshotAlreadyValidated,
+    SnapshotBaseBlockhashMismatch,
     SnapshotChainstateDirRemovalFailed,
     SnapshotHashMismatch,
     SnapshotMissingChainparams,

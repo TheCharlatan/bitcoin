@@ -1049,9 +1049,7 @@ public:
     //! If the coins match (expected), then mark the validation chainstate for
     //! deletion and continue using the snapshot chainstate as active.
     //! Otherwise, revert to using the ibd chainstate and shutdown.
-    SnapshotCompletionResult MaybeCompleteSnapshotValidation(
-        std::function<void(bilingual_str)> shutdown_fnc =
-            [](bilingual_str msg) { AbortNode(msg.original, msg); })
+    [[nodiscard]] util::Result<SnapshotCompletionResult, FatalCondition> MaybeCompleteSnapshotValidation()
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! The most-work chain.
