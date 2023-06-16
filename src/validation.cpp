@@ -5436,10 +5436,8 @@ util::Result<SnapshotCompletionResult, FatalCondition> ChainstateManager::MaybeC
     assert(SnapshotBlockhash());
     uint256 snapshot_blockhash = *Assert(SnapshotBlockhash());
 
-    bilingual_str user_error;
-
-    auto handle_invalid_snapshot = [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
-        user_error = strprintf(_(
+    auto handle_invalid_snapshot = [&](FatalCondition fatal_condition) -> util::Result<SnapshotCompletionResult, FatalCondition> EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        bilingual_str user_error = strprintf(_(
             "%s failed to validate the -assumeutxo snapshot state. "
             "This indicates a hardware problem, or a bug in the software, or a "
             "bad software modification that allowed an invalid snapshot to be "
@@ -5462,15 +5460,17 @@ util::Result<SnapshotCompletionResult, FatalCondition> ChainstateManager::MaybeC
         assert(!this->IsUsable(m_snapshot_chainstate.get()));
         assert(this->IsUsable(m_ibd_chainstate.get()));
 
-        m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
+        if (auto res{m_snapshot_chainstate->InvalidateCoinsDBOnDisk()}; !res) {
+            user_error = Untranslated("Failed invalidating coins db on disk");
+        }
+        return {util::Error{user_error}, fatal_condition};
     };
 
     if (index_new.GetBlockHash() != snapshot_blockhash) {
         LogPrintf("[snapshot] supposed base block %s does not match the " /* Continued */
           "snapshot base block %s (height %d). Snapshot is not valid.",
           index_new.ToString(), snapshot_blockhash.ToString(), snapshot_base_height);
-        handle_invalid_snapshot();
-        return {util::Error{user_error}, FatalCondition::SnapshotBaseBlockhashMismatch};
+        return handle_invalid_snapshot(FatalCondition::SnapshotBaseBlockhashMismatch);
     }
 
     assert(index_new.nHeight == snapshot_base_height);
@@ -5489,8 +5489,7 @@ util::Result<SnapshotCompletionResult, FatalCondition> ChainstateManager::MaybeC
     if (!maybe_au_data) {
         LogPrintf("[snapshot] assumeutxo data not found for height " /* Continued */
             "(%d) - refusing to validate snapshot\n", curr_height);
-        handle_invalid_snapshot();
-        return {util::Error{user_error}, FatalCondition::SnapshotMissingChainparams};
+        return handle_invalid_snapshot(FatalCondition::SnapshotMissingChainparams);
     }
 
     const AssumeutxoData& au_data = *maybe_au_data;
@@ -5513,8 +5512,7 @@ util::Result<SnapshotCompletionResult, FatalCondition> ChainstateManager::MaybeC
         // While this isn't a problem with the snapshot per se, this condition
         // prevents us from validating the snapshot, so we should shut down and let the
         // user handle the issue manually.
-        handle_invalid_snapshot();
-        return {util::Error{user_error}, FatalCondition::SnapshotStatsFailed};
+        return handle_invalid_snapshot(FatalCondition::SnapshotMissingChainparams);
     }
     const auto& ibd_stats = *maybe_ibd_stats;
 
@@ -5528,8 +5526,7 @@ util::Result<SnapshotCompletionResult, FatalCondition> ChainstateManager::MaybeC
         LogPrintf("[snapshot] hash mismatch: actual=%s, expected=%s\n",
             ibd_stats.hashSerialized.ToString(),
             au_data.hash_serialized.ToString());
-        handle_invalid_snapshot();
-        return {util::Error{user_error}, FatalCondition::SnapshotHashMismatch};
+        return handle_invalid_snapshot(FatalCondition::SnapshotHashMismatch);
     }
 
     LogPrintf("[snapshot] snapshot beginning at %s has been fully validated\n",
@@ -5662,7 +5659,7 @@ bool IsBIP30Unspendable(const CBlockIndex& block_index)
            (block_index.nHeight==91812 && block_index.GetBlockHash() == uint256S("0x00000000000af0aed4792b1acee3d966af36cf5def14935db8de83d6f9306f2f"));
 }
 
-void Chainstate::InvalidateCoinsDBOnDisk()
+util::Result<void, FatalCondition> Chainstate::InvalidateCoinsDBOnDisk()
 {
     AssertLockHeld(::cs_main);
     // Should never be called on a non-snapshot chainstate.
@@ -5691,13 +5688,15 @@ void Chainstate::InvalidateCoinsDBOnDisk()
 
         LogPrintf("%s: error renaming file '%s' -> '%s': %s\n",
                 __func__, src_str, dest_str, e.what());
-        AbortNode(strprintf(
+        return {util::Error{Untranslated(strprintf(
             "Rename of '%s' -> '%s' failed. "
             "You should resolve this by manually moving or deleting the invalid "
             "snapshot directory %s, otherwise you will encounter the same error again "
             "on the next startup.",
-            src_str, dest_str, src_str));
+            src_str, dest_str, src_str))},
+            FatalCondition::ChainstateRenameFailed};
     }
+    return {};
 }
 
 const CBlockIndex* ChainstateManager::GetSnapshotBaseBlock() const

@@ -813,7 +813,7 @@ private:
      * In case of an invalid snapshot, rename the coins leveldb directory so
      * that it can be examined for issue diagnosis.
      */
-    void InvalidateCoinsDBOnDisk() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    [[nodiscard]] util::Result<void, FatalCondition> InvalidateCoinsDBOnDisk() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     friend ChainstateManager;
 };
