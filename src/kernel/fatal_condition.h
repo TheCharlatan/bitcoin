@@ -7,11 +7,32 @@
 
 enum class FatalCondition {
     BlockFileImportSystemError,
+
     ChainstateRenameFailed,
+
     ConnectBestBlockFailed,
+
     NoChainstatePaths,
+
     SnapshotAlreadyValidated,
+
+    // The blockhash of the current tip of the background validation chainstate does
+    // not match the one expected by the snapshot chainstate.
+    SnapshotBaseBlockhashMismatch,
+
     SnapshotChainstateDirRemovalFailed,
+
+    // The UTXO set hash of the background validation chainstate does not match
+    // the one expected by assumeutxo chainparams.
+    SnapshotHashMismatch,
+
+    // Expected assumeutxo configuration data is not found for the height of the
+    // base block.
+    SnapshotMissingChainparams,
+
+    // Failed to generate UTXO statistics (to check UTXO set hash) for the background
+    // chainstate.
+    SnapshotStatsFailed,
 };
 
 #endif // BITCOIN_KERNEL_FATAL_CONDITION_H

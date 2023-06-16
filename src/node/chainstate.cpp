@@ -209,10 +209,11 @@ util::Result<void, ChainstateLoadError> LoadChainstate(ChainstateManager& chainm
     // filesystem operations to move leveldb data directories around, and that seems
     // too risky to do in the middle of normal runtime.
     auto snapshot_completion = chainman.MaybeCompleteSnapshotValidation();
-
-    if (snapshot_completion == SnapshotCompletionResult::SKIPPED) {
+    if (!snapshot_completion) {
+        return {util::Error{}, util::MoveMessages(snapshot_completion), ChainstateLoadError::FAILURE_FATAL};
+    } else if (*snapshot_completion == SnapshotCompletionResult::SKIPPED) {
         // do nothing; expected case
-    } else if (snapshot_completion == SnapshotCompletionResult::SUCCESS) {
+    } else if (*snapshot_completion == SnapshotCompletionResult::SUCCESS) {
         LogPrintf("[snapshot] cleaning up unneeded background chainstate, then reinitializing\n");
         if (auto res{chainman.ValidatedSnapshotCleanup()}; !res) {
             return {util::MoveMessages(res), util::Error{}, ChainstateLoadError::FAILURE_FATAL};

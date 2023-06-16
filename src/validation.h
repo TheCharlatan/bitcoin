@@ -785,14 +785,6 @@ enum class SnapshotCompletionResult {
     // Failed to generate UTXO statistics (to check UTXO set hash) for the background
     // chainstate.
     STATS_FAILED,
-
-    // The UTXO set hash of the background validation chainstate does not match
-    // the one expected by assumeutxo chainparams.
-    HASH_MISMATCH,
-
-    // The blockhash of the current tip of the background validation chainstate does
-    // not match the one expected by the snapshot chainstate.
-    BASE_BLOCKHASH_MISMATCH,
 };
 
 /**
@@ -1033,7 +1025,8 @@ public:
     //! If the coins match (expected), then mark the validation chainstate for
     //! deletion and continue using the snapshot chainstate as active.
     //! Otherwise, revert to using the ibd chainstate and shutdown.
-    SnapshotCompletionResult MaybeCompleteSnapshotValidation() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    [[nodiscard]] util::Result<SnapshotCompletionResult, FatalCondition> MaybeCompleteSnapshotValidation()
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! Returns nullptr if no snapshot has been loaded.
     const CBlockIndex* GetSnapshotBaseBlock() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
