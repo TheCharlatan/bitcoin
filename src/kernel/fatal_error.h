@@ -15,7 +15,11 @@ enum class FatalError {
     ConnectBestBlockFailed,
     NoChainstatePaths,
     SnapshotAlreadyValidated,
+    SnapshotBaseBlockhashMismatch,
     SnapshotChainstateDirRemovalFailed,
+    SnapshotHashMismatch,
+    SnapshotMissingChainparams,
+    SnapshotStatsFailed,
 };
 
 template <typename T>
@@ -33,6 +37,12 @@ template <typename T>
     } else {
         return result.value();
     }
+}
+
+template <typename T>
+[[nodiscard]] bool CheckFatalFailure(util::Result<T, kernel::FatalError> result, kernel::FatalError expected_failure)
+{
+    return !result && result.GetFailure() == expected_failure;
 }
 
 } // namespace kernel
