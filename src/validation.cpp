@@ -5597,6 +5597,7 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
 //  (ii) giving each chainstate its own lock instead of using cs_main for everything.
 util::Result<SnapshotCompletionResult, FatalCondition> ChainstateManager::MaybeCompleteSnapshotValidation()
 {
+    util::Result<SnapshotCompletionResult, FatalCondition> result{};
     AssertLockHeld(cs_main);
     if (m_ibd_chainstate.get() == &this->ActiveChainstate() ||
             !this->IsUsable(m_snapshot_chainstate.get()) ||
@@ -5644,9 +5645,10 @@ util::Result<SnapshotCompletionResult, FatalCondition> ChainstateManager::MaybeC
         assert(!this->IsUsable(m_snapshot_chainstate.get()));
         assert(this->IsUsable(m_ibd_chainstate.get()));
 
-        auto rename_result = m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
-        if (!rename_result) {
-            user_error = strprintf(Untranslated("%s\n%s"), user_error, util::ErrorString(rename_result));
+        auto res{m_snapshot_chainstate->InvalidateCoinsDBOnDisk()};
+        result.MoveMessages(res);
+        if (!res) {
+            user_error = Untranslated("Failed invalidating coins db on disk");
         }
     };
 
@@ -5868,7 +5870,7 @@ static fs::path GetSnapshotCoinsDBPath(Chainstate& cs) EXCLUSIVE_LOCKS_REQUIRED(
     return *storage_path_maybe;
 }
 
-util::Result<void> Chainstate::InvalidateCoinsDBOnDisk()
+util::Result<void, FatalCondition> Chainstate::InvalidateCoinsDBOnDisk()
 {
     fs::path snapshot_datadir = GetSnapshotCoinsDBPath(*this);
 
@@ -5891,12 +5893,13 @@ util::Result<void> Chainstate::InvalidateCoinsDBOnDisk()
 
         LogPrintf("%s: error renaming file '%s' -> '%s': %s\n",
                 __func__, src_str, dest_str, e.what());
-        return util::Error{strprintf(_(
+        return {util::Error{strprintf(_(
             "Rename of '%s' -> '%s' failed. "
             "You should resolve this by manually moving or deleting the invalid "
             "snapshot directory %s, otherwise you will encounter the same error again "
             "on the next startup."),
-            src_str, dest_str, src_str)};
+            src_str, dest_str, src_str)},
+            FatalCondition::ChainstateRenameFailed};
     }
     return {};
 }
