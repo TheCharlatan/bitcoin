@@ -5619,12 +5619,9 @@ util::Result<SnapshotCompletionResult, FatalCondition> ChainstateManager::MaybeC
         assert(!this->IsUsable(m_snapshot_chainstate.get()));
         assert(this->IsUsable(m_ibd_chainstate.get()));
 
-        auto rename_result = m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
-        if (!rename_result) {
-            user_error = strprintf(Untranslated("%s\n%s"), user_error, util::ErrorString(rename_result));
+        if (auto res{m_snapshot_chainstate->InvalidateCoinsDBOnDisk()}; !res) {
+            user_error = Untranslated("Failed invalidating coins db on disk");
         }
-
-        GetNotifications().fatalError(user_error.original, user_error);
     };
 
     if (index_new.GetBlockHash() != snapshot_blockhash) {
@@ -5842,7 +5839,7 @@ static fs::path GetSnapshotCoinsDBPath(Chainstate& cs) EXCLUSIVE_LOCKS_REQUIRED(
     return *storage_path_maybe;
 }
 
-util::Result<void> Chainstate::InvalidateCoinsDBOnDisk()
+util::Result<void, FatalCondition> Chainstate::InvalidateCoinsDBOnDisk()
 {
     fs::path snapshot_datadir = GetSnapshotCoinsDBPath(*this);
 
@@ -5865,12 +5862,13 @@ util::Result<void> Chainstate::InvalidateCoinsDBOnDisk()
 
         LogPrintf("%s: error renaming file '%s' -> '%s': %s\n",
                 __func__, src_str, dest_str, e.what());
-        return util::Error{strprintf(_(
+        return {util::Error{strprintf(_(
             "Rename of '%s' -> '%s' failed. "
             "You should resolve this by manually moving or deleting the invalid "
             "snapshot directory %s, otherwise you will encounter the same error again "
             "on the next startup."),
-            src_str, dest_str, src_str)};
+            src_str, dest_str, src_str)},
+            FatalCondition::ChainstateRenameFailed};
     }
     return {};
 }
