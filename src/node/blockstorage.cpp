@@ -1209,7 +1209,7 @@ util::Result<void, FatalCondition> ImportBlocks(ChainstateManager& chainman, std
             BlockValidationState state;
             auto res{chainstate->ActivateBestChain(state, nullptr)};
             if (!res || !res.value()) {
-                return res;
+                return {util::Error{}, util::MoveMessages(res), res.GetFailure()};
             }
             result.MoveMessages(res);
         }

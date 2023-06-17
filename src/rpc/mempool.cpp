@@ -10,6 +10,8 @@
 #include <chainparams.h>
 #include <core_io.h>
 #include <kernel/mempool_entry.h>
+#include <node/abort.h>
+#include <node/context.h>
 #include <node/mempool_persist_args.h>
 #include <policy/rbf.h>
 #include <policy/settings.h>
@@ -28,6 +30,7 @@
 
 using kernel::DumpMempool;
 
+using node::AbortNode;
 using node::DEFAULT_MAX_RAW_TX_FEE_RATE;
 using node::MempoolPath;
 using node::NodeContext;
@@ -183,9 +186,23 @@ static RPCHelpMan testmempoolaccept()
             Chainstate& chainstate = chainman.ActiveChainstate();
             const PackageMempoolAcceptResult package_result = [&] {
                 LOCK(::cs_main);
-                if (txns.size() > 1) return ProcessNewPackage(chainstate, mempool, txns, /*test_accept=*/true);
-                return PackageMempoolAcceptResult(txns[0]->GetWitnessHash(),
-                                                  chainman.ProcessTransaction(txns[0], /*test_accept=*/true));
+                if (txns.size() > 1) {
+                    auto res{ProcessNewPackage(chainstate, mempool, txns, /*test_accept=*/true)};
+                    if (!res) {
+                        AbortNode(node.shutdown, node.exit_status, ErrorString(res).original, ErrorString(res));
+                        TxValidationState state;
+                        state.Invalid(TxValidationResult::TX_NO_MEMPOOL, "no-mempool");
+                        throw JSONRPCError(RPC_INTERNAL_ERROR, "Fatal internal error.");
+                    }
+                    return res.value();
+                }
+                auto res{chainman.ProcessTransaction(txns[0], /*test_accept=*/true)};
+                if (!res) {
+                    AbortNode(node.shutdown, node.exit_status, ErrorString(res).original, ErrorString(res));
+                    throw JSONRPCError(RPC_INTERNAL_ERROR, "Fatal internal error.");
+                }
+
+                return PackageMempoolAcceptResult(txns[0]->GetWitnessHash(), res.value());
             }();
 
             UniValue rpc_result(UniValue::VARR);
@@ -883,15 +900,19 @@ static RPCHelpMan submitpackage()
             CTxMemPool& mempool = EnsureMemPool(node);
             Chainstate& chainstate = EnsureChainman(node).ActiveChainstate();
             const auto package_result = WITH_LOCK(::cs_main, return ProcessNewPackage(chainstate, mempool, txns, /*test_accept=*/ false));
+            if (!package_result) {
+                AbortNode(node.shutdown, node.exit_status, ErrorString(package_result).original, ErrorString(package_result));
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Fatal internal error.");
+            }
 
             std::string package_msg = "success";
 
             // First catch package-wide errors, continue if we can
-            switch(package_result.m_state.GetResult()) {
+            switch(package_result.value().m_state.GetResult()) {
                 case PackageValidationResult::PCKG_RESULT_UNSET:
                 {
                     // Belt-and-suspenders check; everything should be successful here
-                    CHECK_NONFATAL(package_result.m_tx_results.size() == txns.size());
+                    CHECK_NONFATAL(package_result.value().m_tx_results.size() == txns.size());
                     for (const auto& tx : txns) {
                         CHECK_NONFATAL(mempool.exists(GenTxid::Txid(tx->GetHash())));
                     }
@@ -901,15 +922,15 @@ static RPCHelpMan submitpackage()
                 {
                     // This only happens with internal bug; user should stop and report
                     throw JSONRPCTransactionError(TransactionError::MEMPOOL_ERROR,
-                        package_result.m_state.GetRejectReason());
+                        package_result.value().m_state.GetRejectReason());
                 }
                 case PackageValidationResult::PCKG_POLICY:
                 case PackageValidationResult::PCKG_TX:
                 {
                     // Package-wide error we want to return, but we also want to return individual responses
-                    package_msg = package_result.m_state.GetRejectReason();
-                    CHECK_NONFATAL(package_result.m_tx_results.size() == txns.size() ||
-                            package_result.m_tx_results.empty());
+                    package_msg = package_result.value().m_state.GetRejectReason();
+                    CHECK_NONFATAL(package_result.value().m_tx_results.size() == txns.size() ||
+                            package_result.value().m_tx_results.empty());
                     break;
                 }
             }
@@ -939,8 +960,8 @@ static RPCHelpMan submitpackage()
             for (const auto& tx : txns) {
                 UniValue result_inner{UniValue::VOBJ};
                 result_inner.pushKV("txid", tx->GetHash().GetHex());
-                auto it = package_result.m_tx_results.find(tx->GetWitnessHash());
-                if (it == package_result.m_tx_results.end()) {
+                auto it = package_result.value().m_tx_results.find(tx->GetWitnessHash());
+                if (it == package_result.value().m_tx_results.end()) {
                     // No results, report error and continue
                     result_inner.pushKV("error", "unevaluated");
                     continue;

@@ -289,8 +289,8 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
 
         // Make sure ProcessNewPackage on one transaction works.
         // The result is not guaranteed to be the same as what is returned by ATMP.
-        const auto result_package = WITH_LOCK(::cs_main,
-                                    return ProcessNewPackage(chainstate, tx_pool, {tx}, true));
+        const auto result_package = Assert(WITH_LOCK(::cs_main,
+                                    return ProcessNewPackage(chainstate, tx_pool, {tx}, true))).value();
         // If something went wrong due to a package-specific policy, it might not return a
         // validation result for the transaction.
         if (result_package.m_state.GetResult() != PackageValidationResult::PCKG_POLICY) {
@@ -300,7 +300,7 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
                    it->second.m_result_type == MempoolAcceptResult::ResultType::INVALID);
         }
 
-        const auto res = WITH_LOCK(::cs_main, return AcceptToMemoryPool(chainstate, tx, GetTime(), bypass_limits, /*test_accept=*/false));
+        const auto res = Assert(WITH_LOCK(::cs_main, return AcceptToMemoryPool(chainstate, tx, GetTime(), bypass_limits, /*test_accept=*/false))).value();
         const bool accepted = res.m_result_type == MempoolAcceptResult::ResultType::VALID;
         SyncWithValidationInterfaceQueue();
         UnregisterSharedValidationInterface(txr);
@@ -401,7 +401,7 @@ FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
 
         const auto tx = MakeTransactionRef(mut_tx);
         const bool bypass_limits = fuzzed_data_provider.ConsumeBool();
-        const auto res = WITH_LOCK(::cs_main, return AcceptToMemoryPool(chainstate, tx, GetTime(), bypass_limits, /*test_accept=*/false));
+        const auto res = Assert(WITH_LOCK(::cs_main, return AcceptToMemoryPool(chainstate, tx, GetTime(), bypass_limits, /*test_accept=*/false))).value();
         const bool accepted = res.m_result_type == MempoolAcceptResult::ResultType::VALID;
         if (accepted) {
             txids.push_back(tx->GetHash());

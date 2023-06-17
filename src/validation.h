@@ -106,7 +106,7 @@ bool FatalError(kernel::Notifications& notifications, BlockValidationState& stat
 double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex* pindex);
 
 /** Prune block files up to a given height */
-void PruneBlockFilesManual(Chainstate& active_chainstate, int nManualPruneHeight);
+[[nodiscard]] util::Result<void, FatalCondition> PruneBlockFilesManual(Chainstate& active_chainstate, int nManualPruneHeight);
 
 /**
 * Validation result for a transaction evaluated by MemPoolAccept (single or package).
@@ -274,7 +274,7 @@ struct PackageMempoolAcceptResult
  *
  * @returns a MempoolAcceptResult indicating whether the transaction was accepted/rejected with reason.
  */
-MempoolAcceptResult AcceptToMemoryPool(Chainstate& active_chainstate, const CTransactionRef& tx,
+[[nodiscard]] util::Result<MempoolAcceptResult, FatalCondition> AcceptToMemoryPool(Chainstate& active_chainstate, const CTransactionRef& tx,
                                        int64_t accept_time, bool bypass_limits, bool test_accept)
     EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
@@ -286,7 +286,7 @@ MempoolAcceptResult AcceptToMemoryPool(Chainstate& active_chainstate, const CTra
 * If a transaction fails, validation will exit early and some results may be missing. It is also
 * possible for the package to be partially submitted.
 */
-PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxMemPool& pool,
+[[nodiscard]] util::Result<PackageMempoolAcceptResult, FatalCondition> ProcessNewPackage(Chainstate& active_chainstate, CTxMemPool& pool,
                                                    const Package& txns, bool test_accept)
                                                    EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
@@ -638,7 +638,7 @@ public:
 
     //! Resize the CoinsViews caches dynamically and flush state to disk.
     //! @returns true unless an error occurred during the flush.
-    bool ResizeCoinsCaches(size_t coinstip_size, size_t coinsdb_size)
+    [[nodiscard]] util::Result<bool, FatalCondition> ResizeCoinsCaches(size_t coinstip_size, size_t coinsdb_size)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /**
@@ -652,17 +652,17 @@ public:
      *
      * @returns true unless a system error occurred
      */
-    bool FlushStateToDisk(
+    [[nodiscard]] util::Result<bool, FatalCondition> FlushStateToDisk(
         BlockValidationState& state,
         FlushStateMode mode,
         int nManualPruneHeight = 0);
 
     //! Unconditionally flush all changes to disk.
-    void ForceFlushStateToDisk();
+    [[nodiscard]] util::Result<void, FatalCondition> ForceFlushStateToDisk();
 
     //! Prune blockfiles from the disk if necessary and then flush chainstate changes
     //! if we pruned.
-    void PruneAndFlush();
+    [[nodiscard]] util::Result<void, FatalCondition> PruneAndFlush();
 
     /**
      * Find the best known block, and make it the tip of the block chain. The
@@ -698,7 +698,7 @@ public:
                       CCoinsViewCache& view, bool fJustCheck = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     // Apply the effects of a block disconnection on the UTXO set.
-    bool DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
+    [[nodiscard]] util::Result<bool, FatalCondition> DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
 
     // Manual block validity manipulation:
     /** Mark a block as precious and reorganize.
@@ -710,7 +710,7 @@ public:
         LOCKS_EXCLUDED(::cs_main);
 
     /** Mark a block as invalid. */
-    bool InvalidateBlock(BlockValidationState& state, CBlockIndex* pindex)
+    [[nodiscard]] util::Result<bool, FatalCondition> InvalidateBlock(BlockValidationState& state, CBlockIndex* pindex)
         EXCLUSIVE_LOCKS_REQUIRED(!m_chainstate_mutex)
         LOCKS_EXCLUDED(::cs_main);
 
@@ -779,7 +779,7 @@ private:
      * Passing fAddToMempool=false will skip trying to add the transactions back,
      * and instead just erase from the mempool as needed.
      */
-    void MaybeUpdateMempoolForReorg(
+    [[nodiscard]] util::Result<void, FatalCondition> MaybeUpdateMempoolForReorg(
         DisconnectedBlockTransactions& disconnectpool,
         bool fAddToMempool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
 
@@ -1209,7 +1209,7 @@ public:
      * @param[in]  tx              The transaction to submit for mempool acceptance.
      * @param[in]  test_accept     When true, run validation checks but don't submit to mempool.
      */
-    [[nodiscard]] MempoolAcceptResult ProcessTransaction(const CTransactionRef& tx, bool test_accept=false)
+    [[nodiscard]] util::Result<MempoolAcceptResult, FatalCondition> ProcessTransaction(const CTransactionRef& tx, bool test_accept=false)
         EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     //! Load the block tree and coins database from disk, initializing state if we're running with -reindex
@@ -1217,7 +1217,7 @@ public:
 
     //! Check to see if caches are out of balance and if so, call
     //! ResizeCoinsCaches() as needed.
-    void MaybeRebalanceCaches() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    [[nodiscard]] util::Result<void, FatalCondition> MaybeRebalanceCaches() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /** Update uncommitted block structures (currently: only the witness reserved value). This is safe for submitted blocks. */
     void UpdateUncommittedBlockStructures(CBlock& block, const CBlockIndex* pindexPrev) const;

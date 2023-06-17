@@ -7,6 +7,7 @@
 #include <index/txindex.h>
 #include <net.h>
 #include <net_processing.h>
+#include <node/abort.h>
 #include <node/blockstorage.h>
 #include <node/context.h>
 #include <txmempool.h>
@@ -71,17 +72,27 @@ TransactionError BroadcastTransaction(NodeContext& node, const CTransactionRef t
             if (max_tx_fee > 0) {
                 // First, call ATMP with test_accept and check the fee. If ATMP
                 // fails here, return error immediately.
-                const MempoolAcceptResult result = node.chainman->ProcessTransaction(tx, /*test_accept=*/ true);
-                if (result.m_result_type != MempoolAcceptResult::ResultType::VALID) {
-                    return HandleATMPError(result.m_state, err_string);
-                } else if (result.m_base_fees.value() > max_tx_fee) {
+                const auto result{node.chainman->ProcessTransaction(tx, /*test_accept=*/true)};
+                if (!result) {
+                    AbortNode(node.shutdown, node.exit_status, ErrorString(result).original, ErrorString(result));
+                    return TransactionError::MEMPOOL_ERROR;
+                }
+
+                if (result.value().m_result_type != MempoolAcceptResult::ResultType::VALID) {
+                    return HandleATMPError(result.value().m_state, err_string);
+                } else if (result.value().m_base_fees.value() > max_tx_fee) {
                     return TransactionError::MAX_FEE_EXCEEDED;
                 }
             }
             // Try to submit the transaction to the mempool.
-            const MempoolAcceptResult result = node.chainman->ProcessTransaction(tx, /*test_accept=*/ false);
-            if (result.m_result_type != MempoolAcceptResult::ResultType::VALID) {
-                return HandleATMPError(result.m_state, err_string);
+            const auto result{node.chainman->ProcessTransaction(tx, /*test_accept=*/ false)};
+            if (!result) {
+                AbortNode(node.shutdown, node.exit_status, ErrorString(result).original, ErrorString(result));
+                return TransactionError::MEMPOOL_ERROR;
+            }
+
+            if (result.value().m_result_type != MempoolAcceptResult::ResultType::VALID) {
+                return HandleATMPError(result.value().m_state, err_string);
             }
 
             // Transaction was accepted to the mempool.

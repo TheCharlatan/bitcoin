@@ -268,10 +268,10 @@ FUZZ_TARGET(tx_package_eval, .init = initialize_tx_pool)
         // (the package is a test accept and ATMP is a submission).
         auto single_submit = txs.size() == 1 && fuzzed_data_provider.ConsumeBool();
 
-        const auto result_package = WITH_LOCK(::cs_main,
-                                    return ProcessNewPackage(chainstate, tx_pool, txs, /*test_accept=*/single_submit));
+        const auto ret = WITH_LOCK(::cs_main, return ProcessNewPackage(chainstate, tx_pool, txs, /*test_accept=*/single_submit));
+        const auto result_package = ret.value();
 
-        const auto res = WITH_LOCK(::cs_main, return AcceptToMemoryPool(chainstate, txs.back(), GetTime(), bypass_limits, /*test_accept=*/!single_submit));
+        const auto res = Assert(WITH_LOCK(::cs_main, return AcceptToMemoryPool(chainstate, txs.back(), GetTime(), bypass_limits, /*test_accept=*/!single_submit))).value();
         const bool accepted = res.m_result_type == MempoolAcceptResult::ResultType::VALID;
 
         SyncWithValidationInterfaceQueue();

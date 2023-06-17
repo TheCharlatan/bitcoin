@@ -54,6 +54,7 @@
 #include <typeinfo>
 #include <utility>
 
+using node::AbortNode;
 using node::CheckFatal;
 
 /** Headers download timeout.
@@ -3016,7 +3017,12 @@ bool PeerManagerImpl::ProcessOrphanTx(Peer& peer)
     CTransactionRef porphanTx = nullptr;
 
     while (CTransactionRef porphanTx = m_orphanage.GetTxToReconsider(peer.m_id)) {
-        const MempoolAcceptResult result = m_chainman.ProcessTransaction(porphanTx);
+        auto res{m_chainman.ProcessTransaction(porphanTx)};
+        if (!res || !res.GetErrors().empty()) {
+            AbortNode(&m_shutdown, m_exit_status, ErrorString(res).original, ErrorString(res));
+            if (!res) break;
+        }
+        const MempoolAcceptResult result = res.value();
         const TxValidationState& state = result.m_state;
         const Txid& orphanHash = porphanTx->GetHash();
         const Wtxid& orphan_wtxid = porphanTx->GetWitnessHash();
@@ -4248,7 +4254,13 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
             return;
         }
 
-        const MempoolAcceptResult result = m_chainman.ProcessTransaction(ptx);
+        auto res{m_chainman.ProcessTransaction(ptx)};
+        if (!res || !res.GetErrors().empty()) {
+            AbortNode(&m_shutdown, m_exit_status, ErrorString(res).original, ErrorString(res));
+            if (!res) return;
+        }
+
+        const MempoolAcceptResult result = res.value();
         const TxValidationState& state = result.m_state;
 
         if (result.m_result_type == MempoolAcceptResult::ResultType::VALID) {
