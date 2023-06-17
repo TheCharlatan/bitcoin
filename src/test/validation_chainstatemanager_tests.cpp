@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE(chainstatemanager_rebalance_caches)
         c1.InitCoinsCache(1 << 23);
         BOOST_REQUIRE(c1.LoadGenesisBlock());
         c1.CoinsTip().SetBestBlock(InsecureRand256());
-        manager.MaybeRebalanceCaches();
+        BOOST_REQUIRE(manager.MaybeRebalanceCaches());
     }
 
     BOOST_CHECK_EQUAL(c1.m_coinstip_cache_size_bytes, max_cache);
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(chainstatemanager_rebalance_caches)
         c2.InitCoinsCache(1 << 23);
         BOOST_REQUIRE(c2.LoadGenesisBlock());
         c2.CoinsTip().SetBestBlock(InsecureRand256());
-        manager.MaybeRebalanceCaches();
+        BOOST_REQUIRE(manager.MaybeRebalanceCaches());
     }
 
     // Since both chainstates are considered to be in initial block download,
@@ -373,7 +373,7 @@ struct SnapshotTestSetup : TestChain100Setup {
         {
             for (Chainstate* cs : chainman.GetAll()) {
                 LOCK(::cs_main);
-                cs->ForceFlushStateToDisk();
+                BOOST_REQUIRE(cs->ForceFlushStateToDisk());
             }
             // Process all callbacks referring to the old manager before wiping it.
             SyncWithValidationInterfaceQueue();

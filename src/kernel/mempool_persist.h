@@ -5,7 +5,9 @@
 #ifndef BITCOIN_KERNEL_MEMPOOL_PERSIST_H
 #define BITCOIN_KERNEL_MEMPOOL_PERSIST_H
 
+#include <kernel/fatal_condition.h>
 #include <util/fs.h>
+#include <util/result.h>
 
 class Chainstate;
 class CTxMemPool;
@@ -18,7 +20,7 @@ bool DumpMempool(const CTxMemPool& pool, const fs::path& dump_path,
                  bool skip_file_commit = false);
 
 /** Load the mempool from disk. */
-bool LoadMempool(CTxMemPool& pool, const fs::path& load_path,
+[[nodiscard]] util::Result<bool, FatalCondition> LoadMempool(CTxMemPool& pool, const fs::path& load_path,
                  Chainstate& active_chainstate,
                  fsbridge::FopenFn mockable_fopen_function = fsbridge::fopen);
 

@@ -91,7 +91,7 @@ BOOST_FIXTURE_TEST_CASE(package_validation_tests, TestChain100Setup)
                                                    /*output_destination=*/child_locking_script,
                                                    /*output_amount=*/CAmount(48 * COIN), /*submit=*/false);
     CTransactionRef tx_child = MakeTransactionRef(mtx_child);
-    const auto result_parent_child = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool, {tx_parent, tx_child}, /*test_accept=*/true);
+    const auto result_parent_child = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool, {tx_parent, tx_child}, /*test_accept=*/true)).value();
     BOOST_CHECK_MESSAGE(result_parent_child.m_state.IsValid(),
                         "Package validation unexpectedly failed: " << result_parent_child.m_state.GetRejectReason());
     BOOST_CHECK(result_parent_child.m_tx_results.size() == 2);
@@ -113,7 +113,7 @@ BOOST_FIXTURE_TEST_CASE(package_validation_tests, TestChain100Setup)
     // A single, giant transaction submitted through ProcessNewPackage fails on single tx policy.
     CTransactionRef giant_ptx = create_placeholder_tx(999, 999);
     BOOST_CHECK(GetVirtualTransactionSize(*giant_ptx) > MAX_PACKAGE_SIZE * 1000);
-    auto result_single_large = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool, {giant_ptx}, /*test_accept=*/true);
+    auto result_single_large = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool, {giant_ptx}, /*test_accept=*/true)).value();
     BOOST_CHECK(result_single_large.m_state.IsInvalid());
     BOOST_CHECK_EQUAL(result_single_large.m_state.GetResult(), PackageValidationResult::PCKG_TX);
     BOOST_CHECK_EQUAL(result_single_large.m_state.GetRejectReason(), "transaction failed");
@@ -235,8 +235,8 @@ BOOST_FIXTURE_TEST_CASE(package_submission_tests, TestChain100Setup)
                                                  /*output_amount=*/CAmount(49 * COIN), /*submit=*/false);
         package_unrelated.emplace_back(MakeTransactionRef(mtx));
     }
-    auto result_unrelated_submit = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                     package_unrelated, /*test_accept=*/false);
+    auto result_unrelated_submit = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                     package_unrelated, /*test_accept=*/false)).value();
     BOOST_CHECK(result_unrelated_submit.m_state.IsInvalid());
     BOOST_CHECK_EQUAL(result_unrelated_submit.m_state.GetResult(), PackageValidationResult::PCKG_POLICY);
     BOOST_CHECK_EQUAL(result_unrelated_submit.m_state.GetRejectReason(), "package-not-child-with-parents");
@@ -276,8 +276,8 @@ BOOST_FIXTURE_TEST_CASE(package_submission_tests, TestChain100Setup)
 
     // 3 Generations is not allowed.
     {
-        auto result_3gen_submit = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                    package_3gen, /*test_accept=*/false);
+        auto result_3gen_submit = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                    package_3gen, /*test_accept=*/false)).value();
         BOOST_CHECK(result_3gen_submit.m_state.IsInvalid());
         BOOST_CHECK_EQUAL(result_3gen_submit.m_state.GetResult(), PackageValidationResult::PCKG_POLICY);
         BOOST_CHECK_EQUAL(result_3gen_submit.m_state.GetRejectReason(), "package-not-child-with-parents");
@@ -292,8 +292,8 @@ BOOST_FIXTURE_TEST_CASE(package_submission_tests, TestChain100Setup)
         CMutableTransaction mtx_parent_invalid{mtx_parent};
         mtx_parent_invalid.vin[0].scriptWitness = bad_witness;
         CTransactionRef tx_parent_invalid = MakeTransactionRef(mtx_parent_invalid);
-        auto result_quit_early = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                   {tx_parent_invalid, tx_child}, /*test_accept=*/ false);
+        auto result_quit_early = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                   {tx_parent_invalid, tx_child}, /*test_accept=*/ false)).value();
         BOOST_CHECK(result_quit_early.m_state.IsInvalid());
         BOOST_CHECK_EQUAL(result_quit_early.m_state.GetResult(), PackageValidationResult::PCKG_TX);
         BOOST_CHECK(!result_quit_early.m_tx_results.empty());
@@ -314,8 +314,8 @@ BOOST_FIXTURE_TEST_CASE(package_submission_tests, TestChain100Setup)
     package_missing_parent.push_back(tx_parent);
     package_missing_parent.push_back(MakeTransactionRef(mtx_child));
     {
-        const auto result_missing_parent = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                             package_missing_parent, /*test_accept=*/false);
+        const auto result_missing_parent = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                             package_missing_parent, /*test_accept=*/false)).value();
         BOOST_CHECK(result_missing_parent.m_state.IsInvalid());
         BOOST_CHECK_EQUAL(result_missing_parent.m_state.GetResult(), PackageValidationResult::PCKG_POLICY);
         BOOST_CHECK_EQUAL(result_missing_parent.m_state.GetRejectReason(), "package-not-child-with-unconfirmed-parents");
@@ -324,8 +324,8 @@ BOOST_FIXTURE_TEST_CASE(package_submission_tests, TestChain100Setup)
 
     // Submit package with parent + child.
     {
-        const auto submit_parent_child = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                           package_parent_child, /*test_accept=*/false);
+        const auto submit_parent_child = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                           package_parent_child, /*test_accept=*/false)).value();
         expected_pool_size += 2;
         BOOST_CHECK_MESSAGE(submit_parent_child.m_state.IsValid(),
                             "Package validation unexpectedly failed: " << submit_parent_child.m_state.GetRejectReason());
@@ -350,8 +350,8 @@ BOOST_FIXTURE_TEST_CASE(package_submission_tests, TestChain100Setup)
 
     // Already-in-mempool transactions should be detected and de-duplicated.
     {
-        const auto submit_deduped = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                      package_parent_child, /*test_accept=*/false);
+        const auto submit_deduped = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                      package_parent_child, /*test_accept=*/false)).value();
         BOOST_CHECK_MESSAGE(submit_deduped.m_state.IsValid(),
                             "Package validation unexpectedly failed: " << submit_deduped.m_state.GetRejectReason());
         BOOST_CHECK_EQUAL(submit_deduped.m_tx_results.size(), package_parent_child.size());
@@ -426,8 +426,8 @@ BOOST_FIXTURE_TEST_CASE(package_witness_swap_tests, TestChain100Setup)
     // Try submitting Package1{parent, child1} and Package2{parent, child2} where the children are
     // same-txid-different-witness.
     {
-        const auto submit_witness1 = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                       {ptx_parent, ptx_child1}, /*test_accept=*/false);
+        const auto submit_witness1 = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                       {ptx_parent, ptx_child1}, /*test_accept=*/false)).value();
         BOOST_CHECK_MESSAGE(submit_witness1.m_state.IsValid(),
                             "Package validation unexpectedly failed: " << submit_witness1.m_state.GetRejectReason());
         BOOST_CHECK_EQUAL(submit_witness1.m_tx_results.size(), 2);
@@ -444,8 +444,8 @@ BOOST_FIXTURE_TEST_CASE(package_witness_swap_tests, TestChain100Setup)
         BOOST_CHECK(m_node.mempool->exists(GenTxid::Txid(ptx_child1->GetHash())));
 
         // Child2 would have been validated individually.
-        const auto submit_witness2 = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                       {ptx_parent, ptx_child2}, /*test_accept=*/false);
+        const auto submit_witness2 = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                       {ptx_parent, ptx_child2}, /*test_accept=*/false)).value();
         BOOST_CHECK_MESSAGE(submit_witness2.m_state.IsValid(),
                             "Package validation unexpectedly failed: " << submit_witness2.m_state.GetRejectReason());
         BOOST_CHECK_EQUAL(submit_witness2.m_tx_results.size(), 2);
@@ -462,8 +462,8 @@ BOOST_FIXTURE_TEST_CASE(package_witness_swap_tests, TestChain100Setup)
 
         // Deduplication should work when wtxid != txid. Submit package with the already-in-mempool
         // transactions again, which should not fail.
-        const auto submit_segwit_dedup = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                           {ptx_parent, ptx_child1}, /*test_accept=*/false);
+        const auto submit_segwit_dedup = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                           {ptx_parent, ptx_child1}, /*test_accept=*/false)).value();
         BOOST_CHECK_MESSAGE(submit_segwit_dedup.m_state.IsValid(),
                             "Package validation unexpectedly failed: " << submit_segwit_dedup.m_state.GetRejectReason());
         BOOST_CHECK_EQUAL(submit_segwit_dedup.m_tx_results.size(), 2);
@@ -491,8 +491,8 @@ BOOST_FIXTURE_TEST_CASE(package_witness_swap_tests, TestChain100Setup)
 
     // We already submitted child1 above.
     {
-        const auto submit_spend_ignored = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                            {ptx_child2, ptx_grandchild}, /*test_accept=*/false);
+        const auto submit_spend_ignored = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                            {ptx_child2, ptx_grandchild}, /*test_accept=*/false)).value();
         BOOST_CHECK_MESSAGE(submit_spend_ignored.m_state.IsValid(),
                             "Package validation unexpectedly failed: " << submit_spend_ignored.m_state.GetRejectReason());
         BOOST_CHECK_EQUAL(submit_spend_ignored.m_tx_results.size(), 2);
@@ -560,7 +560,7 @@ BOOST_FIXTURE_TEST_CASE(package_witness_swap_tests, TestChain100Setup)
     CTransactionRef ptx_parent2_v1 = MakeTransactionRef(mtx_parent2_v1);
     CTransactionRef ptx_parent2_v2 = MakeTransactionRef(mtx_parent2_v2);
     // Put parent2_v1 in the package, submit parent2_v2 to the mempool.
-    const MempoolAcceptResult parent2_v2_result = m_node.chainman->ProcessTransaction(ptx_parent2_v2);
+    const MempoolAcceptResult parent2_v2_result = Assert(m_node.chainman->ProcessTransaction(ptx_parent2_v2)).value();
     BOOST_CHECK(parent2_v2_result.m_result_type == MempoolAcceptResult::ResultType::VALID);
     package_mixed.push_back(ptx_parent2_v1);
 
@@ -596,7 +596,7 @@ BOOST_FIXTURE_TEST_CASE(package_witness_swap_tests, TestChain100Setup)
     // parent3 should be accepted
     // child should be accepted
     {
-        const auto mixed_result = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool, package_mixed, false);
+        const auto mixed_result = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool, package_mixed, false)).value();
         BOOST_CHECK_MESSAGE(mixed_result.m_state.IsValid(), mixed_result.m_state.GetRejectReason());
         BOOST_CHECK_EQUAL(mixed_result.m_tx_results.size(), package_mixed.size());
         auto it_parent1 = mixed_result.m_tx_results.find(ptx_parent1->GetWitnessHash());
@@ -669,8 +669,8 @@ BOOST_FIXTURE_TEST_CASE(package_cpfp_tests, TestChain100Setup)
     m_node.mempool->PrioritiseTransaction(tx_parent->GetHash(), child_value - coinbase_value);
     {
         BOOST_CHECK_EQUAL(m_node.mempool->size(), expected_pool_size);
-        const auto submit_cpfp_deprio = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                   package_cpfp, /*test_accept=*/ false);
+        const auto submit_cpfp_deprio = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                   package_cpfp, /*test_accept=*/ false)).value();
         BOOST_CHECK_EQUAL(submit_cpfp_deprio.m_state.GetResult(), PackageValidationResult::PCKG_TX);
         BOOST_CHECK(submit_cpfp_deprio.m_state.IsInvalid());
         BOOST_CHECK_EQUAL(submit_cpfp_deprio.m_tx_results.find(tx_parent->GetWitnessHash())->second.m_state.GetResult(),
@@ -689,8 +689,8 @@ BOOST_FIXTURE_TEST_CASE(package_cpfp_tests, TestChain100Setup)
     // child pays enough for the package feerate to meet the threshold.
     {
         BOOST_CHECK_EQUAL(m_node.mempool->size(), expected_pool_size);
-        const auto submit_cpfp = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                   package_cpfp, /*test_accept=*/ false);
+        const auto submit_cpfp = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                   package_cpfp, /*test_accept=*/ false)).value();
         expected_pool_size += 2;
         BOOST_CHECK_MESSAGE(submit_cpfp.m_state.IsValid(),
                             "Package validation unexpectedly failed: " << submit_cpfp.m_state.GetRejectReason());
@@ -745,8 +745,8 @@ BOOST_FIXTURE_TEST_CASE(package_cpfp_tests, TestChain100Setup)
     // Cheap package should fail with package-fee-too-low.
     {
         BOOST_CHECK_EQUAL(m_node.mempool->size(), expected_pool_size);
-        const auto submit_package_too_low = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                   package_still_too_low, /*test_accept=*/false);
+        const auto submit_package_too_low = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                   package_still_too_low, /*test_accept=*/false)).value();
         BOOST_CHECK_MESSAGE(submit_package_too_low.m_state.IsInvalid(), "Package validation unexpectedly succeeded");
         BOOST_CHECK_EQUAL(submit_package_too_low.m_state.GetResult(), PackageValidationResult::PCKG_POLICY);
         BOOST_CHECK_EQUAL(submit_package_too_low.m_state.GetRejectReason(), "package-fee-too-low");
@@ -758,8 +758,8 @@ BOOST_FIXTURE_TEST_CASE(package_cpfp_tests, TestChain100Setup)
     m_node.mempool->PrioritiseTransaction(tx_child_cheap->GetHash(), 1 * COIN);
     // Now that the child's fees have "increased" by 1 BTC, the cheap package should succeed.
     {
-        const auto submit_prioritised_package = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                                  package_still_too_low, /*test_accept=*/false);
+        const auto submit_prioritised_package = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                                  package_still_too_low, /*test_accept=*/false)).value();
         expected_pool_size += 2;
         BOOST_CHECK_MESSAGE(submit_prioritised_package.m_state.IsValid(),
                 "Package validation unexpectedly failed" << submit_prioritised_package.m_state.GetRejectReason());
@@ -805,8 +805,8 @@ BOOST_FIXTURE_TEST_CASE(package_cpfp_tests, TestChain100Setup)
     // Parent pays 1 BTC and child pays none. The parent should be accepted without the child.
     {
         BOOST_CHECK_EQUAL(m_node.mempool->size(), expected_pool_size);
-        const auto submit_rich_parent = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
-                                                          package_rich_parent, /*test_accept=*/false);
+        const auto submit_rich_parent = Assert(ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool,
+                                                          package_rich_parent, /*test_accept=*/false)).value();
         expected_pool_size += 1;
         BOOST_CHECK_MESSAGE(submit_rich_parent.m_state.IsInvalid(), "Package validation unexpectedly succeeded");
 

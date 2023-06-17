@@ -82,7 +82,7 @@ CreateAndActivateUTXOSnapshot(
             chain.CoinsTip().SetBestBlock(gen_hash);
             chain.setBlockIndexCandidates.insert(node.chainman->m_blockman.LookupBlockIndex(gen_hash));
             chain.LoadChainTip();
-            node.chainman->MaybeRebalanceCaches();
+            Assert(node.chainman->MaybeRebalanceCaches());
         }
         BlockValidationState state;
         if (auto res{node.chainman->ActiveChainstate().ActivateBestChain(state)}; !res || !res.value()) {
