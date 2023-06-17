@@ -1507,7 +1507,9 @@ static RPCHelpMan preciousblock()
     }
 
     BlockValidationState state;
-    chainman.ActiveChainstate().PreciousBlock(state, pblockindex);
+    if (auto ret = chainman.ActiveChainstate().PreciousBlock(state, pblockindex); !ret) {
+        AbortNode(ErrorString(ret).original);
+    }
 
     if (!state.IsValid()) {
         throw JSONRPCError(RPC_DATABASE_ERROR, state.ToString());
@@ -1547,7 +1549,9 @@ static RPCHelpMan invalidateblock()
     chainman.ActiveChainstate().InvalidateBlock(state, pblockindex);
 
     if (state.IsValid()) {
-        chainman.ActiveChainstate().ActivateBestChain(state);
+        if (auto ret = chainman.ActiveChainstate().ActivateBestChain(state); !ret) {
+            AbortNode(ErrorString(ret).original);
+        }
     }
 
     if (!state.IsValid()) {
@@ -1588,7 +1592,9 @@ static RPCHelpMan reconsiderblock()
     }
 
     BlockValidationState state;
-    chainman.ActiveChainstate().ActivateBestChain(state);
+    if (auto ret = chainman.ActiveChainstate().ActivateBestChain(state); !ret) {
+        AbortNode(ErrorString(ret).original);
+    }
 
     if (!state.IsValid()) {
         throw JSONRPCError(RPC_DATABASE_ERROR, state.ToString());
