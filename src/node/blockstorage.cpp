@@ -950,7 +950,9 @@ util::Result<void, FatalCondition> ThreadImport(ChainstateManager& chainman, std
             return {};
         }
     } // End scope of ImportingNow
-    chainman.ActiveChainstate().LoadMempool(mempool_path);
+    if (auto res = chainman.ActiveChainstate().LoadMempool(mempool_path); !res) {
+        return res;
+    }
     g_indexes_ready_to_sync = true;
     return {};
 }

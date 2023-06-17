@@ -286,7 +286,9 @@ epilogue:
         LOCK(cs_main);
         for (Chainstate* chainstate : chainman.GetAll()) {
             if (chainstate->CanFlushToDisk()) {
-                chainstate->ForceFlushStateToDisk();
+                if (auto res = chainstate->ForceFlushStateToDisk(); !res) {
+                    std::cout << "Error while flushing during shutdown: " << ErrorString(res).original;
+                }
                 chainstate->ResetCoinsViews();
             }
         }

@@ -810,7 +810,9 @@ static RPCHelpMan pruneblockchain()
         height = chainHeight - MIN_BLOCKS_TO_KEEP;
     }
 
-    PruneBlockFilesManual(active_chainstate, height);
+    if (auto res = PruneBlockFilesManual(active_chainstate, height); !res) {
+        AbortNode(ErrorString(res).original);
+    }
     const CBlockIndex& block{*CHECK_NONFATAL(active_chain.Tip())};
     const CBlockIndex* last_block{active_chainstate.m_blockman.GetFirstStoredBlock(block)};
 
@@ -926,7 +928,9 @@ static RPCHelpMan gettxoutsetinfo()
     NodeContext& node = EnsureAnyNodeContext(request.context);
     ChainstateManager& chainman = EnsureChainman(node);
     Chainstate& active_chainstate = chainman.ActiveChainstate();
-    active_chainstate.ForceFlushStateToDisk();
+    if (auto res = active_chainstate.ForceFlushStateToDisk(); !res) {
+        AbortNode(ErrorString(res).original);
+    }
 
     CCoinsView* coins_view;
     BlockManager* blockman;
@@ -1546,7 +1550,9 @@ static RPCHelpMan invalidateblock()
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
         }
     }
-    chainman.ActiveChainstate().InvalidateBlock(state, pblockindex);
+    if (auto res = chainman.ActiveChainstate().InvalidateBlock(state, pblockindex); !res) {
+        AbortNode(ErrorString(res).original);
+    }
 
     if (state.IsValid()) {
         if (auto ret = chainman.ActiveChainstate().ActivateBestChain(state); !ret) {
@@ -2213,7 +2219,9 @@ static RPCHelpMan scantxoutset()
             ChainstateManager& chainman = EnsureChainman(node);
             LOCK(cs_main);
             Chainstate& active_chainstate = chainman.ActiveChainstate();
-            active_chainstate.ForceFlushStateToDisk();
+            if (auto res = active_chainstate.ForceFlushStateToDisk(); !res) {
+                AbortNode(ErrorString(res).original);
+            }
             pcursor = CHECK_NONFATAL(active_chainstate.CoinsDB().Cursor());
             tip = CHECK_NONFATAL(active_chainstate.m_chain.Tip());
         }
@@ -2658,7 +2666,9 @@ UniValue CreateUTXOSnapshot(
         //
         LOCK(::cs_main);
 
-        chainstate.ForceFlushStateToDisk();
+        if (auto res = chainstate.ForceFlushStateToDisk(); !res) {
+            AbortNode(ErrorString(res).original);
+        }
 
         maybe_stats = GetUTXOStats(&chainstate.CoinsDB(), chainstate.m_blockman, CoinStatsHashType::HASH_SERIALIZED, node.rpc_interruption_point);
         if (!maybe_stats) {

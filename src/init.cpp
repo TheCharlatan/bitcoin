@@ -290,7 +290,9 @@ void Shutdown(NodeContext& node)
         LOCK(cs_main);
         for (Chainstate* chainstate : node.chainman->GetAll()) {
             if (chainstate->CanFlushToDisk()) {
-                chainstate->ForceFlushStateToDisk();
+                if (auto res = chainstate->ForceFlushStateToDisk(); !res) {
+                    LogPrintf("Error flushing state during shutdown: %s\n", ErrorString(res).original);
+                }
             }
         }
     }
@@ -321,7 +323,9 @@ void Shutdown(NodeContext& node)
         LOCK(cs_main);
         for (Chainstate* chainstate : node.chainman->GetAll()) {
             if (chainstate->CanFlushToDisk()) {
-                chainstate->ForceFlushStateToDisk();
+                if (auto res = chainstate->ForceFlushStateToDisk(); !res) {
+                    LogPrintf("Error flushing state during shutdown: %s\n", ErrorString(res).original);
+                }
                 chainstate->ResetCoinsViews();
             }
         }
@@ -1621,7 +1625,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             LOCK(cs_main);
             for (Chainstate* chainstate : chainman.GetAll()) {
                 uiInterface.InitMessage(_("Pruning blockstore…").translated);
-                chainstate->PruneAndFlush();
+                if (auto res = chainstate->PruneAndFlush(); !res) {
+                    InitError(ErrorString(res));
+                    return false;
+                }
             }
         }
     } else {
