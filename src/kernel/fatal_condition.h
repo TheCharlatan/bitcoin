@@ -13,7 +13,7 @@ enum class FatalCondition {
     ConnectBestBlockFailed,
     DisconnectBlockFailed,
     NoChainstatePaths,
-
+    ReadBlockFailed,
     SnapshotAlreadyValidated,
 
     // The blockhash of the current tip of the background validation chainstate does
