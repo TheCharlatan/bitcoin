@@ -9,6 +9,7 @@ enum class FatalCondition {
     BlockFileImportSystemError,
     ChainstateRenameFailed,
     ConnectBestBlockFailed,
+    DisconnectBlockFailed,
     NoChainstatePaths,
     SnapshotAlreadyValidated,
     SnapshotBaseBlockhashMismatch,
