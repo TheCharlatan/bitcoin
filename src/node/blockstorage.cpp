@@ -1146,6 +1146,8 @@ util::Result<void, FatalCondition> ImportBlocks(ChainstateManager& chainman, std
 {
     ScheduleBatchPriority();
 
+    util::Result<void, FatalCondition> result{};
+
     {
         ImportingNow imp{chainman.m_blockman.m_importing};
 
@@ -1170,7 +1172,7 @@ util::Result<void, FatalCondition> ImportBlocks(ChainstateManager& chainman, std
                 }
                 if (chainman.m_interrupt) {
                     LogPrintf("Shutdown requested. Exit %s\n", __func__);
-                    return {};
+                    return result;
                 }
                 nFile++;
             }
@@ -1191,7 +1193,7 @@ util::Result<void, FatalCondition> ImportBlocks(ChainstateManager& chainman, std
                 }
                 if (chainman.m_interrupt) {
                     LogPrintf("Shutdown requested. Exit %s\n", __func__);
-                    return {};
+                    return result;
                 }
             } else {
                 LogPrintf("Warning: Could not open blocks file %s\n", fs::PathToString(path));
@@ -1205,12 +1207,14 @@ util::Result<void, FatalCondition> ImportBlocks(ChainstateManager& chainman, std
         // the relevant pointers before the ABC call.
         for (Chainstate* chainstate : WITH_LOCK(::cs_main, return chainman.GetAll())) {
             BlockValidationState state;
-            if (!chainstate->ActivateBestChain(state, nullptr)) {
-                return {util::Error{Untranslated(strprintf("Failed to connect best block (%s)", state.ToString()))}, FatalCondition::ConnectBestBlockFailed};
+            auto res{chainstate->ActivateBestChain(state, nullptr)};
+            if (!res || !res.value()) {
+                return res;
             }
+            result.MoveMessages(res);
         }
     } // End of scope of ImportingNow
-    return {};
+    return result;
 }
 
 std::ostream& operator<<(std::ostream& os, const BlockfileType& type) {

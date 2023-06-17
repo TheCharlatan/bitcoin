@@ -2903,10 +2903,12 @@ public:
  *
  * The block is added to connectTrace if connection succeeds.
  */
-bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool)
+util::Result<bool, FatalCondition> Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool)
 {
     AssertLockHeld(cs_main);
     if (m_mempool) AssertLockHeld(m_mempool->cs);
+
+    util::Result<bool, FatalCondition> result{true};
 
     assert(pindexNew->pprev == m_chain.Tip());
     // Read block from disk.
@@ -2915,7 +2917,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     if (!pblock) {
         std::shared_ptr<CBlock> pblockNew = std::make_shared<CBlock>();
         if (!m_blockman.ReadBlockFromDisk(*pblockNew, *pindexNew)) {
-            return FatalError(m_chainman.GetNotifications(), state, "Failed to read block");
+            return ValidationFatalError(state, "Failed to read block", FatalCondition::ReadBlockFailed);
         }
         pthisBlock = pblockNew;
     } else {
@@ -2994,11 +2996,12 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
         if (auto err = m_chainman.MaybeCompleteSnapshotValidation(); !err) {
             // FIXME: Add proper abort handling.
             LogPrintf("Chainstate snapshot validation failed.");
+            result.Set({util::Error{Untranslated("Error during activate best chain")}, err.GetFailure()});
         }
     }
 
     connectTrace.BlockConnected(pindexNew, std::move(pthisBlock));
-    return true;
+    return result;
 }
 
 /**
@@ -3082,8 +3085,9 @@ void Chainstate::PruneBlockIndexCandidates() {
  *
  * @returns true unless a system error occurred
  */
-bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace)
+util::Result<void, FatalCondition> Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace)
 {
+    util::Result<void, FatalCondition> result{};
     AssertLockHeld(cs_main);
     if (m_mempool) AssertLockHeld(m_mempool->cs);
 
@@ -3102,8 +3106,8 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
             // If we're unable to disconnect a block during normal operation,
             // then that is a failure of our local system -- we should abort
             // rather than stay on a less work chain.
-            FatalError(m_chainman.GetNotifications(), state, "Failed to disconnect block; see debug.log for details");
-            return false;
+            result.Set(ValidationFatalError(state, "Failed to disconnect block; see debug.log for details", FatalCondition::DisconnectBlockFailed));
+            return result;
         }
         fBlocksDisconnected = true;
     }
@@ -3127,7 +3131,17 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
 
         // Connect new blocks.
         for (CBlockIndex* pindexConnect : reverse_iterate(vpindexToConnect)) {
-            if (!ConnectTip(state, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace, disconnectpool)) {
+            auto res{ConnectTip(state, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace, disconnectpool)};
+            if (!res) {
+                // A system error occurred (disk space, database error, ...).
+                // Make the mempool consistent with the current tip, just in case
+                // any observers try to use it before shutdown.
+                MaybeUpdateMempoolForReorg(disconnectpool, false);
+                result.Set({util::Error{Untranslated("Error during activate best chain")}, res.GetFailure()});
+                return result;
+            }
+            result.MoveMessages(res);
+            if (!res.value()) {
                 if (state.IsInvalid()) {
                     // The block violates a consensus rule.
                     if (state.GetResult() != BlockValidationResult::BLOCK_MUTATED) {
@@ -3142,7 +3156,8 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
                     // Make the mempool consistent with the current tip, just in case
                     // any observers try to use it before shutdown.
                     MaybeUpdateMempoolForReorg(disconnectpool, false);
-                    return false;
+                    result.Set({util::Error{Untranslated("Error during activate best chain")}, FatalCondition::SystemError});
+                    return result;
                 }
             } else {
                 PruneBlockIndexCandidates();
@@ -3164,7 +3179,7 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
 
     CheckForkWarningConditions();
 
-    return true;
+    return result;
 }
 
 static SynchronizationState GetSynchronizationState(bool init)
@@ -3205,8 +3220,9 @@ static void LimitValidationInterfaceQueue() LOCKS_EXCLUDED(cs_main) {
     }
 }
 
-bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<const CBlock> pblock)
+util::Result<bool, FatalCondition> Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<const CBlock> pblock)
 {
+    util::Result<bool, FatalCondition> result{true};
     AssertLockNotHeld(m_chainstate_mutex);
 
     // Note that while we're often called here from ProcessNewBlock, this is
@@ -3264,10 +3280,14 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
 
                 bool fInvalidFound = false;
                 std::shared_ptr<const CBlock> nullBlockPtr;
-                if (!ActivateBestChainStep(state, pindexMostWork, pblock && pblock->GetHash() == pindexMostWork->GetBlockHash() ? pblock : nullBlockPtr, fInvalidFound, connectTrace)) {
+                auto res{ActivateBestChainStep(state, pindexMostWork, pblock && pblock->GetHash() == pindexMostWork->GetBlockHash() ? pblock : nullBlockPtr, fInvalidFound, connectTrace)};
+                if (!res) {
                     // A system error occurred
-                    return false;
+                    result.Set({util::Error{}, util::MoveMessages(res), res.GetFailure()});
+                    return result;
                 }
+                result.MoveMessages(res);
+
                 blocks_connected = true;
 
                 if (fInvalidFound) {
@@ -3290,7 +3310,10 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                     break;
                 }
             } while (!m_chain.Tip() || (starting_tip && CBlockIndexWorkComparator()(m_chain.Tip(), starting_tip)));
-            if (!blocks_connected) return true;
+            if (!blocks_connected) {
+                result.Set(true);
+                return result;
+            }
 
             const CBlockIndex* pindexFork = m_chain.FindFork(starting_tip);
             bool still_in_ibd = m_chainman.IsInitialBlockDownload();
@@ -3351,13 +3374,15 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
 
     // Write changes periodically to disk, after relay.
     if (!FlushStateToDisk(state, FlushStateMode::PERIODIC)) {
-        return false;
+        result.Set(false);
+        return result;
     }
 
-    return true;
+    result.Set(true);
+    return result;
 }
 
-bool Chainstate::PreciousBlock(BlockValidationState& state, CBlockIndex* pindex)
+util::Result<bool, FatalCondition> Chainstate::PreciousBlock(BlockValidationState& state, CBlockIndex* pindex)
 {
     AssertLockNotHeld(m_chainstate_mutex);
     AssertLockNotHeld(::cs_main);
@@ -4211,16 +4236,20 @@ util::Result<bool, FatalCondition> ChainstateManager::ProcessNewBlock(const std:
     NotifyHeaderTip(*this);
 
     BlockValidationState state; // Only used to report errors, not invalidity - ignore it
-    if (!ActiveChainstate().ActivateBestChain(state, block)) {
-        result.Set(error("%s: ActivateBestChain failed (%s)", __func__, state.ToString()));
+    result.Set(ActiveChainstate().ActivateBestChain(state, block));
+    if (!result || !result.value()) {
+        error("%s: ActivateBestChain failed (%s)", __func__, state.ToString());
         return result;
     }
 
     Chainstate* bg_chain{WITH_LOCK(cs_main, return BackgroundSyncInProgress() ? m_ibd_chainstate.get() : nullptr)};
     BlockValidationState bg_state;
-    if (bg_chain && !bg_chain->ActivateBestChain(bg_state, block)) {
-        result.Set(error("%s: [background] ActivateBestChain failed (%s)", __func__, bg_state.ToString()));
-        return result;
+    if (bg_chain) {
+        result.Set(bg_chain->ActivateBestChain(bg_state, block));
+        if (!result || !result.value()) {
+            error("%s: [background] ActivateBestChain failed (%s)", __func__, bg_state.ToString());
+            return result;
+        }
     }
 
     return result;
@@ -4754,7 +4783,9 @@ util::Result<void, FatalCondition> ChainstateManager::LoadExternalBlockFile(
                     bool genesis_activation_failure = false;
                     for (auto c : GetAll()) {
                         BlockValidationState state;
-                        if (!c->ActivateBestChain(state, nullptr)) {
+                        auto res{c->ActivateBestChain(state, nullptr)};
+                        result.MoveMessages(res);
+                        if (!res || !res.value()) {
                             genesis_activation_failure = true;
                             break;
                         }
@@ -4775,7 +4806,9 @@ util::Result<void, FatalCondition> ChainstateManager::LoadExternalBlockFile(
                     bool activation_failure = false;
                     for (auto c : GetAll()) {
                         BlockValidationState state;
-                        if (!c->ActivateBestChain(state, pblock)) {
+                        auto res{c->ActivateBestChain(state, pblock)};
+                        result.MoveMessages(res);
+                        if (!res || !res.value()) {
                             LogPrint(BCLog::REINDEX, "failed to activate chain (%s)\n", state.ToString());
                             activation_failure = true;
                             break;
