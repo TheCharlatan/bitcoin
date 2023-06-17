@@ -1848,6 +1848,12 @@ bool AbortNode(BlockValidationState& state, const std::string& strMessage, const
     return state.Error(strMessage);
 }
 
+util::Result<bool, FatalCondition> ValidationFatalError(BlockValidationState& state, const std::string& strMessage, FatalCondition condition)
+{
+    state.Error(strMessage);
+    return {util::Error{Untranslated(strMessage)}, condition};
+}
+
 /**
  * Restore the UTXO in a Coin at a given COutPoint
  * @param undo The Coin to be restored.
@@ -3898,7 +3904,7 @@ void ChainstateManager::ReportHeadersPresync(const arith_uint256& work, int64_t 
 }
 
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
-bool Chainstate::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock, bool min_pow_checked)
+util::Result<bool, FatalCondition> Chainstate::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock, bool min_pow_checked)
 {
     const CBlock& block = *pblock;
 
@@ -3973,7 +3979,7 @@ bool Chainstate::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockV
         }
         ReceivedBlockTransactions(block, pindex, blockPos);
     } catch (const std::runtime_error& e) {
-        return AbortNode(state, std::string("System error: ") + e.what());
+        return ValidationFatalError(state, std::string("System error: ") + e.what(), FatalCondition::SystemError);
     }
 
     FlushStateToDisk(state, FlushStateMode::NONE);
@@ -3983,7 +3989,7 @@ bool Chainstate::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockV
     return true;
 }
 
-bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& block, bool force_processing, bool min_pow_checked, bool* new_block)
+util::Result<bool, FatalCondition> ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& block, bool force_processing, bool min_pow_checked, bool* new_block)
 {
     AssertLockNotHeld(cs_main);
 
@@ -4004,7 +4010,11 @@ bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& blo
         bool ret = CheckBlock(*block, state, GetConsensus());
         if (ret) {
             // Store to disk
-            ret = ActiveChainstate().AcceptBlock(block, state, &pindex, force_processing, nullptr, new_block, min_pow_checked);
+            auto res{ActiveChainstate().AcceptBlock(block, state, &pindex, force_processing, nullptr, new_block, min_pow_checked)};
+            if (!res) {
+                return res;
+            }
+            ret = res.value();
         }
         if (!ret) {
             GetMainSignals().BlockChecked(*block, state);
@@ -4585,7 +4595,11 @@ util::Result<void, FatalCondition> Chainstate::LoadExternalBlockFile(
                         nRewind = blkdat.GetPos();
 
                         BlockValidationState state;
-                        if (AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, true)) {
+                        auto res{AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, true)};
+                        if (!res) {
+                            return res;
+                        }
+                        if (res.value()) {
                             nLoaded++;
                         }
                         if (state.IsError()) {
@@ -4638,7 +4652,11 @@ util::Result<void, FatalCondition> Chainstate::LoadExternalBlockFile(
                                     head.ToString());
                             LOCK(cs_main);
                             BlockValidationState dummy;
-                            if (AcceptBlock(pblockrecursive, dummy, nullptr, true, &it->second, nullptr, true)) {
+                            auto res{AcceptBlock(pblockrecursive, dummy, nullptr, true, &it->second, nullptr, true)};
+                            if (!res) {
+                                return res;
+                            }
+                            if (res.value()) {
                                 nLoaded++;
                                 queue.push_back(pblockrecursive->GetHash());
                             }
