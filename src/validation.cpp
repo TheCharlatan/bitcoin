@@ -2781,7 +2781,7 @@ public:
  *
  * The block is added to connectTrace if connection succeeds.
  */
-bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool)
+util::Result<bool, FatalCondition> Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool)
 {
     AssertLockHeld(cs_main);
     if (m_mempool) AssertLockHeld(m_mempool->cs);
@@ -2793,7 +2793,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     if (!pblock) {
         std::shared_ptr<CBlock> pblockNew = std::make_shared<CBlock>();
         if (!m_blockman.ReadBlockFromDisk(*pblockNew, *pindexNew)) {
-            return AbortNode(state, "Failed to read block");
+            return {util::Error{Untranslated("Failed to read block.")}, FatalCondition::ReadBlockFailed};
         }
         pthisBlock = pblockNew;
     } else {
@@ -3002,23 +3002,23 @@ util::Result<bool, FatalCondition> Chainstate::ActivateBestChainStep(BlockValida
 
         // Connect new blocks.
         for (CBlockIndex* pindexConnect : reverse_iterate(vpindexToConnect)) {
-            if (!ConnectTip(state, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace, disconnectpool)) {
-                if (state.IsInvalid()) {
-                    // The block violates a consensus rule.
-                    if (state.GetResult() != BlockValidationResult::BLOCK_MUTATED) {
-                        InvalidChainFound(vpindexToConnect.front());
-                    }
-                    state = BlockValidationState();
-                    fInvalidFound = true;
-                    fContinue = false;
-                    break;
-                } else {
-                    // A system error occurred (disk space, database error, ...).
-                    // Make the mempool consistent with the current tip, just in case
-                    // any observers try to use it before shutdown.
-                    MaybeUpdateMempoolForReorg(disconnectpool, false);
-                    return false;
+            auto res = ConnectTip(state, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace, disconnectpool);
+            if (!res) {
+                // A system error occurred (disk space, database error, ...).
+                // Make the mempool consistent with the current tip, just in case
+                // any observers try to use it before shutdown.
+                MaybeUpdateMempoolForReorg(disconnectpool, false);
+                return res;
+            }
+            if (!res.value()) {
+                // The block violates a consensus rule.
+                if (state.GetResult() != BlockValidationResult::BLOCK_MUTATED) {
+                    InvalidChainFound(vpindexToConnect.front());
                 }
+                state = BlockValidationState();
+                fInvalidFound = true;
+                fContinue = false;
+                break;
             } else {
                 PruneBlockIndexCandidates();
                 if (!pindexOldTip || m_chain.Tip()->nChainWork > pindexOldTip->nChainWork) {
