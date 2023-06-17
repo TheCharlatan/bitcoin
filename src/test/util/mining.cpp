@@ -97,7 +97,7 @@ COutPoint MineBlock(const NodeContext& node, std::shared_ptr<CBlock>& block)
     bool new_block;
     BlockValidationStateCatcher bvsc{block->GetHash()};
     RegisterValidationInterface(&bvsc);
-    const bool processed{chainman.ProcessNewBlock(block, true, true, &new_block)};
+    const bool processed{chainman.ProcessNewBlock(block, true, true, &new_block).value()};
     const bool duplicate{!new_block && processed};
     assert(!duplicate);
     UnregisterValidationInterface(&bvsc);
