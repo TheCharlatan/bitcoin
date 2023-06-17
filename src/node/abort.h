@@ -8,8 +8,10 @@
 #include <kernel/fatal_error.h>
 #include <util/result.h>
 #include <util/translation.h>
+#include <validation.h>
 
 #include <atomic>
+#include <optional>
 #include <string>
 
 namespace util {
@@ -18,6 +20,16 @@ class SignalInterrupt;
 
 namespace node {
 void AbortNode(util::SignalInterrupt* shutdown, std::atomic<int>& exit_status, const std::string& debug_message, const bilingual_str& user_message = {});
+
+template <typename T>
+std::optional<T> HandleFatalError(const util::Result<T, kernel::FatalError> result, util::SignalInterrupt* shutdown, std::atomic<int>& exit_status)
+{
+    if (!result.GetErrors().empty() || !result) {
+        AbortNode(shutdown, exit_status, ErrorString(result).original, ErrorString(result));
+    }
+    if (!result) return std::nullopt;
+    return result.value();
+}
 
 template <typename T>
 [[nodiscard]] T CheckFatal(const util::Result<T, kernel::FatalError> result, util::SignalInterrupt* shutdown, std::atomic<int>& exit_status)
