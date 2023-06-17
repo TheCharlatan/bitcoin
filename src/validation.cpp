@@ -287,11 +287,11 @@ static bool IsCurrentForFeeEstimation(Chainstate& active_chainstate) EXCLUSIVE_L
     return true;
 }
 
-void Chainstate::MaybeUpdateMempoolForReorg(
+util::Result<void, FatalCondition> Chainstate::MaybeUpdateMempoolForReorg(
     DisconnectedBlockTransactions& disconnectpool,
     bool fAddToMempool)
 {
-    if (!m_mempool) return;
+    if (!m_mempool) return {};
 
     AssertLockHeld(cs_main);
     AssertLockHeld(m_mempool->cs);
@@ -305,10 +305,12 @@ void Chainstate::MaybeUpdateMempoolForReorg(
     auto it = disconnectpool.queuedTx.get<insertion_order>().rbegin();
     while (it != disconnectpool.queuedTx.get<insertion_order>().rend()) {
         // ignore validation errors in resurrected transactions
-        if (!fAddToMempool || (*it)->IsCoinBase() ||
-            AcceptToMemoryPool(*this, *it, GetTime(),
-                /*bypass_limits=*/true, /*test_accept=*/false).m_result_type !=
-                    MempoolAcceptResult::ResultType::VALID) {
+        auto res{AcceptToMemoryPool(*this, *it, GetTime(),
+                                      /*bypass_limits=*/true, /*test_accept=*/false)};
+        if (!res) {
+            return res;
+        }
+        if (!fAddToMempool || (*it)->IsCoinBase() || res.value().m_result_type != MempoolAcceptResult::ResultType::VALID) {
             // If the transaction doesn't make it in to the mempool, remove any
             // transactions that depend on it (which would now be orphans).
             m_mempool->removeRecursive(**it, MemPoolRemovalReason::REORG);
@@ -379,6 +381,7 @@ void Chainstate::MaybeUpdateMempoolForReorg(
     m_mempool->removeForReorg(m_chain, filter_final_and_mature);
     // Re-limit mempool size, in case we added any transactions
     LimitMempoolSize(*m_mempool, this->CoinsTip());
+    return {};
 }
 
 /**
@@ -1484,7 +1487,7 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptPackage(const Package& package, 
 
 } // anon namespace
 
-MempoolAcceptResult AcceptToMemoryPool(Chainstate& active_chainstate, const CTransactionRef& tx,
+util::Result<MempoolAcceptResult, FatalCondition> AcceptToMemoryPool(Chainstate& active_chainstate, const CTransactionRef& tx,
                                        int64_t accept_time, bool bypass_limits, bool test_accept)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
@@ -1511,11 +1514,13 @@ MempoolAcceptResult AcceptToMemoryPool(Chainstate& active_chainstate, const CTra
     }
     // After we've (potentially) uncached entries, ensure our coins cache is still within its size limits
     BlockValidationState state_dummy;
-    active_chainstate.FlushStateToDisk(state_dummy, FlushStateMode::PERIODIC);
+    if (auto res{active_chainstate.FlushStateToDisk(state_dummy, FlushStateMode::PERIODIC)}; !res) {
+        return {util::Error{ErrorString(res)}, res.GetFailure()};
+    }
     return result;
 }
 
-PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxMemPool& pool,
+util::Result<PackageMempoolAcceptResult, FatalCondition> ProcessNewPackage(Chainstate& active_chainstate, CTxMemPool& pool,
                                                    const Package& package, bool test_accept)
 {
     AssertLockHeld(cs_main);
@@ -1543,7 +1548,9 @@ PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxM
     }
     // Ensure the coins cache is still within limits.
     BlockValidationState state_dummy;
-    active_chainstate.FlushStateToDisk(state_dummy, FlushStateMode::PERIODIC);
+    if (auto res{active_chainstate.FlushStateToDisk(state_dummy, FlushStateMode::PERIODIC)}; !res) {
+        return {util::Error{ErrorString(res)}, res.GetFailure()};
+    }
     return result;
 }
 
@@ -2425,7 +2432,7 @@ CoinsCacheSizeState Chainstate::GetCoinsCacheSizeState(
     return CoinsCacheSizeState::OK;
 }
 
-bool Chainstate::FlushStateToDisk(
+util::Result<bool, FatalCondition> Chainstate::FlushStateToDisk(
     BlockValidationState &state,
     FlushStateMode mode,
     int nManualPruneHeight)
@@ -2505,7 +2512,7 @@ bool Chainstate::FlushStateToDisk(
         if (fDoFullFlush || fPeriodicWrite) {
             // Ensure we can write block index
             if (!CheckDiskSpace(m_blockman.m_opts.blocks_dir)) {
-                return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
+                return ValidationFatalError(state, "Disk space is too low!", FatalCondition::DiskSpaceTooLow);
             }
             {
                 LOG_TIME_MILLIS_WITH_CATEGORY("write block and undo data to disk", BCLog::BENCH);
@@ -2521,7 +2528,7 @@ bool Chainstate::FlushStateToDisk(
                 LOG_TIME_MILLIS_WITH_CATEGORY("write block index to disk", BCLog::BENCH);
 
                 if (!m_blockman.WriteBlockIndexDB()) {
-                    return AbortNode(state, "Failed to write to block index database");
+                    return ValidationFatalError(state, "Failed to write to block index database", FatalCondition::BlockIndexWriteFailed);
                 }
             }
             // Finally remove any pruned files
@@ -2543,11 +2550,12 @@ bool Chainstate::FlushStateToDisk(
             // an overestimation, as most will delete an existing entry or
             // overwrite one. Still, use a conservative safety factor of 2.
             if (!CheckDiskSpace(m_chainman.m_options.datadir, 48 * 2 * 2 * CoinsTip().GetCacheSize())) {
-                return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
+                return ValidationFatalError(state, "Disk space is too low!", FatalCondition::DiskSpaceTooLow);
             }
             // Flush the chainstate (which may refer to block index entries).
-            if (!CoinsTip().Flush())
-                return AbortNode(state, "Failed to write to coin database");
+            if (!CoinsTip().Flush()) {
+                return ValidationFatalError(state, "Failed to write coin database", FatalCondition::CoinDatabaseWriteFailed);
+            }
             m_last_flush = nNow;
             full_flush_completed = true;
             TRACE5(utxocache, flush,
@@ -2563,26 +2571,36 @@ bool Chainstate::FlushStateToDisk(
         GetMainSignals().ChainStateFlushed(m_chain.GetLocator());
     }
     } catch (const std::runtime_error& e) {
-        return AbortNode(state, std::string("System error while flushing: ") + e.what());
+        return ValidationFatalError(state, std::string("System error while flushing: ") + e.what(), FatalCondition::SystemError);
     }
     return true;
 }
 
-void Chainstate::ForceFlushStateToDisk()
+util::Result<void, FatalCondition> Chainstate::ForceFlushStateToDisk()
 {
     BlockValidationState state;
-    if (!this->FlushStateToDisk(state, FlushStateMode::ALWAYS)) {
+    auto res{this->FlushStateToDisk(state, FlushStateMode::ALWAYS)};
+    if (!res) {
+        return {util::Error{ErrorString(res)}, res.GetFailure()};
+    }
+    if (!res.value()) {
         LogPrintf("%s: failed to flush state (%s)\n", __func__, state.ToString());
     }
+    return {};
 }
 
-void Chainstate::PruneAndFlush()
+util::Result<void, FatalCondition> Chainstate::PruneAndFlush()
 {
     BlockValidationState state;
     m_blockman.m_check_for_pruning = true;
-    if (!this->FlushStateToDisk(state, FlushStateMode::NONE)) {
+    auto res{this->FlushStateToDisk(state, FlushStateMode::NONE)};
+    if (!res) {
+        return {util::Error{ErrorString(res)}, res.GetFailure()};
+    }
+    if (!res.value()) {
         LogPrintf("%s: failed to flush state (%s)\n", __func__, state.ToString());
     }
+    return {};
 }
 
 /** Private helper function that concatenates warning messages. */
@@ -2671,7 +2689,7 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
   * disconnectpool (note that the caller is responsible for mempool consistency
   * in any case).
   */
-bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool)
+util::Result<bool, FatalCondition> Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool)
 {
     AssertLockHeld(cs_main);
     if (m_mempool) AssertLockHeld(m_mempool->cs);
@@ -2710,8 +2728,8 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     }
 
     // Write the chain state to disk, if necessary.
-    if (!FlushStateToDisk(state, FlushStateMode::IF_NEEDED)) {
-        return false;
+    if (auto res{FlushStateToDisk(state, FlushStateMode::IF_NEEDED)}; !res || !res.value()) {
+        return res;
     }
 
     if (disconnectpool && m_mempool) {
@@ -2840,8 +2858,8 @@ util::Result<bool, FatalCondition> Chainstate::ConnectTip(BlockValidationState& 
              Ticks<SecondsDouble>(time_flush),
              Ticks<MillisecondsDouble>(time_flush) / num_blocks_total);
     // Write the chain state to disk, if necessary.
-    if (!FlushStateToDisk(state, FlushStateMode::IF_NEEDED)) {
-        return false;
+    if (auto res{FlushStateToDisk(state, FlushStateMode::IF_NEEDED)}; !res || !res.value()) {
+        return res;
     }
     const auto time_5{SteadyClock::now()};
     time_chainstate += time_5 - time_4;
@@ -2876,7 +2894,7 @@ util::Result<bool, FatalCondition> Chainstate::ConnectTip(BlockValidationState& 
         // This call may set `m_disabled`, which is referenced immediately afterwards in
         // ActivateBestChain, so that we stop connecting blocks past the snapshot base.
         if (auto err = m_chainman.MaybeCompleteSnapshotValidation(); !err) {
-            LogPrintf("Chainstate snapshot validation failed.");
+            LogPrint(BCLog::VALIDATION, "Chainstate snapshot validation failed.\n");
         }
     }
 
@@ -2976,10 +2994,16 @@ util::Result<bool, FatalCondition> Chainstate::ActivateBestChainStep(BlockValida
     bool fBlocksDisconnected = false;
     DisconnectedBlockTransactions disconnectpool;
     while (m_chain.Tip() && m_chain.Tip() != pindexFork) {
-        if (!DisconnectTip(state, &disconnectpool)) {
+        if (auto res{DisconnectTip(state, &disconnectpool)}; !res || !res.value()) {
             // This is likely a fatal error, but keep the mempool consistent,
             // just in case. Only remove from the mempool in this case.
-            MaybeUpdateMempoolForReorg(disconnectpool, false);
+            if (auto ret{MaybeUpdateMempoolForReorg(disconnectpool, false)}; !ret) {
+                return {util::Error{ErrorString(ret)}, ret.GetFailure()};
+            }
+
+            if (!res) {
+                return res;
+            }
 
             // If we're unable to disconnect a block during normal operation,
             // then that is a failure of our local system -- we should abort
@@ -3013,7 +3037,9 @@ util::Result<bool, FatalCondition> Chainstate::ActivateBestChainStep(BlockValida
                 // A system error occurred (disk space, database error, ...).
                 // Make the mempool consistent with the current tip, just in case
                 // any observers try to use it before shutdown.
-                MaybeUpdateMempoolForReorg(disconnectpool, false);
+                if (auto ret = MaybeUpdateMempoolForReorg(disconnectpool, false); !ret) {
+                    return {util::Error{ErrorString(ret)}, ret.GetFailure()};
+                }
                 return res;
             }
             if (!res.value()) {
@@ -3039,7 +3065,9 @@ util::Result<bool, FatalCondition> Chainstate::ActivateBestChainStep(BlockValida
     if (fBlocksDisconnected) {
         // If any blocks were disconnected, disconnectpool may be non empty.  Add
         // any disconnected transactions back to the mempool.
-        MaybeUpdateMempoolForReorg(disconnectpool, true);
+        if (auto ret{MaybeUpdateMempoolForReorg(disconnectpool, true)}; !ret) {
+            return {util::Error{ErrorString(ret)}, ret.GetFailure()};
+        }
     }
     if (m_mempool) m_mempool->check(this->CoinsTip(), this->m_chain.Height() + 1);
 
@@ -3201,8 +3229,8 @@ util::Result<bool, FatalCondition> Chainstate::ActivateBestChain(BlockValidation
     CheckBlockIndex();
 
     // Write changes periodically to disk, after relay.
-    if (!FlushStateToDisk(state, FlushStateMode::PERIODIC)) {
-        return false;
+    if (auto res{FlushStateToDisk(state, FlushStateMode::PERIODIC)}; !res || !res.value()) {
+        return res;
     }
 
     return true;
@@ -3239,7 +3267,7 @@ util::Result<bool, FatalCondition> Chainstate::PreciousBlock(BlockValidationStat
     return ActivateBestChain(state, std::shared_ptr<const CBlock>());
 }
 
-bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pindex)
+util::Result<bool, FatalCondition> Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pindex)
 {
     AssertLockNotHeld(m_chainstate_mutex);
     AssertLockNotHeld(::cs_main);
@@ -3302,14 +3330,19 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         // ActivateBestChain considers blocks already in m_chain
         // unconditionally valid already, so force disconnect away from it.
         DisconnectedBlockTransactions disconnectpool;
-        bool ret = DisconnectTip(state, &disconnectpool);
+        auto ret{DisconnectTip(state, &disconnectpool)};
+        if (!ret) {
+            return ret;
+        }
         // DisconnectTip will add transactions to disconnectpool.
         // Adjust the mempool to be consistent with the new tip, adding
         // transactions back to the mempool if disconnecting was successful,
         // and we're not doing a very deep invalidation (in which case
         // keeping the mempool up to date is probably futile anyway).
-        MaybeUpdateMempoolForReorg(disconnectpool, /* fAddToMempool = */ (++disconnected <= 10) && ret);
-        if (!ret) return false;
+        if (auto res{MaybeUpdateMempoolForReorg(disconnectpool, /* fAddToMempool = */ (++disconnected <= 10) && ret.value())}; !res) {
+            return {util::Error{ErrorString(res)}, res.GetFailure()};
+        }
+        if (!ret.value()) return false;
         assert(invalid_walk_tip->pprev == m_chain.Tip());
 
         // We immediately mark the disconnected blocks as invalid.
@@ -3981,7 +4014,9 @@ util::Result<bool, FatalCondition> Chainstate::AcceptBlock(const std::shared_ptr
         return ValidationFatalError(state, std::string("System error: ") + e.what(), FatalCondition::SystemError);
     }
 
-    FlushStateToDisk(state, FlushStateMode::NONE);
+    if (auto res{FlushStateToDisk(state, FlushStateMode::NONE)}; !res) {
+        return res;
+    }
 
     CheckBlockIndex();
 
@@ -4032,7 +4067,7 @@ util::Result<bool, FatalCondition> ChainstateManager::ProcessNewBlock(const std:
     return true;
 }
 
-MempoolAcceptResult ChainstateManager::ProcessTransaction(const CTransactionRef& tx, bool test_accept)
+util::Result<MempoolAcceptResult, FatalCondition> ChainstateManager::ProcessTransaction(const CTransactionRef& tx, bool test_accept)
 {
     AssertLockHeld(cs_main);
     Chainstate& active_chainstate = ActiveChainstate();
@@ -4042,8 +4077,11 @@ MempoolAcceptResult ChainstateManager::ProcessTransaction(const CTransactionRef&
         return MempoolAcceptResult::Failure(state);
     }
     auto result = AcceptToMemoryPool(active_chainstate, tx, GetTime(), /*bypass_limits=*/ false, test_accept);
+    if (!result) {
+        return {util::Error{ErrorString(result)}, result.GetFailure()};
+    }
     active_chainstate.GetMempool()->check(active_chainstate.CoinsTip(), active_chainstate.m_chain.Height() + 1);
-    return result;
+    return result.value();
 }
 
 bool TestBlockValidity(BlockValidationState& state,
@@ -4080,20 +4118,27 @@ bool TestBlockValidity(BlockValidationState& state,
 }
 
 /* This function is called from the RPC code for pruneblockchain */
-void PruneBlockFilesManual(Chainstate& active_chainstate, int nManualPruneHeight)
+util::Result<void, FatalCondition> PruneBlockFilesManual(Chainstate& active_chainstate, int nManualPruneHeight)
 {
     BlockValidationState state;
-    if (!active_chainstate.FlushStateToDisk(
-            state, FlushStateMode::NONE, nManualPruneHeight)) {
+    auto res{active_chainstate.FlushStateToDisk(state, FlushStateMode::NONE, nManualPruneHeight)};
+    if (!res) {
+        return {util::Error{ErrorString(res)}, res.GetFailure()};
+    }
+    if (!res.value()) {
         LogPrintf("%s: failed to flush state (%s)\n", __func__, state.ToString());
     }
+    return {};
 }
 
-void Chainstate::LoadMempool(const fs::path& load_path, FopenFn mockable_fopen_function)
+util::Result<void, FatalCondition> Chainstate::LoadMempool(const fs::path& load_path, FopenFn mockable_fopen_function)
 {
-    if (!m_mempool) return;
-    ::LoadMempool(*m_mempool, load_path, *this, mockable_fopen_function);
+    if (!m_mempool) return {};
+    if (auto res{::LoadMempool(*m_mempool, load_path, *this, mockable_fopen_function)}; !res) {
+        return {util::Error{ErrorString(res)}, res.GetFailure()};
+    }
     m_mempool->SetLoadTried(!ShutdownRequested());
+    return {};
 }
 
 bool Chainstate::LoadChainTip()
@@ -4927,7 +4972,7 @@ std::string Chainstate::ToString()
                      tip ? tip->nHeight : -1, tip ? tip->GetBlockHash().ToString() : "null");
 }
 
-bool Chainstate::ResizeCoinsCaches(size_t coinstip_size, size_t coinsdb_size)
+util::Result<bool, FatalCondition> Chainstate::ResizeCoinsCaches(size_t coinstip_size, size_t coinsdb_size)
 {
     AssertLockHeld(::cs_main);
     if (coinstip_size == m_coinstip_cache_size_bytes &&
@@ -4946,16 +4991,13 @@ bool Chainstate::ResizeCoinsCaches(size_t coinstip_size, size_t coinsdb_size)
         this->ToString(), coinstip_size * (1.0 / 1024 / 1024));
 
     BlockValidationState state;
-    bool ret;
 
     if (coinstip_size > old_coinstip_size) {
         // Likely no need to flush if cache sizes have grown.
-        ret = FlushStateToDisk(state, FlushStateMode::IF_NEEDED);
-    } else {
-        // Otherwise, flush state to disk and deallocate the in-memory coins map.
-        ret = FlushStateToDisk(state, FlushStateMode::ALWAYS);
+        return FlushStateToDisk(state, FlushStateMode::IF_NEEDED);
     }
-    return ret;
+    // Otherwise, flush state to disk and deallocate the in-memory coins map.
+    return FlushStateToDisk(state, FlushStateMode::ALWAYS);
 }
 
 //! Guess how far we are in the verification process at the given block index
@@ -5101,9 +5143,11 @@ util::Result<bool, FatalCondition> ChainstateManager::ActivateSnapshot(
 
         // Temporarily resize the active coins cache to make room for the newly-created
         // snapshot chain.
-        this->ActiveChainstate().ResizeCoinsCaches(
+        if (auto res{this->ActiveChainstate().ResizeCoinsCaches(
             static_cast<size_t>(current_coinstip_cache_size * IBD_CACHE_PERC),
-            static_cast<size_t>(current_coinsdb_cache_size * IBD_CACHE_PERC));
+            static_cast<size_t>(current_coinsdb_cache_size * IBD_CACHE_PERC))}; !res) {
+            return res;
+        }
     }
 
     auto snapshot_chainstate = WITH_LOCK(::cs_main,
@@ -5132,7 +5176,9 @@ util::Result<bool, FatalCondition> ChainstateManager::ActivateSnapshot(
     }
     if (!snapshot_ok) {
         LOCK(::cs_main);
-        this->MaybeRebalanceCaches();
+        if (auto res{this->MaybeRebalanceCaches()}; !res) {
+            return { util::Error{ErrorString(res)}, res.GetFailure()};
+        }
 
         // PopulateAndValidateSnapshot can return (in error) before the leveldb datadir
         // has been created, so only attempt removal if we got that far.
@@ -5168,7 +5214,9 @@ util::Result<bool, FatalCondition> ChainstateManager::ActivateSnapshot(
         LogPrintf("[snapshot] (%.2f MB)\n",
             m_snapshot_chainstate->CoinsTip().DynamicMemoryUsage() / (1000 * 1000));
 
-        this->MaybeRebalanceCaches();
+        if (auto res = this->MaybeRebalanceCaches(); !res) {
+            return { util::Error{ErrorString(res)}, res.GetFailure()};
+        }
     }
     return true;
 }
@@ -5483,7 +5531,9 @@ util::Result<SnapshotCompletionResult, FatalCondition> ChainstateManager::MaybeC
     assert(this->GetAll().size() == 2);
 
     CCoinsViewDB& ibd_coins_db = m_ibd_chainstate->CoinsDB();
-    m_ibd_chainstate->ForceFlushStateToDisk();
+    if (auto res{m_ibd_chainstate->ForceFlushStateToDisk()}; !res) {
+        return {util::Error{ErrorString(res)}, res.GetFailure()};
+    }
 
     auto maybe_au_data = ExpectedAssumeutxo(curr_height, m_options.chainparams);
     if (!maybe_au_data) {
@@ -5533,7 +5583,9 @@ util::Result<SnapshotCompletionResult, FatalCondition> ChainstateManager::MaybeC
         snapshot_blockhash.ToString());
 
     m_ibd_chainstate->m_disabled = true;
-    this->MaybeRebalanceCaches();
+    if (auto res{this->MaybeRebalanceCaches()}; !res) {
+        return {util::Error{ErrorString(res)}, res.GetFailure()};
+    }
 
     return SnapshotCompletionResult::SUCCESS;
 }
@@ -5551,7 +5603,7 @@ bool ChainstateManager::IsSnapshotActive() const
     return m_snapshot_chainstate && m_active_chainstate == m_snapshot_chainstate.get();
 }
 
-void ChainstateManager::MaybeRebalanceCaches()
+util::Result<void, FatalCondition> ChainstateManager::MaybeRebalanceCaches()
 {
     AssertLockHeld(::cs_main);
     bool ibd_usable = this->IsUsable(m_ibd_chainstate.get());
@@ -5561,30 +5613,43 @@ void ChainstateManager::MaybeRebalanceCaches()
     if (ibd_usable && !snapshot_usable) {
         LogPrintf("[snapshot] allocating all cache to the IBD chainstate\n");
         // Allocate everything to the IBD chainstate.
-        m_ibd_chainstate->ResizeCoinsCaches(m_total_coinstip_cache, m_total_coinsdb_cache);
+        if (auto res{m_ibd_chainstate->ResizeCoinsCaches(m_total_coinstip_cache, m_total_coinsdb_cache)}; !res) {
+            return res;
+        }
     }
     else if (snapshot_usable && !ibd_usable) {
         // If background validation has completed and snapshot is our active chain...
         LogPrintf("[snapshot] allocating all cache to the snapshot chainstate\n");
         // Allocate everything to the snapshot chainstate.
-        m_snapshot_chainstate->ResizeCoinsCaches(m_total_coinstip_cache, m_total_coinsdb_cache);
+        if (auto res{m_snapshot_chainstate->ResizeCoinsCaches(m_total_coinstip_cache, m_total_coinsdb_cache)}; !res) {
+            return res;
+        }
     }
     else if (ibd_usable && snapshot_usable) {
         // If both chainstates exist, determine who needs more cache based on IBD status.
         //
         // Note: shrink caches first so that we don't inadvertently overwhelm available memory.
         if (m_snapshot_chainstate->IsInitialBlockDownload()) {
-            m_ibd_chainstate->ResizeCoinsCaches(
-                m_total_coinstip_cache * 0.05, m_total_coinsdb_cache * 0.05);
-            m_snapshot_chainstate->ResizeCoinsCaches(
-                m_total_coinstip_cache * 0.95, m_total_coinsdb_cache * 0.95);
+            if (auto res{m_ibd_chainstate->ResizeCoinsCaches(
+                m_total_coinstip_cache * 0.05, m_total_coinsdb_cache * 0.05)}; !res) {
+                return res;
+            }
+            if (auto res{m_snapshot_chainstate->ResizeCoinsCaches(
+                m_total_coinstip_cache * 0.95, m_total_coinsdb_cache * 0.95)}; !res) {
+                return res;
+            }
         } else {
-            m_snapshot_chainstate->ResizeCoinsCaches(
-                m_total_coinstip_cache * 0.05, m_total_coinsdb_cache * 0.05);
-            m_ibd_chainstate->ResizeCoinsCaches(
-                m_total_coinstip_cache * 0.95, m_total_coinsdb_cache * 0.95);
+            if (auto res{m_snapshot_chainstate->ResizeCoinsCaches(
+                m_total_coinstip_cache * 0.05, m_total_coinsdb_cache * 0.05)}; !res) {
+                return res;
+            }
+            if (auto res{m_ibd_chainstate->ResizeCoinsCaches(
+                m_total_coinstip_cache * 0.95, m_total_coinsdb_cache * 0.95)}; !res) {
+                return res;
+            }
         }
     }
+    return {};
 }
 
 void ChainstateManager::ResetChainstates()

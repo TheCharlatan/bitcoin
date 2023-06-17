@@ -7,8 +7,11 @@
 
 enum class FatalCondition {
     BlockFileImportSystemError,
+    BlockIndexWriteFailed,
     ChainstateRenameFailed,
+    CoinDatabaseWriteFailed,
     ConnectBestBlockFailed,
+    DiskSpaceTooLow,
     DisconnectBlockFailed,
     NoChainstatePaths,
     ReadBlockFailed,
