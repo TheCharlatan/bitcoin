@@ -65,7 +65,7 @@ public:
 
     static std::unique_ptr<PeerManager> make(CConnman& connman, AddrMan& addrman,
                                              BanMan* banman, ChainstateManager& chainman,
-                                             CTxMemPool& pool, Options opts);
+                                             CTxMemPool& pool, Options opts, std::atomic_int& exit_status);
     virtual ~PeerManager() { }
 
     /**

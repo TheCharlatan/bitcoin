@@ -22,6 +22,7 @@
 #include <merkleblock.h>
 #include <netbase.h>
 #include <netmessagemaker.h>
+#include <node/abort.h>
 #include <node/blockstorage.h>
 #include <node/txreconciliation.h>
 #include <policy/fees.h>
@@ -40,6 +41,7 @@
 #include <txorphanage.h>
 #include <txrequest.h>
 #include <util/check.h> // For NDEBUG compile time check
+#include <shutdown.h>
 #include <util/strencodings.h>
 #include <util/trace.h>
 #include <validation.h>
@@ -481,7 +483,7 @@ class PeerManagerImpl final : public PeerManager
 public:
     PeerManagerImpl(CConnman& connman, AddrMan& addrman,
                     BanMan* banman, ChainstateManager& chainman,
-                    CTxMemPool& pool, Options opts);
+                    CTxMemPool& pool, Options opts, std::atomic_int& exit_status);
 
     /** Overridden from CValidationInterface. */
     void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected) override
@@ -709,6 +711,8 @@ private:
     CTxMemPool& m_mempool;
     TxRequestTracker m_txrequest GUARDED_BY(::cs_main);
     std::unique_ptr<TxReconciliationTracker> m_txreconciliation;
+
+    std::atomic_int& m_exit_status;
 
     /** The height of the best chain */
     std::atomic<int> m_best_height{-1};
@@ -1873,14 +1877,14 @@ std::optional<std::string> PeerManagerImpl::FetchBlock(NodeId peer_id, const CBl
 
 std::unique_ptr<PeerManager> PeerManager::make(CConnman& connman, AddrMan& addrman,
                                                BanMan* banman, ChainstateManager& chainman,
-                                               CTxMemPool& pool, Options opts)
+                                               CTxMemPool& pool, Options opts, std::atomic_int& exit_status)
 {
-    return std::make_unique<PeerManagerImpl>(connman, addrman, banman, chainman, pool, opts);
+    return std::make_unique<PeerManagerImpl>(connman, addrman, banman, chainman, pool, opts, exit_status);
 }
 
 PeerManagerImpl::PeerManagerImpl(CConnman& connman, AddrMan& addrman,
                                  BanMan* banman, ChainstateManager& chainman,
-                                 CTxMemPool& pool, Options opts)
+                                 CTxMemPool& pool, Options opts, std::atomic_int& exit_status)
     : m_rng{opts.deterministic_rng},
       m_fee_filter_rounder{CFeeRate{DEFAULT_MIN_RELAY_TX_FEE}, m_rng},
       m_chainparams(chainman.GetParams()),
@@ -1889,6 +1893,7 @@ PeerManagerImpl::PeerManagerImpl(CConnman& connman, AddrMan& addrman,
       m_banman(banman),
       m_chainman(chainman),
       m_mempool(pool),
+      m_exit_status{exit_status},
       m_opts{opts}
 {
     // While Erlay support is incomplete, it must be enabled explicitly via -txreconciliation.
@@ -3246,7 +3251,9 @@ void PeerManagerImpl::ProcessGetCFCheckPt(CNode& node, Peer& peer, CDataStream& 
 void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlock>& block, bool force_processing, bool min_pow_checked)
 {
     bool new_block{false};
-    m_chainman.ProcessNewBlock(block, force_processing, min_pow_checked, &new_block);
+    if (auto res{m_chainman.ProcessNewBlock(block, force_processing, min_pow_checked, &new_block)}; !res) {
+        node::AbortNode(m_exit_status, ErrorString(res).original, ErrorString(res));
+    }
     if (new_block) {
         node.m_last_block_time = GetTime<std::chrono::seconds>();
         // In case this block came from a different peer than we requested

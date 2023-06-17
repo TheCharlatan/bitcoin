@@ -33,6 +33,7 @@ enum class FatalCondition {
     // Failed to generate UTXO statistics (to check UTXO set hash) for the background
     // chainstate.
     SnapshotStatsFailed,
+    SystemError,
 };
 
 #endif // BITCOIN_KERNEL_FATAL_CONDITION_H

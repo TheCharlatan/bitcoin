@@ -16,6 +16,7 @@
 #include <deploymentstatus.h>
 #include <key_io.h>
 #include <net.h>
+#include <node/abort.h>
 #include <node/context.h>
 #include <node/miner.h>
 #include <pow.h>
@@ -41,6 +42,7 @@
 #include <memory>
 #include <stdint.h>
 
+using node::AbortNode;
 using node::BlockAssembler;
 using node::CBlockTemplate;
 using node::NodeContext;
@@ -1001,6 +1003,7 @@ static RPCHelpMan submitblock()
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block does not start with a coinbase");
     }
 
+    NodeContext& node = EnsureAnyNodeContext(request.context);
     ChainstateManager& chainman = EnsureAnyChainman(request.context);
     uint256 hash = block.GetHash();
     {
@@ -1027,7 +1030,11 @@ static RPCHelpMan submitblock()
     bool new_block;
     auto sc = std::make_shared<submitblock_StateCatcher>(block.GetHash());
     RegisterSharedValidationInterface(sc);
-    bool accepted = chainman.ProcessNewBlock(blockptr, /*force_processing=*/true, /*min_pow_checked=*/true, /*new_block=*/&new_block);
+    auto res = chainman.ProcessNewBlock(blockptr, /*force_processing=*/true, /*min_pow_checked=*/true, /*new_block=*/&new_block);
+    if (!res) {
+        AbortNode(node.exit_status, ErrorString(res).original, ErrorString(res));
+    }
+    bool accepted = res.value();
     UnregisterSharedValidationInterface(sc);
     if (!new_block && accepted) {
         return "duplicate";

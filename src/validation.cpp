@@ -1946,6 +1946,12 @@ bool FatalError(Notifications& notifications, BlockValidationState& state, const
     return state.Error(strMessage);
 }
 
+util::Result<bool, FatalCondition> ValidationFatalError(BlockValidationState& state, const std::string& strMessage, FatalCondition condition)
+{
+    state.Error(strMessage);
+    return {util::Error{Untranslated(strMessage)}, condition};
+}
+
 /**
  * Restore the UTXO in a Coin at a given COutPoint
  * @param undo The Coin to be restored.
@@ -4059,7 +4065,7 @@ void ChainstateManager::ReportHeadersPresync(const arith_uint256& work, int64_t 
 }
 
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
-bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock, bool min_pow_checked)
+util::Result<bool, FatalCondition> ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock, bool min_pow_checked)
 {
     const CBlock& block = *pblock;
 
@@ -4135,7 +4141,7 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
         }
         ReceivedBlockTransactions(block, pindex, blockPos);
     } catch (const std::runtime_error& e) {
-        return FatalError(GetNotifications(), state, std::string("System error: ") + e.what());
+        return ValidationFatalError(state, std::string("System error: ") + e.what(), FatalCondition::SystemError);
     }
 
     // TODO: FlushStateToDisk() handles flushing of both block and chainstate
@@ -4152,7 +4158,7 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
     return true;
 }
 
-bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& block, bool force_processing, bool min_pow_checked, bool* new_block)
+util::Result<bool, FatalCondition> ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& block, bool force_processing, bool min_pow_checked, bool* new_block)
 {
     AssertLockNotHeld(cs_main);
 
@@ -4173,7 +4179,11 @@ bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& blo
         bool ret = CheckBlock(*block, state, GetConsensus());
         if (ret) {
             // Store to disk
-            ret = AcceptBlock(block, state, &pindex, force_processing, nullptr, new_block, min_pow_checked);
+            auto res{AcceptBlock(block, state, &pindex, force_processing, nullptr, new_block, min_pow_checked)};
+            if (!res) {
+                return res;
+            }
+            ret = res.value();
         }
         if (!ret) {
             GetMainSignals().BlockChecked(*block, state);
@@ -4706,10 +4716,15 @@ util::Result<void, FatalCondition> ChainstateManager::LoadExternalBlockFile(
                         nRewind = blkdat.GetPos();
 
                         BlockValidationState state;
-                        if (AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, true)) {
+                        auto res{AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, true)};
+                        if (!res) {
+                            // TODO: Bubble Up!
+                            FatalError(GetNotifications(), state, ErrorString(res).original);
+                        }
+                        if (res.value()) {
                             nLoaded++;
                         }
-                        if (state.IsError()) {
+                        if (!res || state.IsError()) {
                             break;
                         }
                     } else if (hash != params.GetConsensus().hashGenesisBlock && pindex->nHeight % 1000 == 0) {
@@ -4773,7 +4788,12 @@ util::Result<void, FatalCondition> ChainstateManager::LoadExternalBlockFile(
                                     head.ToString());
                             LOCK(cs_main);
                             BlockValidationState dummy;
-                            if (AcceptBlock(pblockrecursive, dummy, nullptr, true, &it->second, nullptr, true)) {
+                            auto res{AcceptBlock(pblockrecursive, dummy, nullptr, true, &it->second, nullptr, true)};
+                            if (!res) {
+                                // TODO: Bubble Up!
+                                FatalError(GetNotifications(), dummy, ErrorString(res).original);
+                            }
+                            if (!res || res.value()) {
                                 nLoaded++;
                                 queue.push_back(pblockrecursive->GetHash());
                             }
