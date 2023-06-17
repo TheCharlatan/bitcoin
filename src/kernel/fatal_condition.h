@@ -11,7 +11,7 @@ enum class FatalCondition {
     ChainstateRenameFailed,
 
     ConnectBestBlockFailed,
-
+    DisconnectBlockFailed,
     NoChainstatePaths,
 
     SnapshotAlreadyValidated,

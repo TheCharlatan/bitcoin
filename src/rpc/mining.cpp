@@ -117,7 +117,7 @@ static RPCHelpMan getnetworkhashps()
     };
 }
 
-static bool GenerateBlock(ChainstateManager& chainman, CBlock& block, uint64_t& max_tries, std::shared_ptr<const CBlock>& block_out, bool process_new_block)
+static bool GenerateBlock(ChainstateManager& chainman, CBlock& block, uint64_t& max_tries, std::shared_ptr<const CBlock>& block_out, bool process_new_block, NodeContext& node)
 {
     block_out.reset();
     block.hashMerkleRoot = BlockMerkleRoot(block);
@@ -137,14 +137,19 @@ static bool GenerateBlock(ChainstateManager& chainman, CBlock& block, uint64_t& 
 
     if (!process_new_block) return true;
 
-    if (!chainman.ProcessNewBlock(block_out, /*force_processing=*/true, /*min_pow_checked=*/true, nullptr)) {
+    auto res = chainman.ProcessNewBlock(block_out, /*force_processing=*/true, /*min_pow_checked=*/true, nullptr);
+    if (!res) {
+        AbortNode(node.exit_status, ErrorString(res).original, ErrorString(res));
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, fatal error");
+    }
+    if (!res.value()) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
     }
 
     return true;
 }
 
-static UniValue generateBlocks(ChainstateManager& chainman, const CTxMemPool& mempool, const CScript& coinbase_script, int nGenerate, uint64_t nMaxTries)
+static UniValue generateBlocks(ChainstateManager& chainman, const CTxMemPool& mempool, const CScript& coinbase_script, int nGenerate, uint64_t nMaxTries, NodeContext& node)
 {
     UniValue blockHashes(UniValue::VARR);
     while (nGenerate > 0 && !ShutdownRequested()) {
@@ -153,7 +158,7 @@ static UniValue generateBlocks(ChainstateManager& chainman, const CTxMemPool& me
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
 
         std::shared_ptr<const CBlock> block_out;
-        if (!GenerateBlock(chainman, pblocktemplate->block, nMaxTries, block_out, /*process_new_block=*/true)) {
+        if (!GenerateBlock(chainman, pblocktemplate->block, nMaxTries, block_out, /*process_new_block=*/true, node)) {
             break;
         }
 
@@ -232,7 +237,7 @@ static RPCHelpMan generatetodescriptor()
     const CTxMemPool& mempool = EnsureMemPool(node);
     ChainstateManager& chainman = EnsureChainman(node);
 
-    return generateBlocks(chainman, mempool, coinbase_script, num_blocks, max_tries);
+    return generateBlocks(chainman, mempool, coinbase_script, num_blocks, max_tries, node);
 },
     };
 }
@@ -280,7 +285,7 @@ static RPCHelpMan generatetoaddress()
 
     CScript coinbase_script = GetScriptForDestination(destination);
 
-    return generateBlocks(chainman, mempool, coinbase_script, num_blocks, max_tries);
+    return generateBlocks(chainman, mempool, coinbase_script, num_blocks, max_tries, node);
 },
     };
 }
@@ -385,7 +390,7 @@ static RPCHelpMan generateblock()
     std::shared_ptr<const CBlock> block_out;
     uint64_t max_tries{DEFAULT_MAX_TRIES};
 
-    if (!GenerateBlock(chainman, block, max_tries, block_out, process_new_block) || !block_out) {
+    if (!GenerateBlock(chainman, block, max_tries, block_out, process_new_block, node) || !block_out) {
         throw JSONRPCError(RPC_MISC_ERROR, "Failed to make block.");
     }
 

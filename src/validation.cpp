@@ -3064,7 +3064,7 @@ void Chainstate::PruneBlockIndexCandidates() {
  *
  * @returns true unless a system error occurred
  */
-bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace)
+util::Result<void, FatalCondition> Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace)
 {
     AssertLockHeld(cs_main);
     if (m_mempool) AssertLockHeld(m_mempool->cs);
@@ -3084,8 +3084,7 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
             // If we're unable to disconnect a block during normal operation,
             // then that is a failure of our local system -- we should abort
             // rather than stay on a less work chain.
-            FatalError(m_chainman.GetNotifications(), state, "Failed to disconnect block; see debug.log for details");
-            return false;
+            return ValidationFatalError(state, "Failed to disconnect block; see debug.log for details", FatalCondition::DisconnectBlockFailed);
         }
         fBlocksDisconnected = true;
     }
@@ -3124,7 +3123,7 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
                     // Make the mempool consistent with the current tip, just in case
                     // any observers try to use it before shutdown.
                     MaybeUpdateMempoolForReorg(disconnectpool, false);
-                    return false;
+                    return {util::Error{Untranslated("Error during activate best chain")}, FatalCondition::SystemError};
                 }
             } else {
                 PruneBlockIndexCandidates();
@@ -3146,7 +3145,7 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
 
     CheckForkWarningConditions();
 
-    return true;
+    return {};
 }
 
 static SynchronizationState GetSynchronizationState(bool init)
@@ -3187,7 +3186,7 @@ static void LimitValidationInterfaceQueue() LOCKS_EXCLUDED(cs_main) {
     }
 }
 
-bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<const CBlock> pblock)
+util::Result<bool, FatalCondition> Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<const CBlock> pblock)
 {
     AssertLockNotHeld(m_chainstate_mutex);
 
@@ -3246,9 +3245,9 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
 
                 bool fInvalidFound = false;
                 std::shared_ptr<const CBlock> nullBlockPtr;
-                if (!ActivateBestChainStep(state, pindexMostWork, pblock && pblock->GetHash() == pindexMostWork->GetBlockHash() ? pblock : nullBlockPtr, fInvalidFound, connectTrace)) {
+                if (auto res{ActivateBestChainStep(state, pindexMostWork, pblock && pblock->GetHash() == pindexMostWork->GetBlockHash() ? pblock : nullBlockPtr, fInvalidFound, connectTrace)}; !res) {
                     // A system error occurred
-                    return false;
+                    return {util::Error{}, util::MoveMessages(res), res.GetFailure()};
                 }
                 blocks_connected = true;
 
@@ -3339,7 +3338,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
     return true;
 }
 
-bool Chainstate::PreciousBlock(BlockValidationState& state, CBlockIndex* pindex)
+util::Result<bool, FatalCondition> Chainstate::PreciousBlock(BlockValidationState& state, CBlockIndex* pindex)
 {
     AssertLockNotHeld(m_chainstate_mutex);
     AssertLockNotHeld(::cs_main);
@@ -4194,15 +4193,23 @@ util::Result<bool, FatalCondition> ChainstateManager::ProcessNewBlock(const std:
     NotifyHeaderTip(*this);
 
     BlockValidationState state; // Only used to report errors, not invalidity - ignore it
-    if (!ActiveChainstate().ActivateBestChain(state, block)) {
-        return error("%s: ActivateBestChain failed (%s)", __func__, state.ToString());
+    if (auto res{ActiveChainstate().ActivateBestChain(state, block)}; !res) {
+        error("%s: ActivateBestChain failed (%s)", __func__, state.ToString());
+        return res;
     }
 
     Chainstate* bg_chain{WITH_LOCK(cs_main, return BackgroundSyncInProgress() ? m_ibd_chainstate.get() : nullptr)};
     BlockValidationState bg_state;
-    if (bg_chain && !bg_chain->ActivateBestChain(bg_state, block)) {
-        return error("%s: [background] ActivateBestChain failed (%s)", __func__, bg_state.ToString());
-     }
+    if (bg_chain) {
+        auto res{bg_chain->ActivateBestChain(bg_state, block)};
+        if (!res) {
+            error("%s: ActivateBestChain failed (%s)", __func__, state.ToString());
+            return res;
+        }
+        if (!res.value()) {
+            return error("%s: [background] ActivateBestChain failed (%s)", __func__, bg_state.ToString());
+        }
+    }
 
     return true;
 }
@@ -4719,7 +4726,7 @@ util::Result<void, FatalCondition> ChainstateManager::LoadExternalBlockFile(
                         auto res{AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, true)};
                         if (!res) {
                             // TODO: Bubble Up!
-                            FatalError(GetNotifications(), state, ErrorString(res).original);
+                            FatalError(GetNotifications(), state, ErrorString(res).original, ErrorString(res));
                         }
                         if (res.value()) {
                             nLoaded++;
@@ -4737,7 +4744,12 @@ util::Result<void, FatalCondition> ChainstateManager::LoadExternalBlockFile(
                     bool genesis_activation_failure = false;
                     for (auto c : GetAll()) {
                         BlockValidationState state;
-                        if (!c->ActivateBestChain(state, nullptr)) {
+                        auto res{c->ActivateBestChain(state, nullptr)};
+                        if (!res) {
+                            // TODO: Bubble Up!
+                            FatalError(GetNotifications(), state, ErrorString(res).original, ErrorString(res));
+                        }
+                        if (!res || !res.value()) {
                             genesis_activation_failure = true;
                             break;
                         }
@@ -4758,7 +4770,12 @@ util::Result<void, FatalCondition> ChainstateManager::LoadExternalBlockFile(
                     bool activation_failure = false;
                     for (auto c : GetAll()) {
                         BlockValidationState state;
-                        if (!c->ActivateBestChain(state, pblock)) {
+                        auto res{c->ActivateBestChain(state, pblock)};
+                        if (!res) {
+                            // TODO: Bubble Up!
+                            FatalError(GetNotifications(), state, ErrorString(res).original, ErrorString(res));
+                        }
+                        if (!res || !res.value()) {
                             LogPrint(BCLog::REINDEX, "failed to activate chain (%s)\n", state.ToString());
                             activation_failure = true;
                             break;
@@ -4791,7 +4808,7 @@ util::Result<void, FatalCondition> ChainstateManager::LoadExternalBlockFile(
                             auto res{AcceptBlock(pblockrecursive, dummy, nullptr, true, &it->second, nullptr, true)};
                             if (!res) {
                                 // TODO: Bubble Up!
-                                FatalError(GetNotifications(), dummy, ErrorString(res).original);
+                                FatalError(GetNotifications(), dummy, ErrorString(res).original, ErrorString(res));
                             }
                             if (!res || res.value()) {
                                 nLoaded++;

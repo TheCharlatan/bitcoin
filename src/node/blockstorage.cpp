@@ -1191,7 +1191,7 @@ util::Result<void, FatalCondition> ImportBlocks(ChainstateManager& chainman, std
         // the relevant pointers before the ABC call.
         for (Chainstate* chainstate : WITH_LOCK(::cs_main, return chainman.GetAll())) {
             BlockValidationState state;
-            if (!chainstate->ActivateBestChain(state, nullptr)) {
+            if (auto res{chainstate->ActivateBestChain(state, nullptr)}; !res) {
                 return {util::Error{Untranslated(strprintf("Failed to connect best block (%s)", state.ToString()))}, FatalCondition::ConnectBestBlockFailed};
             }
         }

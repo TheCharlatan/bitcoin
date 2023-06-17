@@ -79,7 +79,8 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager, TestChain100Setup)
         c2.LoadChainTip();
     }
     BlockValidationState _;
-    BOOST_CHECK(c2.ActivateBestChain(_, nullptr));
+    auto res{c2.ActivateBestChain(_, nullptr)};
+    BOOST_CHECK(res.value());
 
     BOOST_CHECK_EQUAL(manager.SnapshotBlockhash().value(), snapshot_blockhash);
     BOOST_CHECK(manager.IsSnapshotActive());

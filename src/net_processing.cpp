@@ -2251,8 +2251,10 @@ void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, Peer& peer, const CInv& 
     } // release cs_main before calling ActivateBestChain
     if (need_activate_chain) {
         BlockValidationState state;
-        if (!m_chainman.ActiveChainstate().ActivateBestChain(state, a_recent_block)) {
+        if (auto res{m_chainman.ActiveChainstate().ActivateBestChain(state, a_recent_block)}; !res) {
             LogPrint(BCLog::NET, "failed to activate chain (%s)\n", state.ToString());
+            node::AbortNode(m_exit_status, ErrorString(res).original, ErrorString(res));
+            // TODO: Bubble Up / return?
         }
     }
 
@@ -3253,6 +3255,7 @@ void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlo
     bool new_block{false};
     if (auto res{m_chainman.ProcessNewBlock(block, force_processing, min_pow_checked, &new_block)}; !res) {
         node::AbortNode(m_exit_status, ErrorString(res).original, ErrorString(res));
+        // TODO: Bubble Up?
     }
     if (new_block) {
         node.m_last_block_time = GetTime<std::chrono::seconds>();
@@ -4003,8 +4006,10 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                 a_recent_block = m_most_recent_block;
             }
             BlockValidationState state;
-            if (!m_chainman.ActiveChainstate().ActivateBestChain(state, a_recent_block)) {
+            if (auto res = m_chainman.ActiveChainstate().ActivateBestChain(state, a_recent_block); !res) {
                 LogPrint(BCLog::NET, "failed to activate chain (%s)\n", state.ToString());
+                node::AbortNode(m_exit_status, ErrorString(res).original, ErrorString(res));
+                // TODO: Bubble Up / return ?
             }
         }
 
