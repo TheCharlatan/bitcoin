@@ -121,7 +121,7 @@ int main(int argc, char* argv[])
     cache_sizes.coins = (450 << 20) - (2 << 20) - (2 << 22);
     node::ChainstateLoadOptions options;
     options.check_interrupt = [] { return false; };
-    auto result = node::LoadChainstate(chainman, cache_sizes, options);
+    auto result{node::LoadChainstate(chainman, cache_sizes, options)};
     if (!result) {
         std::cerr << "Failed to load Chain state from your datadir." << std::endl;
         goto epilogue;
@@ -225,9 +225,9 @@ int main(int argc, char* argv[])
         bool new_block;
         auto sc = std::make_shared<submitblock_StateCatcher>(block.GetHash());
         RegisterSharedValidationInterface(sc);
-        bool accepted = chainman.ProcessNewBlock(blockptr, /*force_processing=*/true, /*min_pow_checked=*/true, /*new_block=*/&new_block);
+        auto res = chainman.ProcessNewBlock(blockptr, /*force_processing=*/true, /*min_pow_checked=*/true, /*new_block=*/&new_block);
         UnregisterSharedValidationInterface(sc);
-        if (!new_block && accepted) {
+        if (!new_block && res.value()) {
             std::cerr << "duplicate" << std::endl;
             break;
         }
