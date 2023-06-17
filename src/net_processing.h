@@ -13,6 +13,9 @@ class AddrMan;
 class CChainParams;
 class CTxMemPool;
 class ChainstateManager;
+namespace util {
+class SignalInterrupt;
+}
 
 /** Whether transaction reconciliation protocol should be enabled by default. */
 static constexpr bool DEFAULT_TXRECONCILIATION_ENABLE{false};
@@ -65,6 +68,8 @@ public:
 
     static std::unique_ptr<PeerManager> make(CConnman& connman, AddrMan& addrman,
                                              BanMan* banman, ChainstateManager& chainman,
+                                             std::atomic<int>& exit_status,
+                                             util::SignalInterrupt& shutdown,
                                              CTxMemPool& pool, Options opts);
     virtual ~PeerManager() { }
 

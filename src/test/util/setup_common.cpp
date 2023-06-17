@@ -268,6 +268,7 @@ TestingSetup::TestingSetup(
     peerman_opts.deterministic_rng = true;
     m_node.peerman = PeerManager::make(*m_node.connman, *m_node.addrman,
                                        m_node.banman.get(), *m_node.chainman,
+                                       m_node.exit_status, *m_node.shutdown,
                                        *m_node.mempool, peerman_opts);
 
     {
@@ -340,7 +341,7 @@ CBlock TestChain100Setup::CreateAndProcessBlock(
 
     CBlock block = this->CreateBlock(txns, scriptPubKey, *chainstate);
     std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(block);
-    Assert(m_node.chainman)->ProcessNewBlock(shared_pblock, true, true, nullptr);
+    Assert(Assert(m_node.chainman)->ProcessNewBlock(shared_pblock, true, true, nullptr));
 
     return block;
 }

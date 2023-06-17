@@ -16,6 +16,7 @@ enum class FatalCondition {
     SnapshotHashMismatch,
     SnapshotMissingChainparams,
     SnapshotStatsFailed,
+    SystemError,
 };
 
 #endif // BITCOIN_KERNEL_FATAL_CONDITION_H
