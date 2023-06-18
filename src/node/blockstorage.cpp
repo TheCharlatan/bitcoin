@@ -676,7 +676,7 @@ bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigne
     return true;
 }
 
-bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFilePos& pos, unsigned int nAddSize)
+util::Result<bool, FatalCondition> BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFilePos& pos, unsigned int nAddSize)
 {
     pos.nFile = nFile;
 
@@ -689,7 +689,8 @@ bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFileP
     bool out_of_space;
     size_t bytes_allocated = UndoFileSeq().Allocate(pos, nAddSize, out_of_space);
     if (out_of_space) {
-        return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
+        // return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
+        return {util::Error{Untranslated("Disk space is too low!")}, FatalCondition::DiskSpaceTooLow};
     }
     if (bytes_allocated != 0 && IsPruneMode()) {
         m_check_for_pruning = true;
@@ -727,12 +728,15 @@ util::Result<bool, FatalCondition> BlockManager::WriteUndoDataForBlock(const CBl
     // Write undo information to disk
     if (block.GetUndoPos().IsNull()) {
         FlatFilePos _pos;
-        if (!FindUndoPos(state, block.nFile, _pos, ::GetSerializeSize(blockundo, CLIENT_VERSION) + 40)) {
+        auto res{FindUndoPos(state, block.nFile, _pos, ::GetSerializeSize(blockundo, CLIENT_VERSION) + 40)};
+        if (!res) {
+            return res;
+        }
+        if (!res.value()) {
             return error("ConnectBlock(): FindUndoPos failed");
         }
         if (!UndoWriteToDisk(blockundo, _pos, block.pprev->GetBlockHash(), GetParams().MessageStart())) {
             return {util::Error{Untranslated("Failed to write undo data")}, FatalCondition::WriteUndoDataFailed};
-            // return AbortNode(state, "Failed to write undo data");
         }
         // rev files are written in block height order, whereas blk files are written as blocks come in (often out of order)
         // we want to flush the rev (undo) file once we've written the last block, which is indicated by the last height
@@ -852,8 +856,6 @@ util::Result<FlatFilePos, FatalCondition> BlockManager::SaveBlockToDisk(const CB
     }
     if (!position_known) {
         if (!WriteBlockToDisk(block, blockPos, GetParams().MessageStart())) {
-            // AbortNode("Failed to write block");
-            // return FlatFilePos();
             return {util::Error{Untranslated("Failed to write block")}, FatalCondition::BlockWriteFailed};
         }
     }
