@@ -608,7 +608,7 @@ fs::path BlockManager::GetBlockPosFilename(const FlatFilePos& pos) const
     return BlockFileSeq().FileName(pos);
 }
 
-bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigned int nHeight, CChain& active_chain, uint64_t nTime, bool fKnown)
+util::Result<bool, FatalCondition> BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigned int nHeight, CChain& active_chain, uint64_t nTime, bool fKnown)
 {
     LOCK(cs_LastBlockFile);
 
@@ -665,7 +665,7 @@ bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigne
         bool out_of_space;
         size_t bytes_allocated = BlockFileSeq().Allocate(pos, nAddSize, out_of_space);
         if (out_of_space) {
-            return AbortNode("Disk space is too low!", _("Disk space is too low!"));
+            return {util::Error{Untranslated("Disk space is too low!")}, FatalCondition::DiskSpaceTooLow};
         }
         if (bytes_allocated != 0 && IsPruneMode()) {
             m_check_for_pruning = true;
@@ -849,7 +849,11 @@ util::Result<FlatFilePos, FatalCondition> BlockManager::SaveBlockToDisk(const CB
         // we add BLOCK_SERIALIZATION_HEADER_SIZE only for new blocks since they will have the serialization header added when written to disk.
         nBlockSize += static_cast<unsigned int>(BLOCK_SERIALIZATION_HEADER_SIZE);
     }
-    if (!FindBlockPos(blockPos, nBlockSize, nHeight, active_chain, block.GetBlockTime(), position_known)) {
+    auto res{FindBlockPos(blockPos, nBlockSize, nHeight, active_chain, block.GetBlockTime(), position_known)};
+    if (!res) {
+        return {util::Error{ErrorString(res)}, res.GetFailure()};
+    }
+    if (!res.value()) {
         error("%s: FindBlockPos failed", __func__);
         return FlatFilePos();
     }
