@@ -156,7 +156,7 @@ private:
     [[nodiscard]] util::Result<bool, FatalCondition> FlushBlockFile(int blockfile_num, bool fFinalize, bool finalize_undo);
 
     /** Return false if undo file flushing fails. */
-    [[nodiscard]] bool FlushUndoFile(int block_file, bool finalize = false);
+    [[nodiscard]] util::Result<bool, FatalCondition> FlushUndoFile(int block_file, bool finalize = false);
 
     [[nodiscard]] util::Result<bool, FatalCondition> FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigned int nHeight, uint64_t nTime, bool fKnown);
     [[nodiscard]] util::Result<bool, FatalCondition> FlushChainstateBlockFile(int tip_height);
@@ -312,7 +312,7 @@ public:
     /** Get block file info entry for one block file */
     CBlockFileInfo* GetBlockFileInfo(size_t n);
 
-    bool WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValidationState& state, CBlockIndex& block)
+    [[nodiscard]] util::Result<bool, FatalCondition> WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValidationState& state, CBlockIndex& block)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /** Store block on disk. If dbp is not nullptr, then it provides the known position of the block within a block file on disk. */

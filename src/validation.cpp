@@ -2181,6 +2181,8 @@ util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block,
     AssertLockHeld(cs_main);
     assert(pindex);
 
+    util::Result<bool, FatalCondition> result{true};
+
     uint256 block_hash{block.GetHash()};
     assert(*pindex->phashBlock == block_hash);
     const bool parallel_script_checks{m_chainman.GetCheckQueue().HasThreads()};
@@ -2208,7 +2210,8 @@ util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block,
             // problems.
             return ValidationFatalError(state, "Corrupt block found indicating potential hardware failure; shutting down", FatalCondition::CorruptBlock);
         }
-        return error("%s: Consensus::CheckBlock: %s", __func__, state.ToString());
+        result.Set(error("%s: Consensus::CheckBlock: %s", __func__, state.ToString()));
+        return result;
     }
 
     // verify that the view's current state corresponds to the previous block
@@ -2222,7 +2225,8 @@ util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block,
     if (block_hash == params.GetConsensus().hashGenesisBlock) {
         if (!fJustCheck)
             view.SetBestBlock(pindex->GetBlockHash());
-        return true;
+        result.Set(true);
+        return result;
     }
 
     bool fScriptChecks = true;
@@ -2343,7 +2347,8 @@ util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block,
             for (size_t o = 0; o < tx->vout.size(); o++) {
                 if (view.HaveCoin(COutPoint(tx->GetHash(), o))) {
                     LogPrintf("ERROR: ConnectBlock(): tried to overwrite transaction\n");
-                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-BIP30");
+                    result.Set(state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-BIP30"));
+                    return result;
                 }
             }
         }
@@ -2394,12 +2399,14 @@ util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block,
                 // Any transaction validation failure in ConnectBlock is a block consensus failure
                 state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
                             tx_state.GetRejectReason(), tx_state.GetDebugMessage());
-                return error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), state.ToString());
+                result.Set(error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), state.ToString()));
+                return result;
             }
             nFees += txfee;
             if (!MoneyRange(nFees)) {
                 LogPrintf("ERROR: %s: accumulated fee in the block out of range.\n", __func__);
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-accumulated-fee-outofrange");
+                result.Set(state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-accumulated-fee-outofrange"));
+                return result;
             }
 
             // Check that transaction is BIP68 final
@@ -2412,7 +2419,8 @@ util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block,
 
             if (!SequenceLocks(tx, nLockTimeFlags, prevheights, *pindex)) {
                 LogPrintf("ERROR: %s: contains a non-BIP68-final transaction\n", __func__);
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-nonfinal");
+                result.Set(state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-nonfinal"));
+                return result;
             }
         }
 
@@ -2423,7 +2431,8 @@ util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block,
         nSigOpsCost += GetTransactionSigOpCost(tx, view, flags);
         if (nSigOpsCost > MAX_BLOCK_SIGOPS_COST) {
             LogPrintf("ERROR: ConnectBlock(): too many sigops\n");
-            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-sigops");
+            result.Set(state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-sigops"));
+            return result;
         }
 
         if (!tx.IsCoinBase())
@@ -2435,8 +2444,9 @@ util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block,
                 // Any transaction validation failure in ConnectBlock is a block consensus failure
                 state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
                               tx_state.GetRejectReason(), tx_state.GetDebugMessage());
-                return error("ConnectBlock(): CheckInputScripts on %s failed with %s",
-                    tx.GetHash().ToString(), state.ToString());
+                result.Set(error("ConnectBlock(): CheckInputScripts on %s failed with %s",
+                    tx.GetHash().ToString(), state.ToString()));
+                return result;
             }
             control.Add(std::move(vChecks));
         }
@@ -2458,12 +2468,14 @@ util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block,
     CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, params.GetConsensus());
     if (block.vtx[0]->GetValueOut() > blockReward) {
         LogPrintf("ERROR: ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)\n", block.vtx[0]->GetValueOut(), blockReward);
-        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-amount");
+        result.Set(state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-amount"));
+        return result;
     }
 
     if (!control.Wait()) {
         LogPrintf("ERROR: %s: CheckQueue failed\n", __func__);
-        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "block-validation-failed");
+        result.Set(state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "block-validation-failed"));
+        return result;
     }
     const auto time_4{SteadyClock::now()};
     time_verify += time_4 - time_2;
@@ -2476,8 +2488,9 @@ util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block,
     if (fJustCheck)
         return true;
 
-    if (!m_blockman.WriteUndoDataForBlock(blockundo, state, *pindex)) {
-        return false;
+    result.Set(m_blockman.WriteUndoDataForBlock(blockundo, state, *pindex));
+    if (!result || !result.value()) {
+        return result;
     }
 
     const auto time_5{SteadyClock::now()};
@@ -2511,7 +2524,7 @@ util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block,
         time_5 - time_start // in microseconds (µs)
     );
 
-    return true;
+    return result;
 }
 
 CoinsCacheSizeState Chainstate::GetCoinsCacheSizeState()

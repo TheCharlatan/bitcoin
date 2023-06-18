@@ -724,12 +724,11 @@ bool BlockManager::UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex& in
     return true;
 }
 
-bool BlockManager::FlushUndoFile(int block_file, bool finalize)
+util::Result<bool, FatalCondition> BlockManager::FlushUndoFile(int block_file, bool finalize)
 {
     FlatFilePos undo_pos_old(block_file, m_blockfile_info[block_file].nUndoSize);
     if (!UndoFileSeq().Flush(undo_pos_old, finalize)) {
-        m_opts.notifications.flushError("Flushing undo file to disk failed. This is likely the result of an I/O error.");
-        return false;
+        return {util::Error{Untranslated("Flushing undo file to disk failed. This is likely the result of an I/O error.")}, FatalCondition::FlushUndoFileFailed};
     }
     return true;
 }
@@ -756,9 +755,7 @@ util::Result<bool, FatalCondition> BlockManager::FlushBlockFile(int blockfile_nu
     // we do not always flush the undo file, as the chain tip may be lagging behind the incoming blocks,
     // e.g. during IBD or a sync after a node going offline
     if (!fFinalize || finalize_undo) {
-        if (!FlushUndoFile(blockfile_num, finalize_undo)) {
-            result.Set(false);
-        }
+        result.Set(FlushUndoFile(blockfile_num, finalize_undo));
     }
     return result;
 }
@@ -983,11 +980,12 @@ bool BlockManager::WriteBlockToDisk(const CBlock& block, FlatFilePos& pos) const
     return true;
 }
 
-bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValidationState& state, CBlockIndex& block)
+util::Result<bool, FatalCondition> BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValidationState& state, CBlockIndex& block)
 {
     AssertLockHeld(::cs_main);
     const BlockfileType type = BlockfileTypeForHeight(block.nHeight);
     auto& cursor = *Assert(WITH_LOCK(cs_LastBlockFile, return m_blockfile_cursors[type]));
+    util::Result<bool, FatalCondition> result{true};
 
     // Write undo information to disk
     if (block.GetUndoPos().IsNull()) {
@@ -996,7 +994,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
             return error("ConnectBlock(): FindUndoPos failed");
         }
         if (!UndoWriteToDisk(blockundo, _pos, block.pprev->GetBlockHash())) {
-            return FatalError(m_opts.notifications, state, "Failed to write undo data");
+            return ValidationFatalError(state, "Failed to write undo data", FatalCondition::WriteUndoDataFailed);
         }
         // rev files are written in block height order, whereas blk files are written as blocks come in (often out of order)
         // we want to flush the rev (undo) file once we've written the last block, which is indicated by the last height
@@ -1009,7 +1007,9 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
             // the caller would assume the undo data not to be written, when in
             // fact it is. Note though, that a failed flush might leave the data
             // file untrimmed.
-            if (!FlushUndoFile(_pos.nFile, true)) {
+            auto res{FlushUndoFile(_pos.nFile, true)};
+            result.MoveMessages(res);
+            if (!res || !res.value()) {
                 LogPrintLevel(BCLog::BLOCKSTORAGE, BCLog::Level::Warning, "Failed to flush undo file %05i\n", _pos.nFile);
             }
         } else if (_pos.nFile == cursor.file_num && block.nHeight > cursor.undo_height) {
@@ -1021,7 +1021,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
         m_dirty_blockindex.insert(&block);
     }
 
-    return true;
+    return result;
 }
 
 bool BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos) const

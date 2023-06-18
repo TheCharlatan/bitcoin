@@ -16,6 +16,7 @@ enum class FatalCondition {
     DiskSpaceTooLow,
     DisconnectBlockFailed,
     FlushBlockFileFailed,
+    FlushUndoFileFailed,
     NoChainstatePaths,
     ReadBlockFailed,
     SnapshotAlreadyValidated,
@@ -25,6 +26,7 @@ enum class FatalCondition {
     SnapshotMissingChainparams,
     SnapshotStatsFailed,
     SystemError,
+    WriteUndoDataFailed,
 };
 
 #endif // BITCOIN_KERNEL_FATAL_CONDITION_H
