@@ -2357,8 +2357,8 @@ util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block,
     if (fJustCheck)
         return true;
 
-    if (!m_blockman.WriteUndoDataForBlock(blockundo, state, *pindex)) {
-        return false;
+    if (auto res{m_blockman.WriteUndoDataForBlock(blockundo, state, *pindex)}; !res || !res.value()) {
+        return res;
     }
 
     const auto time_5{SteadyClock::now()};
