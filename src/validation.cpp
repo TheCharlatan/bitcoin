@@ -2518,8 +2518,9 @@ util::Result<bool, FatalCondition> Chainstate::FlushStateToDisk(
                 LOG_TIME_MILLIS_WITH_CATEGORY("write block and undo data to disk", BCLog::BENCH);
 
                 // First make sure all block and undo data is flushed to disk.
-                if (!m_blockman.FlushBlockFile()) {
-                    return false;
+                auto res{m_blockman.FlushBlockFile()};
+                if (!res || !res.value()) {
+                    return res;
                 }
             }
 
