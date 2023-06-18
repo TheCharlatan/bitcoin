@@ -533,7 +533,7 @@ bool BlockManager::FlushUndoFile(int block_file, bool finalize)
     return true;
 }
 
-bool BlockManager::FlushBlockFile(bool fFinalize, bool finalize_undo)
+util::Result<bool, FatalCondition> BlockManager::FlushBlockFile(bool fFinalize, bool finalize_undo)
 {
     LOCK(cs_LastBlockFile);
 
@@ -548,7 +548,7 @@ bool BlockManager::FlushBlockFile(bool fFinalize, bool finalize_undo)
 
     FlatFilePos block_pos_old(m_last_blockfile, m_blockfile_info[m_last_blockfile].nSize);
     if (!BlockFileSeq().Flush(block_pos_old, fFinalize)) {
-        return AbortNode("Flushing block file to disk failed. This is likely the result of an I/O error.");
+        return {util::Error{Untranslated("Flushing block file to disk failed. This is likely the result of an I/O error.")}, FatalCondition::FlushBlockFileFailed};
     }
     // we do not always flush the undo file, as the chain tip may be lagging behind the incoming blocks,
     // e.g. during IBD or a sync after a node going offline
