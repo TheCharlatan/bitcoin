@@ -935,7 +935,7 @@ util::Result<bool, FatalCondition> BlockManager::FindBlockPos(FlatFilePos& pos, 
     return result;
 }
 
-bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFilePos& pos, unsigned int nAddSize)
+util::Result<bool, FatalCondition> BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFilePos& pos, unsigned int nAddSize)
 {
     pos.nFile = nFile;
 
@@ -948,7 +948,7 @@ bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFileP
     bool out_of_space;
     size_t bytes_allocated = UndoFileSeq().Allocate(pos, nAddSize, out_of_space);
     if (out_of_space) {
-        return FatalError(m_opts.notifications, state, "Disk space is too low!", _("Disk space is too low!"));
+        return ValidationFatalError(state, "Disk space is too low!", FatalCondition::DiskSpaceTooLow);
     }
     if (bytes_allocated != 0 && IsPruneMode()) {
         m_check_for_pruning = true;
@@ -983,6 +983,7 @@ bool BlockManager::WriteBlockToDisk(const CBlock& block, FlatFilePos& pos) const
 util::Result<bool, FatalCondition> BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValidationState& state, CBlockIndex& block)
 {
     AssertLockHeld(::cs_main);
+
     const BlockfileType type = BlockfileTypeForHeight(block.nHeight);
     auto& cursor = *Assert(WITH_LOCK(cs_LastBlockFile, return m_blockfile_cursors[type]));
     util::Result<bool, FatalCondition> result{true};
@@ -990,8 +991,10 @@ util::Result<bool, FatalCondition> BlockManager::WriteUndoDataForBlock(const CBl
     // Write undo information to disk
     if (block.GetUndoPos().IsNull()) {
         FlatFilePos _pos;
-        if (!FindUndoPos(state, block.nFile, _pos, ::GetSerializeSize(blockundo) + 40)) {
-            return error("ConnectBlock(): FindUndoPos failed");
+        result.Set(FindUndoPos(state, block.nFile, _pos, ::GetSerializeSize(blockundo) + 40));
+        if (!result || !result.value()) {
+            error("ConnectBlock(): FindUndoPos failed");
+            return result;
         }
         if (!UndoWriteToDisk(blockundo, _pos, block.pprev->GetBlockHash())) {
             return ValidationFatalError(state, "Failed to write undo data", FatalCondition::WriteUndoDataFailed);

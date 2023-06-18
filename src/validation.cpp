@@ -1975,12 +1975,6 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState& state,
     return true;
 }
 
-bool FatalError(Notifications& notifications, BlockValidationState& state, const std::string& strMessage, const bilingual_str& userMessage)
-{
-    notifications.fatalError(strMessage, userMessage);
-    return state.Error(strMessage);
-}
-
 util::Result<bool, FatalCondition> ValidationFatalError(BlockValidationState& state, const std::string& strMessage, FatalCondition condition)
 {
     state.Error(strMessage);
