@@ -1105,31 +1105,33 @@ static RPCHelpMan gettxout()
 
 static RPCHelpMan verifychain()
 {
-    return RPCHelpMan{"verifychain",
-                "\nVerifies blockchain database.\n",
-                {
-                    {"checklevel", RPCArg::Type::NUM, RPCArg::DefaultHint{strprintf("%d, range=0-4", DEFAULT_CHECKLEVEL)},
-                        strprintf("How thorough the block verification is:\n%s", MakeUnorderedList(CHECKLEVEL_DOC))},
-                    {"nblocks", RPCArg::Type::NUM, RPCArg::DefaultHint{strprintf("%d, 0=all", DEFAULT_CHECKBLOCKS)}, "The number of blocks to check."},
-                },
-                RPCResult{
-                    RPCResult::Type::BOOL, "", "Verification finished successfully. If false, check debug.log for reason."},
-                RPCExamples{
-                    HelpExampleCli("verifychain", "")
-            + HelpExampleRpc("verifychain", "")
-                },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-{
-    const int check_level{request.params[0].isNull() ? DEFAULT_CHECKLEVEL : request.params[0].getInt<int>()};
-    const int check_depth{request.params[1].isNull() ? DEFAULT_CHECKBLOCKS : request.params[1].getInt<int>()};
+    return RPCHelpMan{
+        "verifychain",
+        "\nVerifies blockchain database.\n",
+        {
+            {"checklevel", RPCArg::Type::NUM, RPCArg::DefaultHint{strprintf("%d, range=0-4", DEFAULT_CHECKLEVEL)},
+             strprintf("How thorough the block verification is:\n%s", MakeUnorderedList(CHECKLEVEL_DOC))},
+            {"nblocks", RPCArg::Type::NUM, RPCArg::DefaultHint{strprintf("%d, 0=all", DEFAULT_CHECKBLOCKS)}, "The number of blocks to check."},
+        },
+        RPCResult{
+            RPCResult::Type::BOOL, "", "Verification finished successfully. If false, check debug.log for reason."},
+        RPCExamples{
+            HelpExampleCli("verifychain", "") + HelpExampleRpc("verifychain", "")},
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+            const int check_level{request.params[0].isNull() ? DEFAULT_CHECKLEVEL : request.params[0].getInt<int>()};
+            const int check_depth{request.params[1].isNull() ? DEFAULT_CHECKBLOCKS : request.params[1].getInt<int>()};
 
-    ChainstateManager& chainman = EnsureAnyChainman(request.context);
-    LOCK(cs_main);
+            ChainstateManager& chainman = EnsureAnyChainman(request.context);
+            LOCK(cs_main);
 
-    Chainstate& active_chainstate = chainman.ActiveChainstate();
-    return CVerifyDB(chainman.GetNotifications()).VerifyDB(
-               active_chainstate, chainman.GetParams().GetConsensus(), active_chainstate.CoinsTip(), check_level, check_depth) == VerifyDBResult::SUCCESS;
-},
+            Chainstate& active_chainstate = chainman.ActiveChainstate();
+            auto res{CVerifyDB(chainman.GetNotifications()).VerifyDB(active_chainstate, chainman.GetParams().GetConsensus(), active_chainstate.CoinsTip(), check_level, check_depth)};
+            if (!res) {
+                AbortNode(ErrorString(res).original);
+                return false;
+            }
+            return res.value() == VerifyDBResult::SUCCESS;
+        },
     };
 }
 
