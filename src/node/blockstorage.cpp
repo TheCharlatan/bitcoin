@@ -832,7 +832,7 @@ bool BlockManager::ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatF
     return true;
 }
 
-FlatFilePos BlockManager::SaveBlockToDisk(const CBlock& block, int nHeight, CChain& active_chain, const FlatFilePos* dbp)
+util::Result<FlatFilePos, FatalCondition> BlockManager::SaveBlockToDisk(const CBlock& block, int nHeight, CChain& active_chain, const FlatFilePos* dbp)
 {
     unsigned int nBlockSize = ::GetSerializeSize(block, CLIENT_VERSION);
     FlatFilePos blockPos;
@@ -851,8 +851,9 @@ FlatFilePos BlockManager::SaveBlockToDisk(const CBlock& block, int nHeight, CCha
     }
     if (!position_known) {
         if (!WriteBlockToDisk(block, blockPos, GetParams().MessageStart())) {
-            AbortNode("Failed to write block");
-            return FlatFilePos();
+            // AbortNode("Failed to write block");
+            // return FlatFilePos();
+            return {util::Error{Untranslated("Failed to write block")}, FatalCondition::BlockWriteFailed};
         }
     }
     return blockPos;
@@ -912,7 +913,9 @@ util::Result<void, FatalCondition> ThreadImport(ChainstateManager& chainman, std
             fReindex = false;
             LogPrintf("Reindexing finished\n");
             // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
-            chainman.ActiveChainstate().LoadGenesisBlock();
+            if (auto res{chainman.ActiveChainstate().LoadGenesisBlock()}; !res) {
+                return {util::Error{ErrorString(res)}, res.GetFailure()};
+            }
         }
 
         // -loadblock=

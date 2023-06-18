@@ -8,6 +8,7 @@
 enum class FatalCondition {
     BlockFileImportSystemError,
     BlockIndexWriteFailed,
+    BlockWriteFailed,
     ChainstateRenameFailed,
     CoinDatabaseWriteFailed,
     CorruptBlock,
