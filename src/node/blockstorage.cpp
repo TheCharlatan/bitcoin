@@ -524,11 +524,11 @@ bool BlockManager::UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex& in
     return true;
 }
 
-bool BlockManager::FlushUndoFile(int block_file, bool finalize)
+util::Result<bool, FatalCondition> BlockManager::FlushUndoFile(int block_file, bool finalize)
 {
     FlatFilePos undo_pos_old(block_file, m_blockfile_info[block_file].nUndoSize);
     if (!UndoFileSeq().Flush(undo_pos_old, finalize)) {
-        return AbortNode("Flushing undo file to disk failed. This is likely the result of an I/O error.");
+        return {util::Error{Untranslated("Flushing undo file to disk failed. This is likely the result of an I/O error.")}, FatalCondition::FlushUndoFileFailed};
     }
     return true;
 }
