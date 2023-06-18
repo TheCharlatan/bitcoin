@@ -4007,7 +4007,11 @@ util::Result<bool, FatalCondition> Chainstate::AcceptBlock(const std::shared_ptr
     // Write block to history file
     if (fNewBlock) *fNewBlock = true;
     try {
-        FlatFilePos blockPos{m_blockman.SaveBlockToDisk(block, pindex->nHeight, m_chain, dbp)};
+        auto res{m_blockman.SaveBlockToDisk(block, pindex->nHeight, m_chain, dbp)};
+        if (!res) {
+            return {util::Error{ErrorString(res)}, res.GetFailure()};
+        }
+        FlatFilePos blockPos{res.value()};
         if (blockPos.IsNull()) {
             state.Error(strprintf("%s: Failed to find position to write new block to disk", __func__));
             return false;
@@ -4540,7 +4544,7 @@ bool ChainstateManager::LoadBlockIndex()
     return true;
 }
 
-bool Chainstate::LoadGenesisBlock()
+util::Result<bool, FatalCondition> Chainstate::LoadGenesisBlock()
 {
     LOCK(cs_main);
 
@@ -4555,7 +4559,11 @@ bool Chainstate::LoadGenesisBlock()
 
     try {
         const CBlock& block = params.GenesisBlock();
-        FlatFilePos blockPos{m_blockman.SaveBlockToDisk(block, 0, m_chain, nullptr)};
+        auto res{m_blockman.SaveBlockToDisk(block, 0, m_chain, nullptr)};
+        if (!res) {
+            return {util::Error{ErrorString(res)}, res.GetFailure()};
+        }
+        FlatFilePos blockPos{res.value()};
         if (blockPos.IsNull()) {
             return error("%s: writing genesis block to disk failed", __func__);
         }
