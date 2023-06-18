@@ -111,8 +111,9 @@ COutPoint MineBlock(const NodeContext& node, std::shared_ptr<CBlock>& block)
 std::shared_ptr<CBlock> PrepareBlock(const NodeContext& node, const CScript& coinbase_scriptPubKey,
                                      const BlockAssembler::Options& assembler_options)
 {
+    std::atomic<int> status{0};
     auto block = std::make_shared<CBlock>(
-        BlockAssembler{Assert(node.chainman)->ActiveChainstate(), Assert(node.mempool.get()), assembler_options}
+        BlockAssembler{Assert(node.chainman)->ActiveChainstate(), Assert(node.mempool.get()), assembler_options, *Assert(node.shutdown), status}
             .CreateNewBlock(coinbase_scriptPubKey)
             ->block);
 

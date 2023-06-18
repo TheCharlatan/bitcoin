@@ -268,10 +268,14 @@ util::Result<void, ChainstateLoadError> VerifyLoadedChainstate(ChainstateManager
                         ChainstateLoadError::FAILURE};
             }
 
-            VerifyDBResult result = CVerifyDB(chainman.GetNotifications()).VerifyDB(
+            auto res = CVerifyDB(chainman.GetNotifications()).VerifyDB(
                 *chainstate, chainman.GetConsensus(), chainstate->CoinsDB(),
                 options.check_level,
                 options.check_blocks);
+            if (!res) {
+                return {util::Error{ErrorString(res)}, ChainstateLoadError::FAILURE_FATAL};
+            }
+            VerifyDBResult result = res.value();
             switch (result) {
             case VerifyDBResult::SUCCESS:
             case VerifyDBResult::SKIPPED_MISSING_BLOCKS:

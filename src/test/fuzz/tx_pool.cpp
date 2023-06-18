@@ -86,14 +86,15 @@ void SetMempoolConstraints(ArgsManager& args, FuzzedDataProvider& fuzzed_data_pr
                      ToString(fuzzed_data_provider.ConsumeIntegralInRange<unsigned>(0, 999)));
 }
 
-void Finish(FuzzedDataProvider& fuzzed_data_provider, MockedTxPool& tx_pool, Chainstate& chainstate)
+void Finish(FuzzedDataProvider& fuzzed_data_provider, MockedTxPool& tx_pool, Chainstate& chainstate, const NodeContext& node)
 {
     WITH_LOCK(::cs_main, tx_pool.check(chainstate.CoinsTip(), chainstate.m_chain.Height() + 1));
     {
+        std::atomic<int> status{0};
         BlockAssembler::Options options;
         options.nBlockMaxWeight = fuzzed_data_provider.ConsumeIntegralInRange(0U, MAX_BLOCK_WEIGHT);
         options.blockMinFeeRate = CFeeRate{ConsumeMoney(fuzzed_data_provider, /*max=*/COIN)};
-        auto assembler = BlockAssembler{chainstate, &tx_pool, options};
+        auto assembler = BlockAssembler{chainstate, &tx_pool, options, *node.shutdown, status};
         auto block_template = assembler.CreateNewBlock(CScript{} << OP_TRUE);
         Assert(block_template->block.vtx.size() >= 1);
     }
@@ -181,7 +182,7 @@ void CheckATMPInvariants(const MempoolAcceptResult& res, bool txid_in_mempool, b
 FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
 {
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
-    const auto& node = g_setup->m_node;
+    auto& node = g_setup->m_node;
     auto& chainstate{static_cast<DummyChainState&>(node.chainman->ActiveChainstate())};
 
     MockTime(fuzzed_data_provider, chainstate);
@@ -353,7 +354,7 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
             }
         }
     }
-    Finish(fuzzed_data_provider, tx_pool, chainstate);
+    Finish(fuzzed_data_provider, tx_pool, chainstate, g_setup->m_node);
 }
 
 FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
@@ -407,6 +408,6 @@ FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
             txids.push_back(tx->GetHash());
         }
     }
-    Finish(fuzzed_data_provider, tx_pool, chainstate);
+    Finish(fuzzed_data_provider, tx_pool, chainstate, g_setup->m_node);
 }
 } // namespace
