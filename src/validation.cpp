@@ -1849,12 +1849,6 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState& state,
     return true;
 }
 
-bool AbortNode(BlockValidationState& state, const std::string& strMessage, const bilingual_str& userMessage)
-{
-    AbortNode(strMessage, userMessage);
-    return state.Error(strMessage);
-}
-
 util::Result<bool, FatalCondition> ValidationFatalError(BlockValidationState& state, const std::string& strMessage, FatalCondition condition)
 {
     state.Error(strMessage);

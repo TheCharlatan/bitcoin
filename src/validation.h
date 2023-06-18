@@ -102,8 +102,6 @@ void StopScriptCheckWorkerThreads();
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
-bool AbortNode(BlockValidationState& state, const std::string& strMessage, const bilingual_str& userMessage = bilingual_str{});
-
 [[nodiscard]] util::Result<bool, FatalCondition> ValidationFatalError(BlockValidationState& state, const std::string& strMessage, FatalCondition condition);
 
 /** Guess verification progress (as a fraction between 0.0=genesis and 1.0=current tip). */
