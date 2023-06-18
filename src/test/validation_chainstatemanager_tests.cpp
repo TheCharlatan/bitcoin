@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
         /*cache_size_bytes=*/1 << 23, /*in_memory=*/true, /*should_wipe=*/false);
     WITH_LOCK(::cs_main, c2.InitCoinsCache(1 << 23));
     // Unlike c1, which doesn't have any blocks. Gets us different tip, height.
-    c2.LoadGenesisBlock();
+    Assert(c2.LoadGenesisBlock());
     BlockValidationState _;
     auto res = c2.ActivateBestChain(_, nullptr);
     BOOST_CHECK(res.value());
@@ -129,7 +129,7 @@ BOOST_AUTO_TEST_CASE(chainstatemanager_rebalance_caches)
     {
         LOCK(::cs_main);
         c1.InitCoinsCache(1 << 23);
-        BOOST_REQUIRE(c1.LoadGenesisBlock());
+        BOOST_REQUIRE(Assert(c1.LoadGenesisBlock()).value());
         c1.CoinsTip().SetBestBlock(InsecureRand256());
         BOOST_REQUIRE(manager.MaybeRebalanceCaches());
     }
@@ -147,7 +147,7 @@ BOOST_AUTO_TEST_CASE(chainstatemanager_rebalance_caches)
     {
         LOCK(::cs_main);
         c2.InitCoinsCache(1 << 23);
-        BOOST_REQUIRE(c2.LoadGenesisBlock());
+        BOOST_REQUIRE(Assert(c2.LoadGenesisBlock()).value());
         c2.CoinsTip().SetBestBlock(InsecureRand256());
         BOOST_REQUIRE(manager.MaybeRebalanceCaches());
     }
