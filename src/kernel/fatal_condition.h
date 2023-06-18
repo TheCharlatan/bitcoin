@@ -10,6 +10,7 @@ enum class FatalCondition {
     BlockIndexWriteFailed,
     ChainstateRenameFailed,
     CoinDatabaseWriteFailed,
+    CorruptBlock,
     ConnectBestBlockFailed,
     DiskSpaceTooLow,
     DisconnectBlockFailed,
