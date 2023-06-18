@@ -91,7 +91,7 @@ private:
      */
     bool LoadBlockIndex()
         EXCLUSIVE_LOCKS_REQUIRED(cs_main);
-    [[nodiscard]] bool FlushBlockFile(bool fFinalize = false, bool finalize_undo = false);
+    [[nodiscard]] util::Result<bool, FatalCondition> FlushBlockFile(bool fFinalize = false, bool finalize_undo = false);
     [[nodiscard]] bool FlushUndoFile(int block_file, bool finalize = false);
     [[nodiscard]] bool FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigned int nHeight, CChain& active_chain, uint64_t nTime, bool fKnown);
     bool FindUndoPos(BlockValidationState& state, int nFile, FlatFilePos& pos, unsigned int nAddSize);

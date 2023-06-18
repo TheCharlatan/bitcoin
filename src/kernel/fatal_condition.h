@@ -14,6 +14,7 @@ enum class FatalCondition {
     ConnectBestBlockFailed,
     DiskSpaceTooLow,
     DisconnectBlockFailed,
+    FlushBlockFileFailed,
     NoChainstatePaths,
     ReadBlockFailed,
     SnapshotAlreadyValidated,
