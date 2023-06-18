@@ -84,7 +84,8 @@ static util::Result<void, ChainstateLoadError> CompleteChainstateInitialization(
     // If we're not mid-reindex (based on disk + args), add a genesis block on disk
     // (otherwise we use the one already on disk).
     // This is called again in ImportBlocks after the reindex completes.
-    if (!fReindex && !chainman.ActiveChainstate().LoadGenesisBlock()) {
+    auto load_genesis_block_res{chainman.ActiveChainstate().LoadGenesisBlock()};
+    if (!fReindex && (!load_genesis_block_res || !load_genesis_block_res.value())) {
         return {util::Error{_("Error initializing block database")}, ChainstateLoadError::FAILURE};
     }
 
