@@ -2061,7 +2061,7 @@ static int64_t num_blocks_total = 0;
 /** Apply the effects of this block (with given index) on the UTXO set represented by coins.
  *  Validity checks that depend on the UTXO set are also done; ConnectBlock()
  *  can fail if those validity checks fail (among other reasons). */
-bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, CBlockIndex* pindex,
+util::Result<bool, FatalCondition> Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, CBlockIndex* pindex,
                                CCoinsViewCache& view, bool fJustCheck)
 {
     AssertLockHeld(cs_main);
@@ -2092,7 +2092,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
             // We don't write down blocks to disk if they may have been
             // corrupted, so this should be impossible unless we're having hardware
             // problems.
-            return AbortNode(state, "Corrupt block found indicating potential hardware failure; shutting down");
+            return ValidationFatalError(state, "Corrupt block found indicating potential hardware failure; shutting down", FatalCondition::CorruptBlock);
         }
         return error("%s: Consensus::CheckBlock: %s", __func__, state.ToString());
     }
@@ -2834,9 +2834,12 @@ util::Result<bool, FatalCondition> Chainstate::ConnectTip(BlockValidationState& 
              Ticks<MillisecondsDouble>(time_2 - time_1));
     {
         CCoinsViewCache view(&CoinsTip());
-        bool rv = ConnectBlock(blockConnecting, state, pindexNew, view);
+        auto res{ConnectBlock(blockConnecting, state, pindexNew, view)};
+        if (!res) {
+            return res;
+        }
         GetMainSignals().BlockChecked(blockConnecting, state);
-        if (!rv) {
+        if (!res.value()) {
             if (state.IsInvalid())
                 InvalidBlockFound(pindexNew, state);
             return error("%s: ConnectBlock %s failed, %s", __func__, pindexNew->GetBlockHash().ToString(), state.ToString());
@@ -4084,7 +4087,7 @@ util::Result<MempoolAcceptResult, FatalCondition> ChainstateManager::ProcessTran
     return result.value();
 }
 
-bool TestBlockValidity(BlockValidationState& state,
+util::Result<bool, FatalCondition> TestBlockValidity(BlockValidationState& state,
                        const CChainParams& chainparams,
                        Chainstate& chainstate,
                        const CBlock& block,
@@ -4109,7 +4112,11 @@ bool TestBlockValidity(BlockValidationState& state,
         return error("%s: Consensus::CheckBlock: %s", __func__, state.ToString());
     if (!ContextualCheckBlock(block, state, chainstate.m_chainman, pindexPrev))
         return error("%s: Consensus::ContextualCheckBlock: %s", __func__, state.ToString());
-    if (!chainstate.ConnectBlock(block, state, &indexDummy, viewNew, true)) {
+    auto res{chainstate.ConnectBlock(block, state, &indexDummy, viewNew, true)};
+    if (!res) {
+        return res;
+    }
+    if (!res.value()) {
         return false;
     }
     assert(state.IsValid());
@@ -4180,7 +4187,7 @@ CVerifyDB::~CVerifyDB()
     m_notifications.progress(bilingual_str{}, 100, false);
 }
 
-VerifyDBResult CVerifyDB::VerifyDB(
+util::Result<VerifyDBResult, FatalCondition> CVerifyDB::VerifyDB(
     Chainstate& chainstate,
     const Consensus::Params& consensus_params,
     CCoinsView& coinsview,
@@ -4300,7 +4307,11 @@ VerifyDBResult CVerifyDB::VerifyDB(
                 LogPrintf("Verification error: ReadBlockFromDisk failed at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
                 return VerifyDBResult::CORRUPTED_BLOCK_DB;
             }
-            if (!chainstate.ConnectBlock(block, state, pindex, coins)) {
+            auto res{chainstate.ConnectBlock(block, state, pindex, coins)};
+            if (!res) {
+                return {util::Error{ErrorString(res)}, res.GetFailure()};
+            }
+            if (!res.value()) {
                 LogPrintf("Verification error: found unconnectable block at %d, hash=%s (%s)\n", pindex->nHeight, pindex->GetBlockHash().ToString(), state.ToString());
                 return VerifyDBResult::CORRUPTED_BLOCK_DB;
             }
