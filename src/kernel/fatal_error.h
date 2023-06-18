@@ -21,6 +21,7 @@ enum class FatalError {
     DisconnectBlockFailed,
     FlushBlockFileFailed,
     FlushStateToDiskFailed,
+    FlushUndoFileFailed,
     NoChainstatePaths,
     ReadBlockFailed,
     SnapshotAlreadyValidated,
@@ -29,6 +30,7 @@ enum class FatalError {
     SnapshotHashMismatch,
     SnapshotMissingChainparams,
     SnapshotStatsFailed,
+    WriteUndoDataFailed,
 };
 
 template <typename T>
