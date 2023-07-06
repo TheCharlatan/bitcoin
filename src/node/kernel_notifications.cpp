@@ -87,4 +87,9 @@ void KernelNotifications::fatalError(const std::string& debug_message, const bil
     node::AbortNode(m_exit_status, debug_message, user_message, m_shutdown_on_fatal_error);
 }
 
+void KernelNotifications::stopAtHeightReached()
+{
+    StartShutdown();
+}
+
 } // namespace node

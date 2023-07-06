@@ -3177,7 +3177,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
         }
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
-        if (m_chainman.StopAtHeight() && pindexNewTip && pindexNewTip->nHeight >= m_chainman.StopAtHeight()) StartShutdown();
+        if (m_chainman.StopAtHeight() && pindexNewTip && pindexNewTip->nHeight >= m_chainman.StopAtHeight()) m_chainman.GetNotifications().stopAtHeightReached();
 
         if (WITH_LOCK(::cs_main, return m_disabled)) {
             // Background chainstate has reached the snapshot base block, so exit.

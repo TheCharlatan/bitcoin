@@ -45,6 +45,12 @@ public:
     //! the user, or triggering an early shutdown as a precaution against
     //! causing more errors.
     virtual void fatalError(const std::string& debug_message, const bilingual_str& user_message = {}) {}
+
+    //! The stop at height reached notification is sent to notify the user when
+    //! a block at the height set by the stop_at_height option is connected. If
+    //! the user chooses to interrupt upon receiving the notification, no
+    //! further blocks will be connected.
+    virtual void stopAtHeightReached() {}
 };
 } // namespace kernel
 
