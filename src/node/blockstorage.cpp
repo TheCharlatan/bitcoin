@@ -932,12 +932,6 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
                 return;
             }
         }
-
-        if (chainman.m_blockman.StopAfterBlockImport()) {
-            LogPrintf("Stopping after block import\n");
-            StartShutdown();
-            return;
-        }
     } // End scope of ImportingNow
     chainman.ActiveChainstate().LoadMempool(mempool_path);
     g_indexes_ready_to_sync = true;
