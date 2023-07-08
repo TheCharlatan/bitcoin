@@ -4,6 +4,7 @@
 
 #include <node/abort.h>
 
+#include <kernel/context.h>
 #include <logging.h>
 #include <node/interface_ui.h>
 #include <shutdown.h>
@@ -22,6 +23,6 @@ void AbortNode(std::atomic<int>& exit_status, const std::string& debug_message, 
     LogPrintf("*** %s\n", debug_message);
     InitError(user_message.empty() ? _("A fatal internal error occurred, see debug.log for details") : user_message);
     exit_status.store(EXIT_FAILURE);
-    if (shutdown) StartShutdown();
+    if (shutdown) kernel::g_context->interrupt();
 }
 } // namespace node

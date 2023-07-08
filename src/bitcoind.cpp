@@ -170,6 +170,13 @@ static bool AppInit(NodeContext& node)
     std::any context{&node};
     try
     {
+        node.kernel = std::make_unique<kernel::Context>();
+        if (!AppInitSanityChecks(*node.kernel))
+        {
+            // InitError will have been called with detailed error, which ends up on console
+            return false;
+        }
+
         // -server defaults to true for bitcoind but not for the GUI so do this here
         args.SoftSetBoolArg("-server", true);
         // Set this early so that parameter interactions go to console
@@ -180,13 +187,6 @@ static bool AppInit(NodeContext& node)
             return false;
         }
         if (!AppInitParameterInteraction(args)) {
-            // InitError will have been called with detailed error, which ends up on console
-            return false;
-        }
-
-        node.kernel = std::make_unique<kernel::Context>();
-        if (!AppInitSanityChecks(*node.kernel))
-        {
             // InitError will have been called with detailed error, which ends up on console
             return false;
         }

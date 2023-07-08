@@ -7,9 +7,12 @@
 
 #include <common/args.h>
 #include <common/system.h>
+#include <kernel/context.h>
 #include <logging.h>
+#include <node/context.h>
 #include <rpc/util.h>
 #include <shutdown.h>
+#include <rpc/server_util.h>
 #include <sync.h>
 #include <util/strencodings.h>
 #include <util/string.h>
@@ -179,7 +182,8 @@ static RPCHelpMan stop()
 {
     // Event loop will exit after current HTTP requests have been handled, so
     // this reply will get back to the client.
-    StartShutdown();
+    node::NodeContext& node = EnsureAnyNodeContext(jsonRequest.context);
+    node.kernel->interrupt();
     if (jsonRequest.params[0].isNum()) {
         UninterruptibleSleep(std::chrono::milliseconds{jsonRequest.params[0].getInt<int>()});
     }
