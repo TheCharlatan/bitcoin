@@ -10,12 +10,17 @@
 #include <QString>
 
 #include <windef.h> // for HWND
+#include <functional>
 
 #include <QAbstractNativeEventFilter>
 
 class WinShutdownMonitor : public QAbstractNativeEventFilter
 {
+private:
+    std::function<void()> m_start_shutdown_cb;
+
 public:
+    WinShutdownMonitor(std::function<void()> start_shutdown_cb) : m_start_shutdown_cb(start_shutdown_cb) {};
     /** Implements QAbstractNativeEventFilter interface for processing Windows messages */
     bool nativeEventFilter(const QByteArray &eventType, void *pMessage, long *pnResult) override;
 

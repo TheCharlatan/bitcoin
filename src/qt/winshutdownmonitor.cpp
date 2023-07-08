@@ -25,7 +25,7 @@ bool WinShutdownMonitor::nativeEventFilter(const QByteArray &eventType, void *pM
            {
                // Initiate a client shutdown after receiving a WM_QUERYENDSESSION and block
                // Windows session end until we have finished client shutdown.
-               StartShutdown();
+               m_start_shutdown_cb();
                *pnResult = FALSE;
                return true;
            }

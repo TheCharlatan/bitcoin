@@ -627,10 +627,6 @@ int GuiMain(int argc, char* argv[])
     /// 9. Main GUI initialization
     // Install global event filter that makes sure that out-of-focus labels do not contain text cursor.
     app.installEventFilter(new GUIUtil::LabelOutOfFocusEventFilter(&app));
-#if defined(Q_OS_WIN)
-    // Install global event filter for processing Windows session related Windows messages (WM_QUERYENDSESSION and WM_ENDSESSION)
-    qApp->installNativeEventFilter(new WinShutdownMonitor());
-#endif
     // Install qDebug() message handler to route to debug.log
     qInstallMessageHandler(DebugMessageHandler);
     // Allow parameter interaction before we create the options model
@@ -659,6 +655,10 @@ int GuiMain(int argc, char* argv[])
         // This is acceptable because this function only contains steps that are quick to execute,
         // so the GUI thread won't be held up.
         if (app.baseInitialize()) {
+            #if defined(Q_OS_WIN)
+                // Install global event filter for processing Windows session related Windows messages (WM_QUERYENDSESSION and WM_ENDSESSION)
+            qApp->installNativeEventFilter(new WinShutdownMonitor([&app]() { app.node().startShutdown(); }));
+#endif
             app.requestInitialize();
 #if defined(Q_OS_WIN)
             WinShutdownMonitor::registerShutdownBlockReason(QObject::tr("%1 didn't yet exit safely…").arg(PACKAGE_NAME), (HWND)app.getMainWinId());
