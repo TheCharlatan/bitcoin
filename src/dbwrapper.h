@@ -20,7 +20,7 @@
 #include <leveldb/options.h>
 #include <leveldb/slice.h>
 #include <leveldb/status.h>
-#include <leveldb/write_batch.h>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -90,7 +90,9 @@ class CDBBatch
 
 private:
     const CDBWrapper &parent;
-    leveldb::WriteBatch batch;
+
+    struct WriteBatchImpl;
+    const std::unique_ptr<WriteBatchImpl> m_pimpl_batch;
 
     DataStream ssKey{};
     CDataStream ssValue;
@@ -101,16 +103,9 @@ private:
     void EraseImpl(DataStream& ssKey);
 
 public:
-    /**
-     * @param[in] _parent   CDBWrapper that this batch is to be submitted to
-     */
-    explicit CDBBatch(const CDBWrapper& _parent) : parent(_parent), ssValue(SER_DISK, CLIENT_VERSION){};
-
-    void Clear()
-    {
-        batch.Clear();
-        size_estimate = 0;
-    }
+    explicit CDBBatch(const CDBWrapper& _parent);
+    ~CDBBatch();
+    void Clear();
 
     template <typename K, typename V>
     void Write(const K& key, const V& value)
