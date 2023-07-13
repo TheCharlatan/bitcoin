@@ -25,6 +25,7 @@
 #include <leveldb/options.h>
 #include <leveldb/slice.h>
 #include <leveldb/status.h>
+#include <leveldb/write_batch.h>
 #include <memory>
 #include <optional>
 
@@ -133,13 +134,33 @@ static leveldb::Options GetOptions(size_t nCacheSize)
     return options;
 }
 
+struct WriteBatchImpl {
+    leveldb::WriteBatch batch;
+};
+
+/**
+ * @param[in] _parent   CDBWrapper that this batch is to be submitted to
+ */
+CDBBatch::CDBBatch(const CDBWrapper& _parent) : parent(_parent), pimpl_batch{new WriteBatchImpl}, ssValue(SER_DISK, CLIENT_VERSION){};
+
+CDBBatch::~CDBBatch()
+{
+    delete pimpl_batch;
+}
+
+void CDBBatch::Clear()
+{
+    pimpl_batch->batch.Clear();
+    size_estimate = 0;
+}
+
 void CDBBatch::WriteImpl(DataStream& ssKey, CDataStream& ssValue)
 {
     leveldb::Slice slKey((const char*)ssKey.data(), ssKey.size());
     ssValue.Xor(dbwrapper_private::GetObfuscateKey(parent));
     leveldb::Slice slValue((const char*)ssValue.data(), ssValue.size());
 
-    batch.Put(slKey, slValue);
+    pimpl_batch->batch.Put(slKey, slValue);
     // LevelDB serializes writes as:
     // - byte: header
     // - varint: key length (1 byte up to 127B, 2 bytes up to 16383B, ...)
@@ -156,7 +177,7 @@ void CDBBatch::EraseImpl(DataStream& ssKey)
 {
     leveldb::Slice slKey((const char*)ssKey.data(), ssKey.size());
 
-    batch.Delete(slKey);
+    pimpl_batch->batch.Delete(slKey);
     // LevelDB serializes erases as:
     // - byte: header
     // - varint: key length
@@ -243,7 +264,7 @@ bool CDBWrapper::WriteBatch(CDBBatch& batch, bool fSync)
     if (log_memory) {
         mem_before = DynamicMemoryUsage() / 1024.0 / 1024;
     }
-    leveldb::Status status = pdb->Write(fSync ? syncoptions : writeoptions, &batch.batch);
+    leveldb::Status status = pdb->Write(fSync ? syncoptions : writeoptions, &batch.pimpl_batch->batch);
     dbwrapper_private::HandleError(status);
     if (log_memory) {
         double mem_after = DynamicMemoryUsage() / 1024.0 / 1024;
