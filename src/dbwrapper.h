@@ -94,6 +94,8 @@ private:
 
     size_t size_estimate{0};
 
+    void WriteImpl(DataStream& ssKey, CDataStream& ssValue);
+
 public:
     /**
      * @param[in] _parent   CDBWrapper that this batch is to be submitted to
@@ -110,25 +112,11 @@ public:
     void Write(const K& key, const V& value)
     {
         ssKey.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
-        ssKey << key;
-        leveldb::Slice slKey((const char*)ssKey.data(), ssKey.size());
-
         ssValue.reserve(DBWRAPPER_PREALLOC_VALUE_SIZE);
+        ssKey << key;
         ssValue << value;
-        ssValue.Xor(dbwrapper_private::GetObfuscateKey(parent));
-        leveldb::Slice slValue((const char*)ssValue.data(), ssValue.size());
 
-        batch.Put(slKey, slValue);
-        // LevelDB serializes writes as:
-        // - byte: header
-        // - varint: key length (1 byte up to 127B, 2 bytes up to 16383B, ...)
-        // - byte[]: key
-        // - varint: value length
-        // - byte[]: value
-        // The formula below assumes the key and value are both less than 16k.
-        size_estimate += 3 + (slKey.size() > 127) + slKey.size() + (slValue.size() > 127) + slValue.size();
-        ssKey.clear();
-        ssValue.clear();
+        WriteImpl(ssKey, ssValue);
     }
 
     template <typename K>
