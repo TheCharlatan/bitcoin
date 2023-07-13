@@ -152,6 +152,20 @@ void CDBBatch::WriteImpl(DataStream& ssKey, CDataStream& ssValue)
     ssValue.clear();
 }
 
+void CDBBatch::EraseImpl(DataStream& ssKey)
+{
+    leveldb::Slice slKey((const char*)ssKey.data(), ssKey.size());
+
+    batch.Delete(slKey);
+    // LevelDB serializes erases as:
+    // - byte: header
+    // - varint: key length
+    // - byte[]: key
+    // The formula below assumes the key is less than 16kB.
+    size_estimate += 2 + (slKey.size() > 127) + slKey.size();
+    ssKey.clear();
+}
+
 CDBWrapper::CDBWrapper(const DBParams& params)
     : m_name{fs::PathToString(params.path.stem())}, m_path{params.path}, m_is_memory{params.memory_only}
 {
