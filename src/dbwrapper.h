@@ -251,6 +251,7 @@ private:
     };
 
     bool ReadImpl(ReaderBase& reader) const;
+    bool ExistsImpl(DataStream& ssKey) const;
 
 public:
     CDBWrapper(const DBParams& params);
@@ -288,18 +289,8 @@ public:
         DataStream ssKey{};
         ssKey.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
         ssKey << key;
-        leveldb::Slice slKey((const char*)ssKey.data(), ssKey.size());
-
-        std::string strValue;
-        leveldb::Status status = pdb->Get(readoptions, slKey, &strValue);
-        if (!status.ok()) {
-            if (status.IsNotFound())
-                return false;
-            LogPrintf("LevelDB read failure: %s\n", status.ToString());
-            dbwrapper_private::HandleError(status);
-        }
-        return true;
-    }
+        return ExistsImpl(ssKey);
+   }
 
     template <typename K>
     bool Erase(const K& key, bool fSync = false)
