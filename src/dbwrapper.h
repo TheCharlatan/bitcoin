@@ -9,21 +9,17 @@
 #include <serialize.h>
 #include <span.h>
 #include <streams.h>
+#include <util/check.h>
 #include <util/fs.h>
 
 #include <cstddef>
 #include <exception>
 #include <functional>
-#include <leveldb/db.h>
-#include <leveldb/options.h>
 #include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
-namespace leveldb {
-class Env;
-}
 
 static const size_t DBWRAPPER_PREALLOC_KEY_SIZE = 64;
 static const size_t DBWRAPPER_PREALLOC_VALUE_SIZE = 1024;
@@ -183,30 +179,13 @@ public:
     }
 };
 
+struct LevelDBContext;
+
 class CDBWrapper
 {
     friend const std::vector<unsigned char>& dbwrapper_private::GetObfuscateKey(const CDBWrapper &w);
 private:
-    //! custom environment this database is using (may be nullptr in case of default environment)
-    leveldb::Env* penv;
-
-    //! database options used
-    leveldb::Options options;
-
-    //! options used when reading from the database
-    leveldb::ReadOptions readoptions;
-
-    //! options used when iterating over values of the database
-    leveldb::ReadOptions iteroptions;
-
-    //! options used when writing to the database
-    leveldb::WriteOptions writeoptions;
-
-    //! options used when sync writing to the database
-    leveldb::WriteOptions syncoptions;
-
-    //! the database itself
-    leveldb::DB* pdb;
+    std::unique_ptr<LevelDBContext> m_db_context;
 
     //! the name of this database
     std::string m_name;
@@ -231,6 +210,7 @@ private:
     bool ReadImpl(std::function<void(DataStream&)> write_key_to_stream, std::function<void(CDataStream&)> read_value_from_stream) const;
     bool ExistsImpl(const DataStream& ssKey) const;
     size_t EstimateSizeImpl(const DataStream& ssKey1, const DataStream& ssKey2) const;
+    auto& DBContext() const { return *Assert(m_db_context); }
 
 public:
     CDBWrapper(const DBParams& params);
