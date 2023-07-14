@@ -10,7 +10,6 @@
 #include <serialize.h>
 #include <span.h>
 #include <streams.h>
-#include <tinyformat.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
 #include <util/strencodings.h>
@@ -299,6 +298,31 @@ std::vector<unsigned char> CDBWrapper::CreateObfuscateKey() const
     std::vector<uint8_t> ret(OBFUSCATE_KEY_NUM_BYTES);
     GetRandBytes(ret);
     return ret;
+}
+
+bool CDBWrapper::ReadImpl(CDBWrapper::ReaderBase& reader) const
+{
+    DataStream ssKey{};
+    ssKey.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
+    reader.WriteKeyToStream(ssKey);
+    leveldb::Slice slKey(CharCast(ssKey.data()), ssKey.size());
+
+    std::string strValue;
+    leveldb::Status status = pdb->Get(readoptions, slKey, &strValue);
+    if (!status.ok()) {
+        if (status.IsNotFound())
+            return false;
+        LogPrintf("LevelDB read failure: %s\n", status.ToString());
+        dbwrapper_private::HandleError(status);
+    }
+    try {
+        CDataStream ssValue{MakeByteSpan(strValue), SER_DISK, CLIENT_VERSION};
+        ssValue.Xor(obfuscate_key);
+        reader.ReadValueFromStream(ssValue);
+    } catch (const std::exception&) {
+        return false;
+    }
+    return true;
 }
 
 bool CDBWrapper::IsEmpty()

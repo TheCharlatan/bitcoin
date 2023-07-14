@@ -232,6 +232,36 @@ private:
     //! whether or not the database resides in memory
     bool m_is_memory;
 
+    class ReaderBase
+    {
+    public:
+        virtual void ReadValueFromStream(CDataStream& ssValue) = 0;
+        virtual void WriteKeyToStream(DataStream& ssKey) = 0;
+    };
+
+    template <typename K, typename V>
+    class Reader : public ReaderBase
+    {
+    private:
+        const K& key;
+        V& value;
+
+    public:
+        Reader(const K& key, V& value) : key{key}, value{value} {}
+
+        void ReadValueFromStream(CDataStream& ssValue) override
+        {
+            ssValue >> value;
+        }
+
+        void WriteKeyToStream(DataStream& ssKey) override
+        {
+            ssKey << key;
+        }
+    };
+
+    bool ReadImpl(ReaderBase& reader) const;
+
 public:
     CDBWrapper(const DBParams& params);
     ~CDBWrapper();
@@ -242,27 +272,8 @@ public:
     template <typename K, typename V>
     bool Read(const K& key, V& value) const
     {
-        DataStream ssKey{};
-        ssKey.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
-        ssKey << key;
-        leveldb::Slice slKey(CharCast(ssKey.data()), ssKey.size());
-
-        std::string strValue;
-        leveldb::Status status = pdb->Get(readoptions, slKey, &strValue);
-        if (!status.ok()) {
-            if (status.IsNotFound())
-                return false;
-            LogPrintf("LevelDB read failure: %s\n", status.ToString());
-            dbwrapper_private::HandleError(status);
-        }
-        try {
-            CDataStream ssValue{MakeByteSpan(strValue), SER_DISK, CLIENT_VERSION};
-            ssValue.Xor(obfuscate_key);
-            ssValue >> value;
-        } catch (const std::exception&) {
-            return false;
-        }
-        return true;
+        Reader reader{key, value};
+        return ReadImpl(reader);
     }
 
     template <typename K, typename V>
