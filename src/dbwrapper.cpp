@@ -327,6 +327,32 @@ bool CDBWrapper::IsEmpty()
     return !(it->Valid());
 }
 
+bool CDBWrapper::ReadImpl(CDBWrapper::ReaderBase& reader) const
+{
+    DataStream ssKey{};
+    ssKey.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
+
+    reader.WriteKeyToStream(ssKey);
+    leveldb::Slice slKey((const char*)ssKey.data(), ssKey.size());
+
+    std::string strValue;
+    leveldb::Status status = pdb->Get(readoptions, slKey, &strValue);
+    if (!status.ok()) {
+        if (status.IsNotFound())
+            return false;
+        LogPrintf("LevelDB read failure: %s\n", status.ToString());
+        dbwrapper_private::HandleError(status);
+    }
+    try {
+        CDataStream ssValue{MakeByteSpan(strValue), SER_DISK, CLIENT_VERSION};
+        ssValue.Xor(obfuscate_key);
+        reader.ReadValueFromStream(ssValue);
+    } catch (const std::exception&) {
+        return false;
+    }
+    return true;
+}
+
 CDBIterator::~CDBIterator() { delete piter; }
 bool CDBIterator::Valid() const { return piter->Valid(); }
 void CDBIterator::SeekToFirst() { piter->SeekToFirst(); }
