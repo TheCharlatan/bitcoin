@@ -367,6 +367,16 @@ bool CDBWrapper::ExistsImpl(DataStream& ssKey) const {
     return true;
 }
 
+size_t CDBWrapper::EstimateSizeImpl(const DataStream& ssKey1, const DataStream& ssKey2) const {
+    leveldb::Slice slKey1((const char*)ssKey1.data(), ssKey1.size());
+    leveldb::Slice slKey2((const char*)ssKey2.data(), ssKey2.size());
+    uint64_t size = 0;
+    leveldb::Range range(slKey1, slKey2);
+    pdb->GetApproximateSizes(&range, 1, &size);
+    return size;
+}
+
+
 CDBIterator::~CDBIterator() { delete piter; }
 bool CDBIterator::Valid() const { return piter->Valid(); }
 void CDBIterator::SeekToFirst() { piter->SeekToFirst(); }
