@@ -198,6 +198,11 @@ Span<const std::byte> CDBIterator::GetKeyImpl() {
     return MakeByteSpan(slKey);
 }
 
+Span<const std::byte> CDBIterator::GetValueImpl() {
+    leveldb::Slice slValue = piter->value();
+    return MakeByteSpan(slValue);
+}
+
 CDBWrapper::CDBWrapper(const DBParams& params)
     : m_name{fs::PathToString(params.path.stem())}, m_path{params.path}, m_is_memory{params.memory_only}
 {
