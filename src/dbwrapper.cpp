@@ -322,6 +322,21 @@ bool CDBWrapper::ReadImpl(std::function<void(DataStream&)> write_key_to_stream, 
     return true;
 }
 
+bool CDBWrapper::ExistsImpl(const DataStream& ssKey) const
+{
+    leveldb::Slice slKey(CharCast(ssKey.data()), ssKey.size());
+
+    std::string strValue;
+    leveldb::Status status = pdb->Get(readoptions, slKey, &strValue);
+    if (!status.ok()) {
+        if (status.IsNotFound())
+            return false;
+        LogPrintf("LevelDB read failure: %s\n", status.ToString());
+        dbwrapper_private::HandleError(status);
+    }
+    return true;
+}
+
 bool CDBWrapper::IsEmpty()
 {
     std::unique_ptr<CDBIterator> it(NewIterator());
