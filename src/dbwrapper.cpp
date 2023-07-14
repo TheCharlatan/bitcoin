@@ -193,6 +193,11 @@ void CDBIterator::SeekImpl(DataStream& ssKey)
     piter->Seek(slKey);
 }
 
+Span<const std::byte> CDBIterator::GetKeyImpl() {
+    leveldb::Slice slKey = piter->key();
+    return MakeByteSpan(slKey);
+}
+
 CDBWrapper::CDBWrapper(const DBParams& params)
     : m_name{fs::PathToString(params.path.stem())}, m_path{params.path}, m_is_memory{params.memory_only}
 {
