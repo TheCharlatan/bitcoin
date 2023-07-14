@@ -187,6 +187,12 @@ void CDBBatch::EraseImpl(DataStream& ssKey)
     ssKey.clear();
 }
 
+void CDBIterator::SeekImpl(DataStream& ssKey)
+{
+    leveldb::Slice slKey((const char*)ssKey.data(), ssKey.size());
+    piter->Seek(slKey);
+}
+
 CDBWrapper::CDBWrapper(const DBParams& params)
     : m_name{fs::PathToString(params.path.stem())}, m_path{params.path}, m_is_memory{params.memory_only}
 {

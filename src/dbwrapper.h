@@ -132,6 +132,8 @@ private:
     const CDBWrapper &parent;
     leveldb::Iterator *piter;
 
+    void SeekImpl(DataStream& ssKey);
+
 public:
 
     /**
@@ -148,10 +150,7 @@ public:
 
     template<typename K> void Seek(const K& key) {
         DataStream ssKey{};
-        ssKey.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
-        ssKey << key;
-        leveldb::Slice slKey((const char*)ssKey.data(), ssKey.size());
-        piter->Seek(slKey);
+        SeekImpl(ssKey);
     }
 
     void Next();
