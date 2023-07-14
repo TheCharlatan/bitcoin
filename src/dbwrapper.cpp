@@ -193,23 +193,47 @@ void CDBBatch::EraseImpl(DataStream& ssKey)
     size_estimate += 2 + (slKey.size() > 127) + slKey.size();
 }
 
+struct LevelDBContext {
+    //! custom environment this database is using (may be nullptr in case of default environment)
+    leveldb::Env* penv;
+
+    //! database options used
+    leveldb::Options options;
+
+    //! options used when reading from the database
+    leveldb::ReadOptions readoptions;
+
+    //! options used when iterating over values of the database
+    leveldb::ReadOptions iteroptions;
+
+    //! options used when writing to the database
+    leveldb::WriteOptions writeoptions;
+
+    //! options used when sync writing to the database
+    leveldb::WriteOptions syncoptions;
+
+    //! the database itself
+    leveldb::DB* pdb;
+};
+
 CDBWrapper::CDBWrapper(const DBParams& params)
     : m_name{fs::PathToString(params.path.stem())}, m_path{params.path}, m_is_memory{params.memory_only}
 {
-    penv = nullptr;
-    readoptions.verify_checksums = true;
-    iteroptions.verify_checksums = true;
-    iteroptions.fill_cache = false;
-    syncoptions.sync = true;
-    options = GetOptions(params.cache_bytes);
-    options.create_if_missing = true;
+    m_db_context = std::make_unique<LevelDBContext>();
+    m_db_context->penv = nullptr;
+    m_db_context->readoptions.verify_checksums = true;
+    m_db_context->iteroptions.verify_checksums = true;
+    m_db_context->iteroptions.fill_cache = false;
+    m_db_context->syncoptions.sync = true;
+    m_db_context->options = GetOptions(params.cache_bytes);
+    m_db_context->options.create_if_missing = true;
     if (params.memory_only) {
-        penv = leveldb::NewMemEnv(leveldb::Env::Default());
-        options.env = penv;
+        m_db_context->penv = leveldb::NewMemEnv(leveldb::Env::Default());
+        m_db_context->options.env = m_db_context->penv;
     } else {
         if (params.wipe_data) {
             LogPrintf("Wiping LevelDB in %s\n", fs::PathToString(params.path));
-            leveldb::Status result = leveldb::DestroyDB(fs::PathToString(params.path), options);
+            leveldb::Status result = leveldb::DestroyDB(fs::PathToString(params.path), m_db_context->options);
             HandleError(result);
         }
         TryCreateDirectories(params.path);
@@ -219,13 +243,13 @@ CDBWrapper::CDBWrapper(const DBParams& params)
     // because on POSIX leveldb passes the byte string directly to ::open(), and
     // on Windows it converts from UTF-8 to UTF-16 before calling ::CreateFileW
     // (see env_posix.cc and env_windows.cc).
-    leveldb::Status status = leveldb::DB::Open(options, fs::PathToString(params.path), &pdb);
+    leveldb::Status status = leveldb::DB::Open(m_db_context->options, fs::PathToString(params.path), &m_db_context->pdb);
     HandleError(status);
     LogPrintf("Opened LevelDB successfully\n");
 
     if (params.options.force_compact) {
         LogPrintf("Starting database compaction of %s\n", fs::PathToString(params.path));
-        pdb->CompactRange(nullptr, nullptr);
+        m_db_context->pdb->CompactRange(nullptr, nullptr);
         LogPrintf("Finished database compaction of %s\n", fs::PathToString(params.path));
     }
 
@@ -251,16 +275,16 @@ CDBWrapper::CDBWrapper(const DBParams& params)
 
 CDBWrapper::~CDBWrapper()
 {
-    delete pdb;
-    pdb = nullptr;
-    delete options.filter_policy;
-    options.filter_policy = nullptr;
-    delete options.info_log;
-    options.info_log = nullptr;
-    delete options.block_cache;
-    options.block_cache = nullptr;
-    delete penv;
-    options.env = nullptr;
+    delete m_db_context->pdb;
+    m_db_context->pdb = nullptr;
+    delete m_db_context->options.filter_policy;
+    m_db_context->options.filter_policy = nullptr;
+    delete m_db_context->options.info_log;
+    m_db_context->options.info_log = nullptr;
+    delete m_db_context->options.block_cache;
+    m_db_context->options.block_cache = nullptr;
+    delete m_db_context->penv;
+    m_db_context->options.env = nullptr;
 }
 
 bool CDBWrapper::WriteBatch(CDBBatch& batch, bool fSync)
@@ -270,7 +294,7 @@ bool CDBWrapper::WriteBatch(CDBBatch& batch, bool fSync)
     if (log_memory) {
         mem_before = DynamicMemoryUsage() / 1024.0 / 1024;
     }
-    leveldb::Status status = pdb->Write(fSync ? syncoptions : writeoptions, &batch.m_pimpl_batch->batch);
+    leveldb::Status status = m_db_context->pdb->Write(fSync ? m_db_context->syncoptions : m_db_context->writeoptions, &batch.m_pimpl_batch->batch);
     HandleError(status);
     if (log_memory) {
         double mem_after = DynamicMemoryUsage() / 1024.0 / 1024;
@@ -284,7 +308,7 @@ size_t CDBWrapper::DynamicMemoryUsage() const
 {
     std::string memory;
     std::optional<size_t> parsed;
-    if (!pdb->GetProperty("leveldb.approximate-memory-usage", &memory) || !(parsed = ToIntegral<size_t>(memory))) {
+    if (!m_db_context->pdb->GetProperty("leveldb.approximate-memory-usage", &memory) || !(parsed = ToIntegral<size_t>(memory))) {
         LogPrint(BCLog::LEVELDB, "Failed to get approximate-memory-usage property\n");
         return 0;
     }
@@ -318,7 +342,7 @@ bool CDBWrapper::ReadImpl(CDBWrapper::ReaderBase& reader) const
     leveldb::Slice slKey(CharCast(ssKey.data()), ssKey.size());
 
     std::string strValue;
-    leveldb::Status status = pdb->Get(readoptions, slKey, &strValue);
+    leveldb::Status status = m_db_context->pdb->Get(m_db_context->readoptions, slKey, &strValue);
     if (!status.ok()) {
         if (status.IsNotFound())
             return false;
@@ -340,7 +364,7 @@ bool CDBWrapper::ExistsImpl(DataStream& ssKey) const
     leveldb::Slice slKey(CharCast(ssKey.data()), ssKey.size());
 
     std::string strValue;
-    leveldb::Status status = pdb->Get(readoptions, slKey, &strValue);
+    leveldb::Status status = m_db_context->pdb->Get(m_db_context->readoptions, slKey, &strValue);
     if (!status.ok()) {
         if (status.IsNotFound())
             return false;
@@ -356,7 +380,7 @@ size_t CDBWrapper::EstimateSizeImpl(const DataStream& ssKey1, const DataStream& 
     leveldb::Slice slKey2(CharCast(ssKey2.data()), ssKey2.size());
     uint64_t size = 0;
     leveldb::Range range(slKey1, slKey2);
-    pdb->GetApproximateSizes(&range, 1, &size);
+    m_db_context->pdb->GetApproximateSizes(&range, 1, &size);
     return size;
 }
 
@@ -377,7 +401,7 @@ CDBIterator::CDBIterator(const CDBWrapper& _parent, std::unique_ptr<IteratorImpl
 
 CDBIterator* CDBWrapper::NewIterator()
 {
-    return new CDBIterator(*this, std::make_unique<CDBIterator::IteratorImpl>(pdb->NewIterator(iteroptions)));
+    return new CDBIterator(*this, std::make_unique<CDBIterator::IteratorImpl>(m_db_context->pdb->NewIterator(m_db_context->iteroptions)));
 }
 
 void CDBIterator::SeekImpl(DataStream& ssKey)
