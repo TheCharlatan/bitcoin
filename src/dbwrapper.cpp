@@ -8,6 +8,7 @@
 #include <logging.h>
 #include <random.h>
 #include <serialize.h>
+#include <span.h>
 #include <streams.h>
 #include <tinyformat.h>
 #include <util/fs.h>
@@ -307,6 +308,11 @@ void CDBIterator::SeekImpl(Span<const std::byte> ssKey)
 {
     leveldb::Slice slKey(CharCast(ssKey.data()), ssKey.size());
     piter->Seek(slKey);
+}
+
+Span<const std::byte> CDBIterator::GetKeyImpl() const
+{
+    return MakeByteSpan(piter->key());
 }
 
 CDBIterator::~CDBIterator() { delete piter; }
