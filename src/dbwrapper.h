@@ -15,6 +15,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <exception>
+#include <functional>
 #include <leveldb/db.h>
 #include <leveldb/options.h>
 #include <leveldb/slice.h>
@@ -235,6 +236,8 @@ private:
     //! whether or not the database resides in memory
     bool m_is_memory;
 
+    bool ReadImpl(std::function<void(DataStream&)> write_key_to_stream, std::function<void(CDataStream&)> read_value_from_stream) const;
+
 public:
     CDBWrapper(const DBParams& params);
     ~CDBWrapper();
@@ -245,27 +248,9 @@ public:
     template <typename K, typename V>
     bool Read(const K& key, V& value) const
     {
-        DataStream ssKey{};
-        ssKey.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
-        ssKey << key;
-        leveldb::Slice slKey(CharCast(ssKey.data()), ssKey.size());
-
-        std::string strValue;
-        leveldb::Status status = pdb->Get(readoptions, slKey, &strValue);
-        if (!status.ok()) {
-            if (status.IsNotFound())
-                return false;
-            LogPrintf("LevelDB read failure: %s\n", status.ToString());
-            dbwrapper_private::HandleError(status);
-        }
-        try {
-            CDataStream ssValue{MakeByteSpan(strValue), SER_DISK, CLIENT_VERSION};
-            ssValue.Xor(obfuscate_key);
-            ssValue >> value;
-        } catch (const std::exception&) {
-            return false;
-        }
-        return true;
+        auto write_key_to_stream{[&key](DataStream& ssKey) { ssKey << key; }};
+        auto read_value_from_stream{[&value](CDataStream& ssValue) { ssValue >> value; }};
+        return ReadImpl(write_key_to_stream, read_value_from_stream);
     }
 
     template <typename K, typename V>
