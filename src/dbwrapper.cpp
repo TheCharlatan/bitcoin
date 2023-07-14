@@ -349,6 +349,16 @@ bool CDBWrapper::ExistsImpl(const DataStream& ssKey) const
     return true;
 }
 
+size_t CDBWrapper::EstimateSizeImpl(const DataStream& ssKey1, const DataStream& ssKey2) const
+{
+    leveldb::Slice slKey1(CharCast(ssKey1.data()), ssKey1.size());
+    leveldb::Slice slKey2(CharCast(ssKey2.data()), ssKey2.size());
+    uint64_t size = 0;
+    leveldb::Range range(slKey1, slKey2);
+    pdb->GetApproximateSizes(&range, 1, &size);
+    return size;
+}
+
 bool CDBWrapper::IsEmpty()
 {
     std::unique_ptr<CDBIterator> it(NewIterator());

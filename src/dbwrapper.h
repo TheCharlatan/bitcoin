@@ -12,12 +12,10 @@
 #include <util/fs.h>
 
 #include <cstddef>
-#include <cstdint>
 #include <exception>
 #include <functional>
 #include <leveldb/db.h>
 #include <leveldb/options.h>
-#include <leveldb/slice.h>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -232,6 +230,7 @@ private:
 
     bool ReadImpl(std::function<void(DataStream&)> write_key_to_stream, std::function<void(CDataStream&)> read_value_from_stream) const;
     bool ExistsImpl(const DataStream& ssKey) const;
+    size_t EstimateSizeImpl(const DataStream& ssKey1, const DataStream& ssKey2) const;
 
 public:
     CDBWrapper(const DBParams& params);
@@ -301,12 +300,7 @@ public:
         ssKey2.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
         ssKey1 << key_begin;
         ssKey2 << key_end;
-        leveldb::Slice slKey1(CharCast(ssKey1.data()), ssKey1.size());
-        leveldb::Slice slKey2(CharCast(ssKey2.data()), ssKey2.size());
-        uint64_t size = 0;
-        leveldb::Range range(slKey1, slKey2);
-        pdb->GetApproximateSizes(&range, 1, &size);
-        return size;
+        return EstimateSizeImpl(ssKey1, ssKey2);
     }
 };
 
