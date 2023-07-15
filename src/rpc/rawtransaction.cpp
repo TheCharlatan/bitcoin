@@ -6,6 +6,7 @@
 #include <base58.h>
 #include <chain.h>
 #include <coins.h>
+#include <common/univalue_helpers.h>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
 #include <core_io.h>

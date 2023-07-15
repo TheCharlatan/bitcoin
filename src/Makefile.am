@@ -145,6 +145,7 @@ BITCOIN_CORE_H = \
   compat/endian.h \
   common/settings.h \
   common/system.h \
+  common/univalue_helpers.h \
   compressor.h \
   consensus/consensus.h \
   consensus/tx_check.h \
@@ -667,6 +668,7 @@ libbitcoin_common_a_SOURCES = \
   common/run_command.cpp \
   common/settings.cpp \
   common/system.cpp \
+  common/univalue_helpers.cpp \
   compressor.cpp \
   core_read.cpp \
   core_write.cpp \
@@ -896,8 +898,8 @@ if BUILD_BITCOIN_KERNEL_LIB
 lib_LTLIBRARIES += $(LIBBITCOINKERNEL)
 
 libbitcoinkernel_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(PTHREAD_FLAGS)
-libbitcoinkernel_la_LIBADD = $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(LIBSECP256K1)
-libbitcoinkernel_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT)
+libbitcoinkernel_la_LIBADD = $(LIBBITCOIN_CRYPTO) $(LIBLEVELDB) $(LIBMEMENV) $(LIBSECP256K1)
+libbitcoinkernel_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS)
 
 # libbitcoinkernel requires default symbol visibility, explicitly specify that
 # here so that things still work even when user configures with
