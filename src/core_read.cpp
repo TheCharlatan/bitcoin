@@ -15,6 +15,7 @@
 #include <version.h>
 
 #include <algorithm>
+#include <optional>
 #include <string>
 
 namespace {
@@ -252,10 +253,10 @@ std::vector<unsigned char> ParseHexUV(const UniValue& v, const std::string& strN
     return ParseHex(strHex);
 }
 
-int ParseSighashString(const UniValue& sighash)
+util::Result<int> ParseSighash(const std::optional<std::string>& sighash)
 {
     int hash_type = SIGHASH_DEFAULT;
-    if (!sighash.isNull()) {
+    if (sighash) {
         static std::map<std::string, int> map_sighash_values = {
             {std::string("DEFAULT"), int(SIGHASH_DEFAULT)},
             {std::string("ALL"), int(SIGHASH_ALL)},
@@ -265,12 +266,11 @@ int ParseSighashString(const UniValue& sighash)
             {std::string("SINGLE"), int(SIGHASH_SINGLE)},
             {std::string("SINGLE|ANYONECANPAY"), int(SIGHASH_SINGLE|SIGHASH_ANYONECANPAY)},
         };
-        const std::string& strHashType = sighash.get_str();
-        const auto& it = map_sighash_values.find(strHashType);
+        const auto& it = map_sighash_values.find(*sighash);
         if (it != map_sighash_values.end()) {
             hash_type = it->second;
         } else {
-            throw std::runtime_error(strHashType + " is not a valid sighash parameter.");
+            return util::Error{Untranslated(*sighash + " is not a valid sighash parameter.")};
         }
     }
     return hash_type;

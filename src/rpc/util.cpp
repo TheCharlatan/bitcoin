@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <clientversion.h>
+#include <core_io.h>
 #include <common/args.h>
 #include <consensus/amount.h>
 #include <key_io.h>
@@ -12,6 +13,7 @@
 #include <script/signingprovider.h>
 #include <tinyformat.h>
 #include <util/check.h>
+#include <util/result.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/translation.h>
@@ -308,6 +310,15 @@ public:
 UniValue DescribeAddress(const CTxDestination& dest)
 {
     return std::visit(DescribeAddressVisitor(), dest);
+}
+
+int ParseSighashString(const UniValue& sighash)
+{
+    auto parsed_sighash = ParseSighash(sighash.isNull() ? std::nullopt : std::make_optional(sighash.get_str()));
+    if (!parsed_sighash) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, util::ErrorString(parsed_sighash).original);
+    }
+    return parsed_sighash.value();
 }
 
 unsigned int ParseConfirmTarget(const UniValue& value, unsigned int max_target)

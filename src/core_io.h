@@ -6,7 +6,9 @@
 #define BITCOIN_CORE_IO_H
 
 #include <consensus/amount.h>
+#include <util/result.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -46,7 +48,7 @@ bool DecodeHexBlockHeader(CBlockHeader&, const std::string& hex_header);
  */
 bool ParseHashStr(const std::string& strHex, uint256& result);
 std::vector<unsigned char> ParseHexUV(const UniValue& v, const std::string& strName);
-int ParseSighashString(const UniValue& sighash);
+util::Result<int> ParseSighash(const std::optional<std::string>& sighash);
 
 // core_write.cpp
 UniValue ValueFromAmount(const CAmount amount);
