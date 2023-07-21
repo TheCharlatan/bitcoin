@@ -145,6 +145,7 @@ BITCOIN_CORE_H = \
   compat/endian.h \
   common/settings.h \
   common/system.h \
+  common/univalue_helpers.h \
   compressor.h \
   consensus/consensus.h \
   consensus/tx_check.h \
@@ -667,6 +668,7 @@ libbitcoin_common_a_SOURCES = \
   common/run_command.cpp \
   common/settings.cpp \
   common/system.cpp \
+  common/univalue_helpers.cpp \
   compressor.cpp \
   core_read.cpp \
   core_write.cpp \
