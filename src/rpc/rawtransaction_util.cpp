@@ -6,6 +6,7 @@
 #include <rpc/rawtransaction_util.h>
 
 #include <coins.h>
+#include <common/univalue_helpers.h>
 #include <consensus/amount.h>
 #include <core_io.h>
 #include <key_io.h>
