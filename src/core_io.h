@@ -47,7 +47,6 @@ bool DecodeHexBlockHeader(CBlockHeader&, const std::string& hex_header);
  * @see ParseHashV for an RPC-oriented version of this
  */
 bool ParseHashStr(const std::string& strHex, uint256& result);
-std::vector<unsigned char> ParseHexUV(const UniValue& v, const std::string& strName);
 util::Result<int> ParseSighash(const std::optional<std::string>& sighash);
 
 // core_write.cpp
