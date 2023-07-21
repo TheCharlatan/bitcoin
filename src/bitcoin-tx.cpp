@@ -11,6 +11,7 @@
 #include <coins.h>
 #include <common/args.h>
 #include <common/system.h>
+#include <common/univalue_helpers.h>
 #include <compat/compat.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>

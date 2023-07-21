@@ -7,6 +7,11 @@
 
 #include <univalue.h> // IWYU pragma: export
 
+#include <string>
+#include <vector>
+
+std::vector<unsigned char> ParseHexUV(const UniValue& v, const std::string& strName);
+
 int ParseSighashString(const UniValue& sighash);
 
 #endif // BITCOIN_COMMON_UNIVALUE_HELPERS_H
