@@ -100,6 +100,8 @@ CTxDestination AddAndGetMultisigDestination(const int required, const std::vecto
 
 UniValue DescribeAddress(const CTxDestination& dest);
 
+int ParseSighashString(const UniValue& sighash);
+
 //! Parse a confirm target option and raise an RPC error if it is invalid.
 unsigned int ParseConfirmTarget(const UniValue& value, unsigned int max_target);
 
