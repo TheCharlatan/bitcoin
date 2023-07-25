@@ -261,6 +261,7 @@ BITCOIN_CORE_H = \
   script/keyorigin.h \
   script/miniscript.h \
   script/sigcache.h \
+  script/sighashtype.h \
   script/sign.h \
   script/signingprovider.h \
   script/standard.h \
