@@ -69,6 +69,8 @@ FUZZ_TARGET(parse_univalue, .init = initialize_parse_univalue)
     try {
         (void)ParseSighashString(univalue);
     } catch (const UniValue&) {
+    } catch (const std::runtime_error&) {
+        if (univalue.isNull() || univalue.isStr()) throw;
     }
     try {
         (void)AmountFromValue(univalue);
