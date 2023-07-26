@@ -318,9 +318,6 @@ int ParseSighashString(const UniValue& sighash)
     if (sighash.isNull()) {
         return SIGHASH_DEFAULT;
     }
-    if (!sighash.isStr()) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "sighash needs to be null or string");
-    }
     const auto result{SighashFromStr(sighash.get_str())};
     if (!result) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, util::ErrorString(result).original);
