@@ -8,7 +8,7 @@
 #include <tinyformat.h>
 
 #include <cstdio>
-#include <filesystem> // IWYU pragma: export
+#include <filesystem> // NOLINT(bitcoin-filesystem-prohibited) IWYU pragma: export
 #include <functional>
 #include <iomanip>
 #include <ios>

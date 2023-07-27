@@ -17,7 +17,7 @@
 #include <util/syserror.h>
 
 #include <cerrno>
-#include <filesystem>
+#include <filesystem> // NOLINT(bitcoin-filesystem-prohibited) 
 #include <fstream>
 #include <map>
 #include <memory>
