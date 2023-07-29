@@ -26,7 +26,6 @@
 #include <vector>
 namespace leveldb {
 class Env;
-class Iterator;
 }
 
 static const size_t DBWRAPPER_PREALLOC_KEY_SIZE = 64;
@@ -133,9 +132,12 @@ public:
 
 class CDBIterator
 {
+public:
+    struct IteratorImpl;
+
 private:
     const CDBWrapper &parent;
-    leveldb::Iterator *piter;
+    const std::unique_ptr<IteratorImpl> m_pimpl_iter;
 
     void SeekImpl(DataStream& ssKey);
     Span<const std::byte> GetKeyImpl() const;
@@ -147,8 +149,7 @@ public:
      * @param[in] _parent          Parent CDBWrapper instance.
      * @param[in] _piter           The original leveldb iterator.
      */
-    CDBIterator(const CDBWrapper &_parent, leveldb::Iterator *_piter) :
-        parent(_parent), piter(_piter) { };
+    CDBIterator(const CDBWrapper& _parent, std::unique_ptr<IteratorImpl> _piter);
     ~CDBIterator();
 
     bool Valid() const;
@@ -312,10 +313,7 @@ public:
     // Get an estimate of LevelDB memory usage (in bytes).
     size_t DynamicMemoryUsage() const;
 
-    CDBIterator *NewIterator()
-    {
-        return new CDBIterator(*this, pdb->NewIterator(iteroptions));
-    }
+    CDBIterator *NewIterator();
 
     /**
      * Return true if the database managed by this class contains no entries.
