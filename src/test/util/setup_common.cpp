@@ -123,9 +123,9 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
     SeedInsecureRand();
     if (G_TEST_LOG_FUN) LogInstance().PushBackCallback(G_TEST_LOG_FUN);
     InitLogging(*m_node.args);
+    m_node.kernel = std::move(Assert(kernel::Context::MakeContext()).value());
     AppInitParameterInteraction(*m_node.args);
     LogInstance().StartLogging();
-    m_node.kernel = std::move(Assert(kernel::Context::MakeContext()).value());
     SetupEnvironment();
     SetupNetworking();
 
