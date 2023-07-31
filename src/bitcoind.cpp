@@ -184,9 +184,12 @@ static bool AppInit(NodeContext& node)
             return false;
         }
 
-        node.kernel = std::make_unique<kernel::Context>();
-        if (!AppInitSanityChecks(*node.kernel))
-        {
+        if (!InitKernel(node)) {
+            // InitError will have been called with detailed error, which ends up on console
+            return false;
+        }
+
+        if (!AppInitSanityChecks()) {
             // InitError will have been called with detailed error, which ends up on console
             return false;
         }
