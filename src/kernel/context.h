@@ -5,6 +5,7 @@
 #ifndef BITCOIN_KERNEL_CONTEXT_H
 #define BITCOIN_KERNEL_CONTEXT_H
 
+#include <util/result.h>
 #include <util/signalinterrupt.h>
 
 #include <memory>
@@ -24,8 +25,11 @@ struct Context {
     //! Declare default constructor and destructor that are not inline, so code
     //! instantiating the kernel::Context struct doesn't need to #include class
     //! definitions for all the unique_ptr members.
-    Context();
+    static util::Result<std::unique_ptr<Context>> MakeContext();
     ~Context();
+
+private:
+    Context() = default;
 };
 
 //! Global pointer to kernel::Context for legacy code. New code should avoid
