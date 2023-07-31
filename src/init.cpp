@@ -1026,14 +1026,9 @@ static bool LockDataDirectory(bool probeOnly)
     return true;
 }
 
-bool AppInitSanityChecks(const kernel::Context& kernel)
+bool AppInitSanityChecks()
 {
     // ********************************************************* Step 4: sanity checks
-    auto result{kernel::SanityChecks(kernel)};
-    if (!result) {
-        InitError(util::ErrorString(result));
-        return InitError(strprintf(_("Initialization sanity check failed. %s is shutting down."), PACKAGE_NAME));
-    }
 
     // Probe the data directory lock to give an early error message, if possible
     // We cannot hold the data directory lock here, as the forking for daemon() hasn't yet happened,
