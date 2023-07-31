@@ -50,7 +50,7 @@ bool AppInitParameterInteraction(const ArgsManager& args);
  * @note This can be done before daemonization. Do not call Shutdown() if this function fails.
  * @pre Parameters should be parsed and config file should be read, AppInitParameterInteraction should have been called.
  */
-bool AppInitSanityChecks(const kernel::Context& kernel);
+bool AppInitSanityChecks();
 /**
  * Lock bitcoin core data directory.
  * @note This should only be done after daemonization. Do not call Shutdown() if this function fails.
