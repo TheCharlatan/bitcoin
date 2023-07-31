@@ -184,9 +184,13 @@ static bool AppInit(NodeContext& node)
             return false;
         }
 
-        node.kernel = std::make_unique<kernel::Context>();
-        if (!AppInitSanityChecks(*node.kernel))
-        {
+        auto result{kernel::Context::MakeContext()};
+        if (!result) {
+            InitError(util::ErrorString(result));
+            return InitError(strprintf(_("Initialization kernel sanity check failed. %s is shutting down."), PACKAGE_NAME));
+        }
+        node.kernel = std::move(result.value());
+        if (!AppInitSanityChecks()) {
             // InitError will have been called with detailed error, which ends up on console
             return false;
         }

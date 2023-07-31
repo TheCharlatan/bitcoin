@@ -96,8 +96,12 @@ public:
         if (!AppInitBasicSetup(args(), Assert(context())->exit_status)) return false;
         if (!AppInitParameterInteraction(args())) return false;
 
-        m_context->kernel = std::make_unique<kernel::Context>();
-        if (!AppInitSanityChecks(*m_context->kernel)) return false;
+        auto res{kernel::Context::MakeContext()};
+        if (!res) {
+            return false;
+        }
+        m_context->kernel = std::move(res.value());
+        if (!AppInitSanityChecks()) return false;
 
         if (!AppInitLockDataDirectory()) return false;
         if (!AppInitInterfaces(*m_context)) return false;
