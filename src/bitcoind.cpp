@@ -174,6 +174,14 @@ static bool AppInit(NodeContext& node)
         args.SoftSetBoolArg("-server", true);
         // Set this early so that parameter interactions go to console
         InitLogging(args);
+
+        auto result{kernel::Context::MakeContext()};
+        if (!result) {
+            InitError(util::ErrorString(result));
+            return InitError(strprintf(_("Initialization kernel sanity check failed. %s is shutting down."), PACKAGE_NAME));
+        }
+        node.kernel = std::move(result.value());
+
         InitParameterInteraction(args);
         if (!AppInitBasicSetup(args, node.exit_status)) {
             // InitError will have been called with detailed error, which ends up on console
@@ -184,12 +192,6 @@ static bool AppInit(NodeContext& node)
             return false;
         }
 
-        auto result{kernel::Context::MakeContext()};
-        if (!result) {
-            InitError(util::ErrorString(result));
-            return InitError(strprintf(_("Initialization kernel sanity check failed. %s is shutting down."), PACKAGE_NAME));
-        }
-        node.kernel = std::move(result.value());
         if (!AppInitSanityChecks()) {
             // InitError will have been called with detailed error, which ends up on console
             return false;
