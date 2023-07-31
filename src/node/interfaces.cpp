@@ -93,15 +93,16 @@ public:
     uint32_t getLogCategories() override { return LogInstance().GetCategoryMask(); }
     bool baseInitialize() override
     {
-        if (!AppInitBasicSetup(args(), Assert(context())->exit_status)) return false;
-        if (!AppInitParameterInteraction(args())) return false;
-
         auto res{kernel::Context::MakeContext()};
         if (!res) {
             return InitError(strprintf(_("Initialization kernel sanity check failed: %s. %s is shutting down."),
                                        util::ErrorString(res), PACKAGE_NAME));
         }
         m_context->kernel = std::move(res.value());
+
+        if (!AppInitBasicSetup(args(), Assert(context())->exit_status)) return false;
+        if (!AppInitParameterInteraction(args())) return false;
+
         if (!AppInitSanityChecks()) return false;
 
         if (!AppInitLockDataDirectory()) return false;

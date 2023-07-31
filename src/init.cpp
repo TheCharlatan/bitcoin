@@ -805,6 +805,7 @@ std::set<BlockFilterType> g_enabled_filter_types;
 bool AppInitBasicSetup(const ArgsManager& args, std::atomic<int>& exit_status)
 {
     // ********************************************************* Step 1: setup
+    Assert(kernel::g_context);
 #ifdef _MSC_VER
     // Turn off Microsoft heap dump noise
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
