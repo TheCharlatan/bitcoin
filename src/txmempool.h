@@ -47,6 +47,16 @@ class Chainstate;
 /** Fake height value used in Coin to signify they are only in the memory pool (since 0.8) */
 static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
 
+namespace node{
+struct CBlockTemplate
+{
+    CBlock block;
+    std::vector<CAmount> vTxFees;
+    std::vector<int64_t> vTxSigOpsCost;
+    std::vector<unsigned char> vchCoinbaseCommitment;
+};
+} // namespace node
+
 /**
  * Test whether the LockPoints height and time are still valid on the current chain
  */
@@ -746,6 +756,20 @@ public:
     uint64_t GetSequence() const EXCLUSIVE_LOCKS_REQUIRED(cs) {
         return m_sequence_number;
     }
+
+    void addPackageTxs(int& nPackagesSelected,
+                                   int& nDescendantsUpdated,
+                                   std::unique_ptr<node::CBlockTemplate>& block_template,
+                                   setEntries& inBlock,
+                                   const size_t nBlockMaxWeight,
+                                   const CFeeRate blockMinFeeRate,
+                                   uint64_t& nBlockWeight,
+                                   uint64_t& nBlockTx,
+                                   uint64_t& nBlockSigOpsCost,
+                                   CAmount& nFees,
+                                   const int nHeight,
+                                   const int64_t m_lock_time_cutoff,
+                                   bool fPrintPriority) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
 private:
     /** UpdateForDescendants is used by UpdateTransactionsFromBlock to update
