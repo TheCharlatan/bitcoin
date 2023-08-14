@@ -198,6 +198,7 @@ BITCOIN_CORE_H = \
   mapport.h \
   memusage.h \
   merkleblock.h \
+  mempool_set_definitions.h \
   net.h \
   net_permissions.h \
   net_processing.h \
@@ -209,6 +210,7 @@ BITCOIN_CORE_H = \
   node/abort.h \
   node/blockmanager_args.h \
   node/blockstorage.h \
+  node/block_template.h \
   node/caches.h \
   node/chainstate.h \
   node/chainstatemanager_args.h \

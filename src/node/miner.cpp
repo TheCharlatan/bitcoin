@@ -16,11 +16,13 @@
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <logging.h>
+#include <mempool_set_definitions.h>
 #include <policy/feerate.h>
 #include <policy/policy.h>
 #include <pow.h>
 #include <primitives/transaction.h>
 #include <timedata.h>
+#include <txmempool.h>
 #include <util/moneystr.h>
 #include <validation.h>
 
@@ -65,12 +67,15 @@ static BlockAssembler::Options ClampOptions(BlockAssembler::Options options)
 }
 
 BlockAssembler::BlockAssembler(Chainstate& chainstate, const CTxMemPool* mempool, const Options& options)
-    : chainparams{chainstate.m_chainman.GetParams()},
+    : inBlock{std::make_unique<SetEntriesImpl>()},
+      chainparams{chainstate.m_chainman.GetParams()},
       m_mempool{mempool},
       m_chainstate{chainstate},
       m_options{ClampOptions(options)}
 {
 }
+
+BlockAssembler::~BlockAssembler() = default;
 
 void ApplyArgsManOptions(const ArgsManager& args, BlockAssembler::Options& options)
 {
@@ -92,7 +97,8 @@ BlockAssembler::BlockAssembler(Chainstate& chainstate, const CTxMemPool* mempool
 
 void BlockAssembler::resetBlock()
 {
-    inBlock.clear();
+    ClearSetEntry(inBlock);
+    inBlock = std::make_unique<SetEntriesImpl>();
 
     // Reserve space for coinbase tx
     nBlockWeight = 4000;

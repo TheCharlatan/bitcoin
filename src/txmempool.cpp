@@ -1226,6 +1226,14 @@ std::vector<CTxMemPool::txiter> CTxMemPool::GatherClusters(const std::vector<uin
     return clustered_txs;
 }
 
+
+
+// -------------------- Now starts the miner part
+
+void ClearSetEntry(const std::unique_ptr<SetEntriesImpl>& setEntries) {
+    setEntries->impl.clear();
+}
+
 // Container for tracking updates to ancestor feerate as we include (parent)
 // transactions in a block
 struct CTxMemPoolModifiedEntry {
@@ -1424,7 +1432,7 @@ static bool TestPackage(const uint64_t packageSize,
 void CTxMemPool::addPackageTxs(int& nPackagesSelected, 
     int& nDescendantsUpdated,
     std::unique_ptr<node::CBlockTemplate>& block_template,
-    setEntries& inBlock,
+    const std::unique_ptr<SetEntriesImpl>& inBlock,
     const size_t nBlockMaxWeight,
     const CFeeRate blockMinFeeRate,
     uint64_t& nBlockWeight,
@@ -1469,7 +1477,7 @@ void CTxMemPool::addPackageTxs(int& nPackagesSelected,
         if (mi != mapTx.get<ancestor_score>().end()) {
             auto it = mapTx.project<0>(mi);
             assert(it != mapTx.end());
-            if (mapModifiedTx.count(it) || inBlock.count(it) || failedTx.count(it)) {
+            if (mapModifiedTx.count(it) || inBlock->impl.count(it) || failedTx.count(it)) {
                 ++mi;
                 continue;
             }
@@ -1503,7 +1511,7 @@ void CTxMemPool::addPackageTxs(int& nPackagesSelected,
 
         // We skip mapTx entries that are inBlock, and mapModifiedTx shouldn't
         // contain anything that is inBlock.
-        assert(!inBlock.count(iter));
+        assert(!inBlock->impl.count(iter));
 
         uint64_t packageSize = iter->GetSizeWithAncestors();
         CAmount packageFees = iter->GetModFeesWithAncestors();
@@ -1542,7 +1550,7 @@ void CTxMemPool::addPackageTxs(int& nPackagesSelected,
 
         for (CTxMemPool::setEntries::iterator iit = ancestors.begin(); iit != ancestors.end(); ) {
             // Only test txs not already in the block
-            if (inBlock.count(*iit)) {
+            if (inBlock->impl.count(*iit)) {
                 ancestors.erase(iit++);
             } else {
                 iit++;
@@ -1568,7 +1576,7 @@ void CTxMemPool::addPackageTxs(int& nPackagesSelected,
         SortForBlock(ancestors, sortedEntries);
 
         for (size_t i = 0; i < sortedEntries.size(); ++i) {
-            AddToBlock(block_template, sortedEntries[i], fPrintPriority, nBlockWeight, nBlockTx, nBlockSigOpsCost, nFees, inBlock);
+            AddToBlock(block_template, sortedEntries[i], fPrintPriority, nBlockWeight, nBlockTx, nBlockSigOpsCost, nFees, inBlock->impl);
             // Erase from the modified set, if present
             mapModifiedTx.erase(sortedEntries[i]);
         }

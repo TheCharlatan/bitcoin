@@ -6,21 +6,26 @@
 #ifndef BITCOIN_NODE_MINER_H
 #define BITCOIN_NODE_MINER_H
 
+#include <node/block_template.h>
+#include <policy/feerate.h>
 #include <policy/policy.h>
 #include <primitives/block.h>
-#include <txmempool.h>
 
 #include <memory>
 #include <optional>
 #include <stdint.h>
 
 class ArgsManager;
+class Chainstate;
 class ChainstateManager;
 class CBlockIndex;
 class CChainParams;
 class CScript;
+class CTxMemPool;
 
 namespace Consensus { struct Params; };
+
+struct SetEntriesImpl;
 
 namespace node {
 static const bool DEFAULT_PRINTPRIORITY = false;
@@ -37,7 +42,9 @@ private:
     uint64_t nBlockTx;
     uint64_t nBlockSigOpsCost;
     CAmount nFees;
-    CTxMemPool::setEntries inBlock;
+
+    std::unique_ptr<SetEntriesImpl> inBlock;
+    // CTxMemPool::setEntries inBlock;
 
     // Chain context for the block
     int nHeight;
@@ -58,6 +65,7 @@ public:
 
     explicit BlockAssembler(Chainstate& chainstate, const CTxMemPool* mempool);
     explicit BlockAssembler(Chainstate& chainstate, const CTxMemPool* mempool, const Options& options);
+    ~BlockAssembler();
 
     /** Construct a new block template with coinbase to scriptPubKeyIn */
     std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript& scriptPubKeyIn);
