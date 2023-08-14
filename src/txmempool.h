@@ -697,27 +697,7 @@ public:
  * still-unconfirmed transactions at the end.
  */
 
-// multi_index tag names
-struct txid_index {};
-struct insertion_order {};
-
 struct DisconnectedBlockTransactions {
-    typedef boost::multi_index_container<
-        CTransactionRef,
-        boost::multi_index::indexed_by<
-            // sorted by txid
-            boost::multi_index::hashed_unique<
-                boost::multi_index::tag<txid_index>,
-                mempoolentry_txid,
-                SaltedTxidHasher
-            >,
-            // sorted by order in the blockchain
-            boost::multi_index::sequenced<
-                boost::multi_index::tag<insertion_order>
-            >
-        >
-    > indexed_disconnected_transactions;
-
     // It's almost certainly a logic bug if we don't clear out queuedTx before
     // destruction, as we add to it while disconnecting blocks, and then we
     // need to re-process remaining transactions to ensure mempool consistency.
@@ -727,6 +707,9 @@ struct DisconnectedBlockTransactions {
     // instance if there was some other way we cleaned up the mempool after a
     // reorg, besides draining this object).
     ~DisconnectedBlockTransactions() { assert(queuedTx.empty()); }
+
+    using indexed_disconnected_transactions = MempoolMultiIndex::indexed_disconnected_transactions;
+    using insertion_order = MempoolMultiIndex::insertion_order;
 
     indexed_disconnected_transactions queuedTx;
     uint64_t cachedInnerUsage = 0;

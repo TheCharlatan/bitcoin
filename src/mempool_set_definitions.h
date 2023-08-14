@@ -212,6 +212,27 @@ using txiter = indexed_transaction_set::nth_index<0>::type::const_iterator;
 
 typedef std::set<txiter, CompareIteratorByHash> setEntries;
 
+
+// multi_index tag names
+struct txid_index {};
+struct insertion_order {};
+
+typedef boost::multi_index_container<
+    CTransactionRef,
+    boost::multi_index::indexed_by<
+        // sorted by txid
+        boost::multi_index::hashed_unique<
+            boost::multi_index::tag<txid_index>,
+            mempoolentry_txid,
+            SaltedTxidHasher
+        >,
+        // sorted by order in the blockchain
+        boost::multi_index::sequenced<
+            boost::multi_index::tag<insertion_order>
+        >
+    >
+> indexed_disconnected_transactions;
+
 } // namespace MempoolMultiIndex
 
 struct SetEntriesImpl {
