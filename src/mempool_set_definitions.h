@@ -209,8 +209,11 @@ typedef boost::multi_index_container<
 > indexed_transaction_set;
 
 using txiter = indexed_transaction_set::nth_index<0>::type::const_iterator;
+using multi_txiter = indexed_transaction_set::const_iterator;
 
 typedef std::set<txiter, CompareIteratorByHash> setEntries;
+
+typedef std::map<MempoolMultiIndex::txiter, MempoolMultiIndex::setEntries, CompareIteratorByHash> cacheMap;
 
 
 // multi_index tag names
@@ -246,6 +249,9 @@ struct IndexedDisconnectedTransactionsImpl {
     MempoolMultiIndex::indexed_disconnected_transactions impl;
 };
 
+struct IndexedTransactionsImpl {
+    MempoolMultiIndex::indexed_transaction_set impl;
+};
 
 
 #endif // BITCOIN_SET_DEFINITIONS_H

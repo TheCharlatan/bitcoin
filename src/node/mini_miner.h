@@ -5,6 +5,7 @@
 #ifndef BITCOIN_NODE_MINI_MINER_H
 #define BITCOIN_NODE_MINI_MINER_H
 
+#include <mempool_set_definitions.h>
 #include <txmempool.h>
 
 #include <memory>
@@ -25,7 +26,7 @@ class MiniMinerMempoolEntry
 public:
     CAmount fee_with_ancestors;
     int64_t vsize_with_ancestors;
-    explicit MiniMinerMempoolEntry(CTxMemPool::txiter entry) :
+    explicit MiniMinerMempoolEntry(MempoolMultiIndex::txiter entry) :
         fee_individual{entry->GetModifiedFee()},
         tx{entry->GetSharedTx()},
         vsize_individual(entry->GetTxSize()),

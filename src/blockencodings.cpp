@@ -13,6 +13,7 @@
 #include <random.h>
 #include <streams.h>
 #include <txmempool.h>
+#include <mempool_set_definitions.h>
 #include <validation.h>
 
 #include <unordered_map>

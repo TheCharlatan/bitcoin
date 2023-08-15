@@ -330,16 +330,16 @@ void Chainstate::MaybeUpdateMempoolForReorg(
     // Also updates valid entries' cached LockPoints if needed.
     // If false, the tx is still valid and its lockpoints are updated.
     // If true, the tx would be invalid in the next block; remove this entry and all of its descendants.
-    const auto filter_final_and_mature = [this](CTxMemPool::txiter it)
+    const auto filter_final_and_mature = [this](MempoolMultiIndex::txiter* it)
         EXCLUSIVE_LOCKS_REQUIRED(m_mempool->cs, ::cs_main) {
         AssertLockHeld(m_mempool->cs);
         AssertLockHeld(::cs_main);
-        const CTransaction& tx = it->GetTx();
+        const CTransaction& tx = (*it)->GetTx();
 
         // The transaction must be final.
         if (!CheckFinalTxAtTip(*Assert(m_chain.Tip()), tx)) return true;
 
-        const LockPoints& lp = it->GetLockPoints();
+        const LockPoints& lp = (*it)->GetLockPoints();
         // CheckSequenceLocksAtTip checks if the transaction will be final in the next block to be
         // created on top of the new chain.
         if (TestLockPointValidity(m_chain, lp)) {
@@ -351,17 +351,17 @@ void Chainstate::MaybeUpdateMempoolForReorg(
             const std::optional<LockPoints> new_lock_points{CalculateLockPointsAtTip(m_chain.Tip(), view_mempool, tx)};
             if (new_lock_points.has_value() && CheckSequenceLocksAtTip(m_chain.Tip(), *new_lock_points)) {
                 // Now update the mempool entry lockpoints as well.
-                m_mempool->mapTx.modify(it, [&new_lock_points](CTxMemPoolEntry& e) { e.UpdateLockPoints(*new_lock_points); });
+                m_mempool->mapTx->impl.modify(*it, [&new_lock_points](CTxMemPoolEntry& e) { e.UpdateLockPoints(*new_lock_points); });
             } else {
                 return true;
             }
         }
 
         // If the transaction spends any coinbase outputs, it must be mature.
-        if (it->GetSpendsCoinbase()) {
+        if ((*it)->GetSpendsCoinbase()) {
             for (const CTxIn& txin : tx.vin) {
-                auto it2 = m_mempool->mapTx.find(txin.prevout.hash);
-                if (it2 != m_mempool->mapTx.end())
+                auto it2 = m_mempool->mapTx->impl.find(txin.prevout.hash);
+                if (it2 != m_mempool->mapTx->impl.end())
                     continue;
                 const Coin& coin{CoinsTip().AccessCoin(txin.prevout)};
                 assert(!coin.IsSpent());
@@ -569,12 +569,12 @@ private:
         /** Txids of mempool transactions that this transaction directly conflicts with. */
         std::set<uint256> m_conflicts;
         /** Iterators to mempool entries that this transaction directly conflicts with. */
-        CTxMemPool::setEntries m_iters_conflicting;
+        MempoolMultiIndex::setEntries m_iters_conflicting;
         /** Iterators to all mempool entries that would be replaced by this transaction, including
          * those it directly conflicts with and their descendants. */
-        CTxMemPool::setEntries m_all_conflicting;
+        MempoolMultiIndex::setEntries m_all_conflicting;
         /** All mempool ancestors of this transaction. */
-        CTxMemPool::setEntries m_ancestors;
+        MempoolMultiIndex::setEntries m_ancestors;
         /** Mempool entry constructed for this transaction. Constructed in PreChecks() but not
          * inserted into the mempool until Finalize(). */
         std::unique_ptr<CTxMemPoolEntry> m_entry;
@@ -857,7 +857,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // feerate later.
     if (!bypass_limits && !args.m_package_feerates && !CheckFeeRate(ws.m_vsize, ws.m_modified_fees, state)) return false;
 
-    ws.m_iters_conflicting = m_pool.GetIterSet(ws.m_conflicts);
+    ws.m_iters_conflicting = *m_pool.GetIterSet(ws.m_conflicts);
     // Calculate in-mempool ancestors, up to a limit.
     if (ws.m_conflicts.size() == 1) {
         // In general, when we receive an RBF transaction with mempool conflicts, we want to know whether we
@@ -888,7 +888,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         // We don't bother incrementing m_limit_descendants by the full removal count as that limit never comes
         // into force here (as we're only adding a single transaction).
         assert(ws.m_iters_conflicting.size() == 1);
-        CTxMemPool::txiter conflict = *ws.m_iters_conflicting.begin();
+        MempoolMultiIndex::txiter conflict = *ws.m_iters_conflicting.begin();
 
         m_limits.descendant_count += 1;
         m_limits.descendant_size_vbytes += conflict->GetSizeWithDescendants();
@@ -922,7 +922,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         if (!ancestors) return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "too-long-mempool-chain", error_message);
     }
 
-    ws.m_ancestors = *ancestors;
+    ws.m_ancestors = **ancestors;
 
     // A transaction that spends outputs that would be replaced by it is invalid. Now
     // that we have the set of all ancestors we can detect this
@@ -973,7 +973,7 @@ bool MemPoolAccept::ReplacementChecks(Workspace& ws)
     }
     // Check if it's economically rational to mine this transaction rather than the ones it
     // replaces and pays for its own relay fees. Enforce Rules #3 and #4.
-    for (CTxMemPool::txiter it : ws.m_all_conflicting) {
+    for (MempoolMultiIndex::txiter it : ws.m_all_conflicting) {
         ws.m_conflicting_fees += it->GetModifiedFee();
         ws.m_conflicting_size += it->GetTxSize();
     }
@@ -1075,7 +1075,7 @@ bool MemPoolAccept::Finalize(const ATMPArgs& args, Workspace& ws)
     std::unique_ptr<CTxMemPoolEntry>& entry = ws.m_entry;
 
     // Remove conflicting transactions from the mempool
-    for (CTxMemPool::txiter it : ws.m_all_conflicting)
+    for (MempoolMultiIndex::txiter it : ws.m_all_conflicting)
     {
         LogPrint(BCLog::MEMPOOL, "replacing tx %s with %s for %s additional fees, %d delta bytes\n",
                 it->GetTx().GetHash().ToString(),
@@ -1158,7 +1158,7 @@ bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& 
                                     strprintf("BUG! Mempool ancestors or descendants were underestimated: %s",
                                                 ws.m_ptx->GetHash().ToString()));
             }
-            ws.m_ancestors = std::move(ancestors).value_or(ws.m_ancestors);
+            ws.m_ancestors = std::move(*ancestors).value_or(ws.m_ancestors);
         }
         // If we call LimitMempoolSize() for each individual Finalize(), the mempool will not take
         // the transaction's descendant feerate into account because it hasn't seen them yet. Also,

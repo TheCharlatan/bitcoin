@@ -23,7 +23,6 @@
 #include <indirectmap.h>
 #include <kernel/cs_main.h>
 #include <kernel/mempool_entry.h>
-#include <mempool_set_definitions.h>
 #include <node/block_template.h>
 #include <policy/feerate.h>
 #include <policy/packages.h>
@@ -47,6 +46,16 @@ class CChain;
 class Chainstate;
 
 struct IndexedDisconnectedTransactionsImpl;
+struct IndexedTransactionsImpl;
+
+struct SetEntriesImpl;
+
+namespace MempoolMultiIndex {
+struct txiter;
+struct multi_txiter;
+struct cacheMap;
+struct setEntries;
+} // namespace MempoolMultiIndex
 
 /** Fake height value used in Coin to signify they are only in the memory pool (since 0.8) */
 static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
@@ -225,25 +234,23 @@ public:
      * the mempool is consistent with the new chain tip and fully populated.
      */
     mutable RecursiveMutex cs;
-    using indexed_transaction_set = MempoolMultiIndex::indexed_transaction_set;
-    indexed_transaction_set mapTx GUARDED_BY(cs);
+    // using indexed_transaction_set = MempoolMultiIndex::indexed_transaction_set;
+    const std::unique_ptr<IndexedTransactionsImpl> mapTx GUARDED_BY(cs);
 
-    using txiter = MempoolMultiIndex::txiter;
-    std::vector<std::pair<uint256, txiter>> vTxHashes GUARDED_BY(cs); //!< All tx witness hashes/entries in mapTx, in random order
+    // using txiter = MempoolMultiIndex::txiter;
+    std::vector<std::pair<uint256, MempoolMultiIndex::txiter*>> vTxHashes GUARDED_BY(cs); //!< All tx witness hashes/entries in mapTx, in random order
 
-    typedef std::set<txiter, CompareIteratorByHash> setEntries;
+    // typedef std::set<txiter, CompareIteratorByHash> setEntries;
 
     using Limits = kernel::MemPoolLimits;
 
-    uint64_t CalculateDescendantMaximum(txiter entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    uint64_t CalculateDescendantMaximum(MempoolMultiIndex::txiter* entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 private:
-    typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;
 
+    void UpdateParent(MempoolMultiIndex::txiter* entry, MempoolMultiIndex::txiter* parent, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void UpdateChild(MempoolMultiIndex::txiter* entry, MempoolMultiIndex::txiter* child, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
-    void UpdateParent(txiter entry, txiter parent, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void UpdateChild(txiter entry, txiter child, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
-
-    std::vector<indexed_transaction_set::const_iterator> GetSortedDepthAndScore() const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    std::vector<MempoolMultiIndex::multi_txiter*> GetSortedDepthAndScore() const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /**
      * Track locally submitted transactions to periodically retry initial broadcast.
@@ -262,7 +269,7 @@ private:
      *
      * @return all in-mempool ancestors, or an error if any ancestor or descendant limits were hit
      */
-    util::Result<setEntries> CalculateAncestorsAndCheckLimits(int64_t entry_size,
+    util::Result<std::unique_ptr<MempoolMultiIndex::setEntries>> CalculateAncestorsAndCheckLimits(int64_t entry_size,
                                                               size_t entry_count,
                                                               CTxMemPoolEntry::Parents &staged_ancestors,
                                                               const Limits& limits
@@ -309,7 +316,7 @@ public:
     // and any other callers may break wallet's in-mempool tracking (due to
     // lack of CValidationInterface::TransactionAddedToMempool callbacks).
     void addUnchecked(const CTxMemPoolEntry& entry, bool validFeeEstimate = true) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
-    void addUnchecked(const CTxMemPoolEntry& entry, setEntries& setAncestors, bool validFeeEstimate = true) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
+    void addUnchecked(const CTxMemPoolEntry& entry, MempoolMultiIndex::setEntries& setAncestors, bool validFeeEstimate = true) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
 
     void removeRecursive(const CTransaction& tx, MemPoolRemovalReason reason) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** After reorg, filter the entries that would no longer be valid in the next block, and update
@@ -319,7 +326,7 @@ public:
      * @param[in]   filter_final_and_mature   Predicate that checks the relevant validation rules
      *                                        and updates an entry's LockPoints.
      * */
-    void removeForReorg(CChain& chain, std::function<bool(txiter)> filter_final_and_mature) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
+    void removeForReorg(CChain& chain, std::function<bool(MempoolMultiIndex::txiter*)> filter_final_and_mature) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
     void removeConflicts(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
@@ -356,17 +363,17 @@ public:
     const CTransaction* GetConflictTx(const COutPoint& prevout) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Returns an iterator to the given hash, if found */
-    std::optional<txiter> GetIter(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    std::optional<std::unique_ptr<MempoolMultiIndex::txiter>> GetIter(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Translate a set of hashes into a set of pool iterators to avoid repeated lookups.
      * Does not require that all of the hashes correspond to actual transactions in the mempool,
      * only returns the ones that exist. */
-    setEntries GetIterSet(const std::set<uint256>& hashes) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    std::unique_ptr<MempoolMultiIndex::setEntries> GetIterSet(const std::set<uint256>& hashes) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Translate a list of hashes into a list of mempool iterators to avoid repeated lookups.
      * The nth element in txids becomes the nth element in the returned vector. If any of the txids
      * don't actually exist in the mempool, returns an empty vector. */
-    std::vector<txiter> GetIterVec(const std::vector<uint256>& txids) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    std::vector<std::unique_ptr<MempoolMultiIndex::txiter>> GetIterVec(const std::vector<uint256>& txids) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Remove a set of transactions from the mempool.
      *  If a transaction is in this set, then all in-mempool descendants must
@@ -375,7 +382,7 @@ public:
      *  Set updateDescendants to true when removing a tx that was in a block, so
      *  that any in-mempool descendants have their ancestor state updated.
      */
-    void RemoveStaged(setEntries& stage, bool updateDescendants, MemPoolRemovalReason reason) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void RemoveStaged(MempoolMultiIndex::setEntries& stage, bool updateDescendants, MemPoolRemovalReason reason) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** UpdateTransactionsFromBlock is called when adding transactions from a
      * disconnected block back to the mempool, new mempool entries may have
@@ -404,7 +411,7 @@ public:
      *
      * @return all in-mempool ancestors, or an error if any ancestor or descendant limits were hit
      */
-    util::Result<setEntries> CalculateMemPoolAncestors(const CTxMemPoolEntry& entry,
+    util::Result<std::unique_ptr<MempoolMultiIndex::setEntries>> CalculateMemPoolAncestors(const CTxMemPoolEntry& entry,
                                    const Limits& limits,
                                    bool fSearchForParents = true) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
@@ -422,7 +429,7 @@ public:
      *
      * @see CTXMemPool::CalculateMemPoolAncestors()
      */
-    setEntries AssumeCalculateMemPoolAncestors(
+    std::unique_ptr<MempoolMultiIndex::setEntries> AssumeCalculateMemPoolAncestors(
         std::string_view calling_fn_name,
         const CTxMemPoolEntry &entry,
         const Limits& limits,
@@ -432,7 +439,7 @@ public:
      * All txids must correspond to transaction entries in the mempool, otherwise this returns an
      * empty vector. This call will also exit early and return an empty vector if it collects 500 or
      * more transactions as a DoS protection. */
-    std::vector<txiter> GatherClusters(const std::vector<uint256>& txids) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    std::vector<std::unique_ptr<MempoolMultiIndex::txiter>> GatherClusters(const std::vector<uint256>& txids) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Calculate all in-mempool ancestors of a set of transactions not already in the mempool and
      * check ancestor and descendant limits. Heuristics are used to estimate the ancestor and
@@ -453,7 +460,7 @@ public:
     /** Populate setDescendants with all in-mempool descendants of hash.
      *  Assumes that setDescendants includes all in-mempool descendants of anything
      *  already in it.  */
-    void CalculateDescendants(txiter it, setEntries& setDescendants) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void CalculateDescendants(MempoolMultiIndex::txiter* it, MempoolMultiIndex::setEntries& setDescendants) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** The minimum fee to get into the mempool, which may itself not be enough
      *  for larger-sized transactions.
@@ -494,11 +501,7 @@ public:
      */
     void SetLoadTried(bool load_tried);
 
-    unsigned long size() const
-    {
-        LOCK(cs);
-        return mapTx.size();
-    }
+    unsigned long size() const;
 
     uint64_t GetTotalTxSize() const EXCLUSIVE_LOCKS_REQUIRED(cs)
     {
@@ -512,34 +515,17 @@ public:
         return m_total_fee;
     }
 
-    bool exists(const GenTxid& gtxid) const
-    {
-        LOCK(cs);
-        if (gtxid.IsWtxid()) {
-            return (mapTx.get<index_by_wtxid>().count(gtxid.GetHash()) != 0);
-        }
-        return (mapTx.count(gtxid.GetHash()) != 0);
-    }
+    bool exists(const GenTxid& gtxid) const;
 
     CTransactionRef get(const uint256& hash) const;
-    txiter get_iter_from_wtxid(const uint256& wtxid) const EXCLUSIVE_LOCKS_REQUIRED(cs)
-    {
-        AssertLockHeld(cs);
-        return mapTx.project<0>(mapTx.get<index_by_wtxid>().find(wtxid));
-    }
+    std::unique_ptr<MempoolMultiIndex::txiter> get_iter_from_wtxid(const uint256& wtxid) const EXCLUSIVE_LOCKS_REQUIRED(cs);
     TxMempoolInfo info(const GenTxid& gtxid) const;
     std::vector<TxMempoolInfo> infoAll() const;
 
     size_t DynamicMemoryUsage() const;
 
     /** Adds a transaction to the unbroadcast set */
-    void AddUnbroadcastTx(const uint256& txid)
-    {
-        LOCK(cs);
-        // Sanity check the transaction is in the mempool & insert into
-        // unbroadcast set.
-        if (exists(GenTxid::Txid(txid))) m_unbroadcast_txids.insert(txid);
-    };
+    void AddUnbroadcastTx(const uint256& txid);
 
     /** Removes a transaction from the unbroadcast set */
     void RemoveUnbroadcastTx(const uint256& txid, const bool unchecked = false);
@@ -610,18 +596,18 @@ private:
      *     exceed ancestor limits. It's the responsibility of the caller to
      *     removeRecursive them.
      */
-    void UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendants,
+    void UpdateForDescendants(MempoolMultiIndex::txiter* updateIt, MempoolMultiIndex::cacheMap& cachedDescendants,
                               const std::set<uint256>& setExclude, std::set<uint256>& descendants_to_remove) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Update ancestors of hash to add/remove it as a descendant transaction. */
-    void UpdateAncestorsOf(bool add, txiter hash, setEntries &setAncestors) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void UpdateAncestorsOf(bool add, MempoolMultiIndex::txiter* hash, MempoolMultiIndex::setEntries &setAncestors) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Set ancestor state for an entry */
-    void UpdateEntryForAncestors(txiter it, const setEntries &setAncestors) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void UpdateEntryForAncestors(MempoolMultiIndex::txiter* it, const MempoolMultiIndex::setEntries &setAncestors) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** For each transaction being removed, update ancestors and any direct children.
       * If updateDescendants is true, then also update in-mempool descendants'
       * ancestor state. */
-    void UpdateForRemoveFromMempool(const setEntries &entriesToRemove, bool updateDescendants) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void UpdateForRemoveFromMempool(const MempoolMultiIndex::setEntries &entriesToRemove, bool updateDescendants) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Sever link between specified transaction and direct children. */
-    void UpdateChildrenForRemoval(txiter entry) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void UpdateChildrenForRemoval(MempoolMultiIndex::txiter* entry) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Before calling removeUnchecked for a given transaction,
      *  UpdateForRemoveFromMempool must be called on the entire (dependent) set
@@ -631,7 +617,7 @@ private:
      *  transactions in a chain before we've updated all the state for the
      *  removal.
      */
-    void removeUnchecked(txiter entry, MemPoolRemovalReason reason) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void removeUnchecked(MempoolMultiIndex::txiter* entry, MemPoolRemovalReason reason) EXCLUSIVE_LOCKS_REQUIRED(cs);
 public:
     /** visited marks a CTxMemPoolEntry as having been traversed
      * during the lifetime of the most recently created Epoch::Guard
@@ -641,16 +627,9 @@ public:
      * triggered.
      *
      */
-    bool visited(const txiter it) const EXCLUSIVE_LOCKS_REQUIRED(cs, m_epoch)
-    {
-        return m_epoch.visited(it->m_epoch_marker);
-    }
+    bool visited(const MempoolMultiIndex::txiter* it) const EXCLUSIVE_LOCKS_REQUIRED(cs, m_epoch);
 
-    bool visited(std::optional<txiter> it) const EXCLUSIVE_LOCKS_REQUIRED(cs, m_epoch)
-    {
-        assert(m_epoch.guarded()); // verify guard even when it==nullopt
-        return !it || visited(*it);
-    }
+    bool visited(std::optional<MempoolMultiIndex::txiter*> it) const EXCLUSIVE_LOCKS_REQUIRED(cs, m_epoch);
 };
 
 /**
@@ -699,9 +678,9 @@ public:
  * still-unconfirmed transactions at the end.
  */
 
-// namespace MempoolMultiIndex {
-// struct OpaqueDisconnectedTransactionsIterator;
-// } // namespace MempoolMultiIndex
+namespace MempoolMultiIndex {
+struct OpaqueDisconnectedTransactionsIterator;
+} // namespace MempoolMultiIndex
 
 struct DisconnectedBlockTransactions {
     // It's almost certainly a logic bug if we don't clear out queuedTx before

@@ -6,6 +6,7 @@
 #define BITCOIN_POLICY_RBF_H
 
 #include <consensus/amount.h>
+#include <mempool_set_definitions.h>
 #include <primitives/transaction.h>
 #include <threadsafety.h>
 #include <txmempool.h>
@@ -58,8 +59,8 @@ RBFTransactionState IsRBFOptInEmptyMempool(const CTransaction& tx);
  * @returns an error message if MAX_REPLACEMENT_CANDIDATES may be exceeded, otherwise a std::nullopt.
  */
 std::optional<std::string> GetEntriesForConflicts(const CTransaction& tx, CTxMemPool& pool,
-                                                  const CTxMemPool::setEntries& iters_conflicting,
-                                                  CTxMemPool::setEntries& all_conflicts)
+                                                  const MempoolMultiIndex::setEntries& iters_conflicting,
+                                                  MempoolMultiIndex::setEntries& all_conflicts)
     EXCLUSIVE_LOCKS_REQUIRED(pool.cs);
 
 /** The replacement transaction may only include an unconfirmed input if that input was included in
@@ -67,7 +68,7 @@ std::optional<std::string> GetEntriesForConflicts(const CTransaction& tx, CTxMem
  * @returns error message if tx spends unconfirmed inputs not also spent by iters_conflicting,
  * otherwise std::nullopt. */
 std::optional<std::string> HasNoNewUnconfirmed(const CTransaction& tx, const CTxMemPool& pool,
-                                               const CTxMemPool::setEntries& iters_conflicting)
+                                               const MempoolMultiIndex::setEntries& iters_conflicting)
     EXCLUSIVE_LOCKS_REQUIRED(pool.cs);
 
 /** Check the intersection between two sets of transactions (a set of mempool entries and a set of
@@ -79,7 +80,7 @@ std::optional<std::string> HasNoNewUnconfirmed(const CTransaction& tx, const CTx
  * @param[in]   txid                Transaction ID, included in the error message if violation occurs.
  * @returns error message if the sets intersect, std::nullopt if they are disjoint.
  */
-std::optional<std::string> EntriesAndTxidsDisjoint(const CTxMemPool::setEntries& ancestors,
+std::optional<std::string> EntriesAndTxidsDisjoint(const MempoolMultiIndex::setEntries& ancestors,
                                                    const std::set<uint256>& direct_conflicts,
                                                    const uint256& txid);
 
@@ -88,7 +89,7 @@ std::optional<std::string> EntriesAndTxidsDisjoint(const CTxMemPool::setEntries&
  * @param[in]   iters_conflicting  The set of mempool entries.
  * @returns error message if fees insufficient, otherwise std::nullopt.
  */
-std::optional<std::string> PaysMoreThanConflicts(const CTxMemPool::setEntries& iters_conflicting,
+std::optional<std::string> PaysMoreThanConflicts(const MempoolMultiIndex::setEntries& iters_conflicting,
                                                  CFeeRate replacement_feerate, const uint256& txid);
 
 /** The replacement transaction must pay more fees than the original transactions. The additional

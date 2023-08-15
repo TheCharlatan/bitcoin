@@ -107,11 +107,11 @@ BOOST_FIXTURE_TEST_CASE(rbf_helper_functions, TestChain100Setup)
     BOOST_CHECK_EQUAL(entry7->GetFee(), high_fee);
     BOOST_CHECK_EQUAL(entry8->GetFee(), high_fee);
 
-    CTxMemPool::setEntries set_12_normal{entry1, entry2};
-    CTxMemPool::setEntries set_34_cpfp{entry3, entry4};
-    CTxMemPool::setEntries set_56_low{entry5, entry6};
-    CTxMemPool::setEntries all_entries{entry1, entry2, entry3, entry4, entry5, entry6, entry7, entry8};
-    CTxMemPool::setEntries empty_set;
+    MempoolMultiIndex::setEntries set_12_normal{entry1, entry2};
+    MempoolMultiIndex::setEntries set_34_cpfp{entry3, entry4};
+    MempoolMultiIndex::setEntries set_56_low{entry5, entry6};
+    MempoolMultiIndex::setEntries all_entries{entry1, entry2, entry3, entry4, entry5, entry6, entry7, entry8};
+    MempoolMultiIndex::setEntries empty_set;
 
     const auto unused_txid{GetRandHash()};
 
@@ -165,12 +165,12 @@ BOOST_FIXTURE_TEST_CASE(rbf_helper_functions, TestChain100Setup)
     BOOST_CHECK(PaysForRBF(low_fee, high_fee + 99999999, 99999999, incremental_relay_feerate, unused_txid) == std::nullopt);
 
     // Tests for GetEntriesForConflicts
-    CTxMemPool::setEntries all_parents{entry1, entry3, entry5, entry7, entry8};
-    CTxMemPool::setEntries all_children{entry2, entry4, entry6};
+    MempoolMultiIndex::setEntries all_parents{entry1, entry3, entry5, entry7, entry8};
+    MempoolMultiIndex::setEntries all_children{entry2, entry4, entry6};
     const std::vector<CTransactionRef> parent_inputs({m_coinbase_txns[0], m_coinbase_txns[1], m_coinbase_txns[2],
                                                 m_coinbase_txns[3], m_coinbase_txns[4]});
     const auto conflicts_with_parents = make_tx(parent_inputs, {50 * CENT});
-    CTxMemPool::setEntries all_conflicts;
+    MempoolMultiIndex::setEntries all_conflicts;
     BOOST_CHECK(GetEntriesForConflicts(/*tx=*/ *conflicts_with_parents.get(),
                                        /*pool=*/ pool,
                                        /*iters_conflicting=*/ all_parents,

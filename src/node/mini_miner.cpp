@@ -5,6 +5,7 @@
 #include <node/mini_miner.h>
 
 #include <consensus/amount.h>
+#include <mempool_set_definitions.h>
 #include <policy/feerate.h>
 #include <primitives/transaction.h>
 #include <timedata.h>
@@ -46,7 +47,7 @@ MiniMiner::MiniMiner(const CTxMemPool& mempool, const std::vector<COutPoint>& ou
             //
             // Note that the descendants of a transaction include the transaction itself. Also note,
             // that this is only calculating bump fees. RBF fee rules should be handled separately.
-            CTxMemPool::setEntries descendants;
+            MempoolMultiIndex::setEntries descendants;
             mempool.CalculateDescendants(mempool.GetIter(ptx->GetHash()).value(), descendants);
             for (const auto& desc_txiter : descendants) {
                 m_to_be_replaced.insert(desc_txiter->GetTx().GetHash());
@@ -96,7 +97,7 @@ MiniMiner::MiniMiner(const CTxMemPool& mempool, const std::vector<COutPoint>& ou
         // will not exist without its ancestor MiniMinerMempoolEntry, so these sets won't be invalidated.
         std::vector<MockEntryMap::iterator> cached_descendants;
         const bool remove{m_to_be_replaced.count(txid) > 0};
-        CTxMemPool::setEntries descendants;
+        MempoolMultiIndex::setEntries descendants;
         mempool.CalculateDescendants(txiter, descendants);
         Assume(descendants.count(txiter) > 0);
         for (const auto& desc_txiter : descendants) {
