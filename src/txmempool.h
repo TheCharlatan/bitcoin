@@ -46,6 +46,8 @@ class CBlockIndex;
 class CChain;
 class Chainstate;
 
+struct IndexedDisconnectedTransactionsImpl;
+
 /** Fake height value used in Coin to signify they are only in the memory pool (since 0.8) */
 static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
 
@@ -697,6 +699,10 @@ public:
  * still-unconfirmed transactions at the end.
  */
 
+// namespace MempoolMultiIndex {
+// struct OpaqueDisconnectedTransactionsIterator;
+// } // namespace MempoolMultiIndex
+
 struct DisconnectedBlockTransactions {
     // It's almost certainly a logic bug if we don't clear out queuedTx before
     // destruction, as we add to it while disconnecting blocks, and then we
@@ -706,54 +712,29 @@ struct DisconnectedBlockTransactions {
     // to be refactored such that this assumption is no longer true (for
     // instance if there was some other way we cleaned up the mempool after a
     // reorg, besides draining this object).
-    ~DisconnectedBlockTransactions() { assert(queuedTx.empty()); }
+    DisconnectedBlockTransactions();
+    ~DisconnectedBlockTransactions();
 
-    using indexed_disconnected_transactions = MempoolMultiIndex::indexed_disconnected_transactions;
-    using insertion_order = MempoolMultiIndex::insertion_order;
+    // using indexed_disconnected_transactions = MempoolMultiIndex::indexed_disconnected_transactions;
+    // using insertion_order = MempoolMultiIndex::insertion_order;
 
-    indexed_disconnected_transactions queuedTx;
+    // indexed_disconnected_transactions queuedTx;
+    const std::unique_ptr<IndexedDisconnectedTransactionsImpl> queuedTx;
     uint64_t cachedInnerUsage = 0;
 
     // Estimate the overhead of queuedTx to be 6 pointers + an allocation, as
     // no exact formula for boost::multi_index_contained is implemented.
-    size_t DynamicMemoryUsage() const {
-        return memusage::MallocUsage(sizeof(CTransactionRef) + 6 * sizeof(void*)) * queuedTx.size() + cachedInnerUsage;
-    }
+    size_t DynamicMemoryUsage() const;
 
-    void addTransaction(const CTransactionRef& tx)
-    {
-        queuedTx.insert(tx);
-        cachedInnerUsage += RecursiveDynamicUsage(tx);
-    }
+    void addTransaction(const CTransactionRef& tx);
 
     // Remove entries based on txid_index, and update memory usage.
-    void removeForBlock(const std::vector<CTransactionRef>& vtx)
-    {
-        // Short-circuit in the common case of a block being added to the tip
-        if (queuedTx.empty()) {
-            return;
-        }
-        for (auto const &tx : vtx) {
-            auto it = queuedTx.find(tx->GetHash());
-            if (it != queuedTx.end()) {
-                cachedInnerUsage -= RecursiveDynamicUsage(*it);
-                queuedTx.erase(it);
-            }
-        }
-    }
+    void removeForBlock(const std::vector<CTransactionRef>& vtx);
 
     // Remove an entry by insertion_order index, and update memory usage.
-    void removeEntry(indexed_disconnected_transactions::index<insertion_order>::type::iterator entry)
-    {
-        cachedInnerUsage -= RecursiveDynamicUsage(*entry);
-        queuedTx.get<insertion_order>().erase(entry);
-    }
+    void removeEntry(MempoolMultiIndex::OpaqueDisconnectedTransactionsIterator* entry);
 
-    void clear()
-    {
-        cachedInnerUsage = 0;
-        queuedTx.clear();
-    }
+    void clear();
 };
 
 void ClearSetEntry(const std::unique_ptr<SetEntriesImpl>& setEntries);

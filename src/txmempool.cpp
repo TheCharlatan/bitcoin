@@ -12,6 +12,7 @@
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <logging.h>
+#include <mempool_set_definitions.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
@@ -1586,4 +1587,50 @@ void CTxMemPool::addPackageTxs(int& nPackagesSelected,
         // Update transactions that depend on each of these
         nDescendantsUpdated += UpdatePackagesForAdded(*this, ancestors, mapModifiedTx);
     }
+}
+
+DisconnectedBlockTransactions::DisconnectedBlockTransactions() :
+    queuedTx{std::make_unique<IndexedDisconnectedTransactionsImpl>()} {}
+
+DisconnectedBlockTransactions::~DisconnectedBlockTransactions() {
+    assert(queuedTx->impl.empty());
+}
+
+size_t DisconnectedBlockTransactions::DynamicMemoryUsage() const {
+    return memusage::MallocUsage(sizeof(CTransactionRef) + 6 * sizeof(void*)) * queuedTx->impl.size() + cachedInnerUsage;
+}
+
+void DisconnectedBlockTransactions::addTransaction(const CTransactionRef& tx)
+{
+    queuedTx->impl.insert(tx);
+    cachedInnerUsage += RecursiveDynamicUsage(tx);
+}
+
+// Remove entries based on txid_index, and update memory usage.
+void DisconnectedBlockTransactions::removeForBlock(const std::vector<CTransactionRef>& vtx)
+{
+    // Short-circuit in the common case of a block being added to the tip
+    if (queuedTx->impl.empty()) {
+        return;
+    }
+    for (auto const &tx : vtx) {
+        auto it = queuedTx->impl.find(tx->GetHash());
+        if (it != queuedTx->impl.end()) {
+            cachedInnerUsage -= RecursiveDynamicUsage(*it);
+            queuedTx->impl.erase(it);
+        }
+    }
+}
+
+// Remove an entry by insertion_order index, and update memory usage.
+void DisconnectedBlockTransactions::removeEntry(MempoolMultiIndex::OpaqueDisconnectedTransactionsIterator* entry)
+{
+    cachedInnerUsage -= RecursiveDynamicUsage(**entry);
+    queuedTx->impl.get<MempoolMultiIndex::insertion_order>().erase(*entry);
+}
+
+void DisconnectedBlockTransactions::clear()
+{
+    cachedInnerUsage = 0;
+    queuedTx->impl.clear();
 }
