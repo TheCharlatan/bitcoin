@@ -35,7 +35,9 @@
 
 using MemPoolMultiIndex::ancestor_score;
 using MemPoolMultiIndex::CompareTxMemPoolEntryByAncestorFee;
+using MemPoolMultiIndex::raw_setEntries;
 using MemPoolMultiIndex::raw_txiter;
+using MemPoolMultiIndex::setEntries;
 using MemPoolMultiIndex::txiter;
 
 // Container for tracking updates to ancestor feerate as we include (parent)
@@ -193,7 +195,7 @@ BlockAssembler::BlockAssembler(Chainstate& chainstate, const CTxMemPool* mempool
 
 void BlockAssembler::resetBlock()
 {
-    inBlock.clear();
+    inBlock.impl.clear();
 
     // Reserve space for coinbase tx
     nBlockWeight = 4000;
@@ -285,12 +287,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     return std::move(pblocktemplate);
 }
 
-void BlockAssembler::onlyUnconfirmed(CTxMemPool::setEntries& testSet)
+void BlockAssembler::onlyUnconfirmed(setEntries& testSet)
 {
-    for (CTxMemPool::setEntries::iterator iit = testSet.begin(); iit != testSet.end(); ) {
+    for (raw_setEntries::iterator iit = testSet.impl.begin(); iit != testSet.impl.end(); ) {
         // Only test txs not already in the block
-        if (inBlock.count(*iit)) {
-            testSet.erase(iit++);
+        if (inBlock.impl.count(*iit)) {
+            testSet.impl.erase(iit++);
         } else {
             iit++;
         }
@@ -311,9 +313,9 @@ bool BlockAssembler::TestPackage(uint64_t packageSize, int64_t packageSigOpsCost
 
 // Perform transaction-level checks before adding to block:
 // - transaction finality (locktime)
-bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& package) const
+bool BlockAssembler::TestPackageTransactions(const MemPoolMultiIndex::setEntries& package) const
 {
-    for (raw_txiter it : package) {
+    for (raw_txiter it : package.impl) {
         if (!IsFinalTx(it->GetTx(), nHeight, m_lock_time_cutoff)) {
             return false;
         }
@@ -328,7 +330,7 @@ static void AddToBlock(std::unique_ptr<node::CBlockTemplate>& pblocktemplate,
     uint64_t& nBlockTx,
     uint64_t& nBlockSigOpsCost,
     CAmount& nFees,
-    CTxMemPool::setEntries& inBlock)
+    setEntries& inBlock)
 {
     pblocktemplate->block.vtx.emplace_back(iter->GetSharedTx());
     pblocktemplate->vTxFees.push_back(iter->GetFee());
@@ -337,7 +339,7 @@ static void AddToBlock(std::unique_ptr<node::CBlockTemplate>& pblocktemplate,
     ++nBlockTx;
     nBlockSigOpsCost += iter->GetSigOpCost();
     nFees += iter->GetFee();
-    inBlock.insert(iter);
+    inBlock.impl.insert(iter);
 
     bool fPrintPriority = gArgs.GetBoolArg("-printpriority", DEFAULT_PRINTPRIORITY);
     if (fPrintPriority) {
@@ -351,18 +353,18 @@ static void AddToBlock(std::unique_ptr<node::CBlockTemplate>& pblocktemplate,
  * state updated assuming given transactions are inBlock. Returns number
  * of updated descendants. */
 static int UpdatePackagesForAdded(const CTxMemPool& mempool,
-                                  const CTxMemPool::setEntries& alreadyAdded,
+                                  const setEntries& alreadyAdded,
                                   indexed_modified_transaction_set& mapModifiedTx) EXCLUSIVE_LOCKS_REQUIRED(mempool.cs)
 {
     AssertLockHeld(mempool.cs);
 
     int nDescendantsUpdated = 0;
-    for (txiter it : alreadyAdded) {
+    for (txiter it : alreadyAdded.impl) {
         CTxMemPool::setEntries descendants;
         mempool.CalculateDescendants(it, descendants);
         // Insert all descendants (not yet in block) into the modified set
-        for (raw_txiter desc : descendants) {
-            if (alreadyAdded.count(desc)) {
+        for (raw_txiter desc : descendants.impl) {
+            if (alreadyAdded.impl.count(desc)) {
                 continue;
             }
             ++nDescendantsUpdated;
@@ -378,14 +380,14 @@ static int UpdatePackagesForAdded(const CTxMemPool& mempool,
 }
 
 /** Sort the package in an order that is valid to appear in a block */
-static void SortForBlock(const CTxMemPool::setEntries& package, std::vector<raw_txiter>& sortedEntries)
+static void SortForBlock(const setEntries& package, std::vector<raw_txiter>& sortedEntries)
 {
     // Sort package by ancestor count
     // If a transaction A depends on transaction B, then A's ancestor count
     // must be greater than B's.  So this is sufficient to validly order the
     // transactions for block inclusion.
     sortedEntries.clear();
-    sortedEntries.insert(sortedEntries.begin(), package.begin(), package.end());
+    sortedEntries.insert(sortedEntries.begin(), package.impl.begin(), package.impl.end());
     std::sort(sortedEntries.begin(), sortedEntries.end(), CompareTxIterByAncestorCount());
 }
 
@@ -435,7 +437,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         if (mi != mempool.mapTx.get<ancestor_score>().end()) {
             auto it = mempool.mapTx.project<0>(mi);
             assert(it != mempool.mapTx.end());
-            if (mapModifiedTx.count(it) || inBlock.count(it) || failedTx.count(it)) {
+            if (mapModifiedTx.count(it) || inBlock.impl.count(it) || failedTx.impl.count(it)) {
                 ++mi;
                 continue;
             }
@@ -469,7 +471,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
 
         // We skip mapTx entries that are inBlock, and mapModifiedTx shouldn't
         // contain anything that is inBlock.
-        assert(!inBlock.count(iter));
+        assert(!inBlock.impl.count(iter));
 
         uint64_t packageSize = iter->GetSizeWithAncestors();
         CAmount packageFees = iter->GetModFeesWithAncestors();
@@ -491,7 +493,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
                 // we must erase failed entries so that we can consider the
                 // next best entry on the next loop iteration
                 mapModifiedTx.get<ancestor_score>().erase(modit);
-                failedTx.insert(iter);
+                failedTx.impl.insert(iter);
             }
 
             ++nConsecutiveFailed;
@@ -505,15 +507,16 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         }
 
         auto ancestors{mempool.AssumeCalculateMemPoolAncestors(__func__, *iter, CTxMemPool::Limits::NoLimits(), /*fSearchForParents=*/false)};
+        assert(ancestors);
 
-        onlyUnconfirmed(ancestors);
-        ancestors.insert(iter);
+        onlyUnconfirmed(*ancestors);
+        ancestors->impl.insert(iter);
 
         // Test if all tx's are Final
-        if (!TestPackageTransactions(ancestors)) {
+        if (!TestPackageTransactions(*ancestors)) {
             if (fUsingModified) {
                 mapModifiedTx.get<ancestor_score>().erase(modit);
-                failedTx.insert(iter);
+                failedTx.impl.insert(iter);
             }
             continue;
         }
@@ -523,7 +526,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
 
         // Package can be added. Sort the entries in a valid order.
         std::vector<raw_txiter> sortedEntries;
-        SortForBlock(ancestors, sortedEntries);
+        SortForBlock(*ancestors, sortedEntries);
 
         for (size_t i = 0; i < sortedEntries.size(); ++i) {
             AddToBlock(
@@ -541,7 +544,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         ++nPackagesSelected;
 
         // Update transactions that depend on each of these
-        nDescendantsUpdated += UpdatePackagesForAdded(mempool, ancestors, mapModifiedTx);
+        nDescendantsUpdated += UpdatePackagesForAdded(mempool, *ancestors, mapModifiedTx);
     }
 }
 } // namespace node
