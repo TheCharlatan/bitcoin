@@ -9,7 +9,9 @@
 #include <uint256.h>
 #include <util/hasher.h>
 
+#include <map>
 #include <memory>
+#include <set>
 
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/identity.hpp>
@@ -210,7 +212,18 @@ typedef boost::multi_index_container<
     >
 > indexed_transaction_set;
 
-typedef indexed_transaction_set::nth_index<0>::type::const_iterator txiter;
+typedef indexed_transaction_set::nth_index<0>::type::const_iterator raw_txiter;
+
+struct txiter {
+    raw_txiter impl;
+
+    txiter(const raw_txiter& inner_impl)
+        : impl(inner_impl) {}
+};
+
+typedef std::set<raw_txiter, CompareIteratorByHash> setEntries;
+
+typedef std::map<raw_txiter, setEntries, CompareIteratorByHash> cacheMap;
 
 typedef indexed_transaction_set::const_iterator const_txiter;
 
