@@ -1230,19 +1230,22 @@ std::vector<CTxMemPool::txiter> CTxMemPool::GatherClusters(const std::vector<uin
     return clustered_txs;
 }
 
+DisconnectedBlockTransactions::DisconnectedBlockTransactions()
+    : queuedTx{std::make_unique<MemPoolMultiIndex::IndexedDisconnectedTransactionsImpl>()} {}
+
 DisconnectedBlockTransactions::~DisconnectedBlockTransactions()
-{ 
-    assert(queuedTx.empty());
+{
+    assert(queuedTx->impl.empty());
 }
 
 size_t DisconnectedBlockTransactions::DynamicMemoryUsage() const
 {
-    return memusage::MallocUsage(sizeof(CTransactionRef) + 6 * sizeof(void*)) * queuedTx.size() + cachedInnerUsage;
+    return memusage::MallocUsage(sizeof(CTransactionRef) + 6 * sizeof(void*)) * queuedTx->impl.size() + cachedInnerUsage;
 }
 
 void DisconnectedBlockTransactions::addTransaction(const CTransactionRef& tx)
 {
-    queuedTx.insert(tx);
+    queuedTx->impl.insert(tx);
     cachedInnerUsage += RecursiveDynamicUsage(tx);
 }
 
@@ -1250,14 +1253,14 @@ void DisconnectedBlockTransactions::addTransaction(const CTransactionRef& tx)
 void DisconnectedBlockTransactions::removeForBlock(const std::vector<CTransactionRef>& vtx)
 {
     // Short-circuit in the common case of a block being added to the tip
-    if (queuedTx.empty()) {
+    if (queuedTx->impl.empty()) {
         return;
     }
     for (auto const &tx : vtx) {
-        auto it = queuedTx.find(tx->GetHash());
-        if (it != queuedTx.end()) {
+        auto it = queuedTx->impl.find(tx->GetHash());
+        if (it != queuedTx->impl.end()) {
             cachedInnerUsage -= RecursiveDynamicUsage(*it);
-            queuedTx.erase(it);
+            queuedTx->impl.erase(it);
         }
     }
 }
@@ -1266,11 +1269,11 @@ void DisconnectedBlockTransactions::removeForBlock(const std::vector<CTransactio
 void DisconnectedBlockTransactions::removeEntry(MemPoolMultiIndex::disconnected_txiter entry)
 {
     cachedInnerUsage -= RecursiveDynamicUsage(*entry);
-    queuedTx.get<MemPoolMultiIndex::insertion_order>().erase(entry);
+    queuedTx->impl.get<MemPoolMultiIndex::insertion_order>().erase(entry);
 }
 
 void DisconnectedBlockTransactions::clear()
 {
     cachedInnerUsage = 0;
-    queuedTx.clear();
+    queuedTx->impl.clear();
 }
