@@ -228,6 +228,10 @@ typedef boost::multi_index_container<
     >
 > indexed_disconnected_transactions;
 
+struct IndexedDisconnectedTransactionsImpl {
+    indexed_disconnected_transactions impl;
+};
+
 typedef indexed_disconnected_transactions::index<insertion_order>::type::iterator disconnected_txiter;
 
 

@@ -672,9 +672,10 @@ struct DisconnectedBlockTransactions {
     // to be refactored such that this assumption is no longer true (for
     // instance if there was some other way we cleaned up the mempool after a
     // reorg, besides draining this object).
+    DisconnectedBlockTransactions();
     ~DisconnectedBlockTransactions();
 
-    MemPoolMultiIndex::indexed_disconnected_transactions queuedTx;
+    std::unique_ptr<MemPoolMultiIndex::IndexedDisconnectedTransactionsImpl> queuedTx;
     uint64_t cachedInnerUsage = 0;
 
     // Estimate the overhead of queuedTx to be 6 pointers + an allocation, as
