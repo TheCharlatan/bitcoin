@@ -1229,3 +1229,48 @@ std::vector<CTxMemPool::txiter> CTxMemPool::GatherClusters(const std::vector<uin
     }
     return clustered_txs;
 }
+
+DisconnectedBlockTransactions::~DisconnectedBlockTransactions()
+{ 
+    assert(queuedTx.empty());
+}
+
+size_t DisconnectedBlockTransactions::DynamicMemoryUsage() const
+{
+    return memusage::MallocUsage(sizeof(CTransactionRef) + 6 * sizeof(void*)) * queuedTx.size() + cachedInnerUsage;
+}
+
+void DisconnectedBlockTransactions::addTransaction(const CTransactionRef& tx)
+{
+    queuedTx.insert(tx);
+    cachedInnerUsage += RecursiveDynamicUsage(tx);
+}
+
+// Remove entries based on txid_index, and update memory usage.
+void DisconnectedBlockTransactions::removeForBlock(const std::vector<CTransactionRef>& vtx)
+{
+    // Short-circuit in the common case of a block being added to the tip
+    if (queuedTx.empty()) {
+        return;
+    }
+    for (auto const &tx : vtx) {
+        auto it = queuedTx.find(tx->GetHash());
+        if (it != queuedTx.end()) {
+            cachedInnerUsage -= RecursiveDynamicUsage(*it);
+            queuedTx.erase(it);
+        }
+    }
+}
+
+// Remove an entry by insertion_order index, and update memory usage.
+void DisconnectedBlockTransactions::removeEntry(MemPoolMultiIndex::disconnected_txiter entry)
+{
+    cachedInnerUsage -= RecursiveDynamicUsage(*entry);
+    queuedTx.get<MemPoolMultiIndex::insertion_order>().erase(entry);
+}
+
+void DisconnectedBlockTransactions::clear()
+{
+    cachedInnerUsage = 0;
+    queuedTx.clear();
+}
