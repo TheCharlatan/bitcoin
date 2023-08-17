@@ -72,6 +72,7 @@ using kernel::ComputeUTXOStats;
 using kernel::Notifications;
 
 using fsbridge::FopenFn;
+using MemPoolMultiIndex::DisconnectedTransactionsIteratorImpl;
 using MemPoolMultiIndex::insertion_order;
 using node::BlockManager;
 using node::BlockMap;
@@ -2725,8 +2726,8 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
         }
         while (disconnectpool->DynamicMemoryUsage() > MAX_DISCONNECTED_TX_POOL_SIZE * 1000) {
             // Drop the earliest entry, and remove its children from the mempool.
-            auto it = disconnectpool->queuedTx->impl.get<insertion_order>().begin();
-            m_mempool->removeRecursive(**it, MemPoolRemovalReason::REORG);
+            auto it = DisconnectedTransactionsIteratorImpl{disconnectpool->queuedTx->impl.get<insertion_order>().begin()};
+            m_mempool->removeRecursive(**it.impl, MemPoolRemovalReason::REORG);
             disconnectpool->removeEntry(it);
         }
     }

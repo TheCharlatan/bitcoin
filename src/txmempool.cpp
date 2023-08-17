@@ -33,6 +33,7 @@
 
 using MemPoolMultiIndex::CompareTxMemPoolEntryByScore;
 using MemPoolMultiIndex::descendant_score;
+using MemPoolMultiIndex::DisconnectedTransactionsIteratorImpl;
 using MemPoolMultiIndex::entry_time;
 
 bool TestLockPointValidity(CChain& active_chain, const LockPoints& lp)
@@ -1264,10 +1265,10 @@ void DisconnectedBlockTransactions::removeForBlock(const std::vector<CTransactio
 }
 
 // Remove an entry by insertion_order index, and update memory usage.
-void DisconnectedBlockTransactions::removeEntry(MemPoolMultiIndex::disconnected_txiter entry)
+void DisconnectedBlockTransactions::removeEntry(DisconnectedTransactionsIteratorImpl& entry)
 {
-    cachedInnerUsage -= RecursiveDynamicUsage(*entry);
-    queuedTx->impl.get<MemPoolMultiIndex::insertion_order>().erase(entry);
+    cachedInnerUsage -= RecursiveDynamicUsage(*entry.impl);
+    queuedTx->impl.get<MemPoolMultiIndex::insertion_order>().erase(entry.impl);
 }
 
 void DisconnectedBlockTransactions::clear()
