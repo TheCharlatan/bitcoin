@@ -221,7 +221,17 @@ struct txiter {
         : impl(inner_impl) {}
 };
 
-typedef std::set<raw_txiter, CompareIteratorByHash> setEntries;
+typedef std::set<raw_txiter, CompareIteratorByHash> raw_setEntries;
+
+struct setEntries {
+    raw_setEntries impl;
+
+    explicit setEntries(raw_setEntries&& inner_impl)
+        : impl(std::move(inner_impl)) {}
+
+    explicit setEntries()
+        : impl{} {}
+};
 
 typedef std::map<raw_txiter, setEntries, CompareIteratorByHash> cacheMap;
 
