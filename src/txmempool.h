@@ -701,7 +701,7 @@ struct DisconnectedBlockTransactions {
     void removeForBlock(const std::vector<CTransactionRef>& vtx);
 
     // Remove an entry by insertion_order index, and update memory usage.
-    void removeEntry(MemPoolMultiIndex::disconnected_txiter entry);
+    void removeEntry(MemPoolMultiIndex::DisconnectedTransactionsIteratorImpl& entry);
 
     void clear();
 };

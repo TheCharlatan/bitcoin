@@ -9,6 +9,8 @@
 #include <uint256.h>
 #include <util/hasher.h>
 
+#include <memory>
+
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/identity.hpp>
 #include <boost/multi_index/indexed_by.hpp>
@@ -234,6 +236,12 @@ struct IndexedDisconnectedTransactionsImpl {
 
 typedef indexed_disconnected_transactions::index<insertion_order>::type::iterator disconnected_txiter;
 
+struct DisconnectedTransactionsIteratorImpl {
+    disconnected_txiter impl;
+
+    explicit DisconnectedTransactionsIteratorImpl(disconnected_txiter&& inner_impl)
+        : impl(std::move(inner_impl)) {}
+};
 
 } // namespace MemPoolMultiIndex
 
