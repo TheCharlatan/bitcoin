@@ -168,12 +168,15 @@ static BlockAssembler::Options ClampOptions(BlockAssembler::Options options)
 }
 
 BlockAssembler::BlockAssembler(Chainstate& chainstate, const CTxMemPool* mempool, const Options& options)
-    : chainparams{chainstate.m_chainman.GetParams()},
+    : inBlock{std::make_unique<setEntries>()},
+      chainparams{chainstate.m_chainman.GetParams()},
       m_mempool{mempool},
       m_chainstate{chainstate},
       m_options{ClampOptions(options)}
 {
 }
+
+BlockAssembler::~BlockAssembler() = default;
 
 void ApplyArgsManOptions(const ArgsManager& args, BlockAssembler::Options& options)
 {
@@ -195,7 +198,7 @@ BlockAssembler::BlockAssembler(Chainstate& chainstate, const CTxMemPool* mempool
 
 void BlockAssembler::resetBlock()
 {
-    inBlock.impl.clear();
+    inBlock->impl.clear();
 
     // Reserve space for coinbase tx
     nBlockWeight = 4000;
@@ -291,7 +294,7 @@ void BlockAssembler::onlyUnconfirmed(setEntries& testSet)
 {
     for (raw_setEntries::iterator iit = testSet.impl.begin(); iit != testSet.impl.end(); ) {
         // Only test txs not already in the block
-        if (inBlock.impl.count(*iit)) {
+        if (inBlock->impl.count(*iit)) {
             testSet.impl.erase(iit++);
         } else {
             iit++;
@@ -437,7 +440,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         if (mi != mempool.mapTx->impl.get<ancestor_score>().end()) {
             auto it = mempool.mapTx->impl.project<0>(mi);
             assert(it != mempool.mapTx->impl.end());
-            if (mapModifiedTx.count(it) || inBlock.impl.count(it) || failedTx.impl.count(it)) {
+            if (mapModifiedTx.count(it) || inBlock->impl.count(it) || failedTx.impl.count(it)) {
                 ++mi;
                 continue;
             }
@@ -471,7 +474,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
 
         // We skip mapTx entries that are inBlock, and mapModifiedTx shouldn't
         // contain anything that is inBlock.
-        assert(!inBlock.impl.count(iter));
+        assert(!inBlock->impl.count(iter));
 
         uint64_t packageSize = iter->GetSizeWithAncestors();
         CAmount packageFees = iter->GetModFeesWithAncestors();
@@ -536,7 +539,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
                 nBlockTx,
                 nBlockSigOpsCost,
                 nFees,
-                inBlock);
+                *inBlock);
             // Erase from the modified set, if present
             mapModifiedTx.erase(sortedEntries[i]);
         }
