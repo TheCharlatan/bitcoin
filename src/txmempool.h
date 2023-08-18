@@ -203,7 +203,7 @@ public:
     indexed_transaction_set mapTx GUARDED_BY(cs);
 
     using txiter = MemPoolMultiIndex::txiter;
-    std::vector<std::pair<uint256, txiter>> vTxHashes GUARDED_BY(cs); //!< All tx witness hashes/entries in mapTx, in random order
+    std::unique_ptr<std::vector<std::pair<uint256, txiter>>> vTxHashes GUARDED_BY(cs); //!< All tx witness hashes/entries in mapTx, in random order
 
     using setEntries = MemPoolMultiIndex::setEntries;
 
