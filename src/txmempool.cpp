@@ -1275,6 +1275,21 @@ void CTxMemPool::SetLoadTried(bool load_tried)
     m_load_tried = load_tried;
 }
 
+unsigned long CTxMemPool::size() const
+{
+    LOCK(cs);
+    return mapTx.size();
+}
+
+bool CTxMemPool::exists(const GenTxid& gtxid) const
+{
+    LOCK(cs);
+    if (gtxid.IsWtxid()) {
+        return (mapTx.get<index_by_wtxid>().count(gtxid.GetHash()) != 0);
+    }
+    return (mapTx.count(gtxid.GetHash()) != 0);
+}
+
 std::vector<CTxMemPoolEntryRef> CTxMemPool::GatherClusters(const std::vector<uint256>& txids) const
 {
     AssertLockHeld(cs);

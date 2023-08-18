@@ -655,11 +655,7 @@ public:
      */
     void SetLoadTried(bool load_tried);
 
-    unsigned long size() const
-    {
-        LOCK(cs);
-        return mapTx.size();
-    }
+    unsigned long size() const;
 
     uint64_t GetTotalTxSize() const EXCLUSIVE_LOCKS_REQUIRED(cs)
     {
@@ -673,14 +669,7 @@ public:
         return m_total_fee;
     }
 
-    bool exists(const GenTxid& gtxid) const
-    {
-        LOCK(cs);
-        if (gtxid.IsWtxid()) {
-            return (mapTx.get<index_by_wtxid>().count(gtxid.GetHash()) != 0);
-        }
-        return (mapTx.count(gtxid.GetHash()) != 0);
-    }
+    bool exists(const GenTxid& gtxid) const;
 
     const CTxMemPoolEntry* GetEntry(const Txid& txid) const LIFETIMEBOUND EXCLUSIVE_LOCKS_REQUIRED(cs);
 
