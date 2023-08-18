@@ -12,6 +12,7 @@
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <logging.h>
+#include <mempool_set_definitions.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
@@ -35,6 +36,7 @@ using MemPoolMultiIndex::CompareTxMemPoolEntryByScore;
 using MemPoolMultiIndex::descendant_score;
 using MemPoolMultiIndex::DisconnectedTransactionsIteratorImpl;
 using MemPoolMultiIndex::entry_time;
+using MemPoolMultiIndex::indexed_transaction_set;
 using MemPoolMultiIndex::MapTxImpl;
 using MemPoolMultiIndex::raw_setEntries;
 using MemPoolMultiIndex::raw_txiter;
@@ -454,6 +456,8 @@ CTxMemPool::CTxMemPool(const Options& opts)
 {
 }
 
+CTxMemPool::~CTxMemPool() = default;
+
 bool CTxMemPool::isSpent(const COutPoint& outpoint) const
 {
     LOCK(cs);
@@ -716,7 +720,7 @@ namespace {
 class DepthAndScoreComparator
 {
 public:
-    bool operator()(const CTxMemPool::indexed_transaction_set::const_iterator& a, const CTxMemPool::indexed_transaction_set::const_iterator& b)
+    bool operator()(const indexed_transaction_set::const_iterator& a, const indexed_transaction_set::const_iterator& b)
     {
         uint64_t counta = a->GetCountWithAncestors();
         uint64_t countb = b->GetCountWithAncestors();
@@ -728,15 +732,15 @@ public:
 };
 } // namespace
 
-static std::vector<MemPoolMultiIndex::indexed_transaction_set::const_iterator> GetSortedDepthAndScore(
-    const std::unique_ptr<MemPoolMultiIndex::MapTxImpl>& mapTx, RecursiveMutex& cs) EXCLUSIVE_LOCKS_REQUIRED(cs)
+static std::vector<indexed_transaction_set::const_iterator> GetSortedDepthAndScore(
+    const std::unique_ptr<MapTxImpl>& mapTx, RecursiveMutex& cs) EXCLUSIVE_LOCKS_REQUIRED(cs)
 {
-    std::vector<MemPoolMultiIndex::indexed_transaction_set::const_iterator> iters;
+    std::vector<indexed_transaction_set::const_iterator> iters;
     AssertLockHeld(cs);
 
     iters.reserve(mapTx->impl.size());
 
-    for (MemPoolMultiIndex::indexed_transaction_set::iterator mi = mapTx->impl.begin(); mi != mapTx->impl.end(); ++mi) {
+    for (indexed_transaction_set::iterator mi = mapTx->impl.begin(); mi != mapTx->impl.end(); ++mi) {
         iters.push_back(mi);
     }
     std::sort(iters.begin(), iters.end(), DepthAndScoreComparator());
@@ -882,7 +886,8 @@ void CTxMemPool::queryHashes(std::vector<uint256>& vtxid) const
     }
 }
 
-static TxMempoolInfo GetInfo(CTxMemPool::indexed_transaction_set::const_iterator it) {
+static TxMempoolInfo GetInfo(indexed_transaction_set::const_iterator it)
+{
     return TxMempoolInfo{it->GetSharedTx(), it->GetTime(), it->GetFee(), it->GetTxSize(), it->GetModifiedFee() - it->GetFee()};
 }
 

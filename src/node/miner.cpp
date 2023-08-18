@@ -16,6 +16,7 @@
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <logging.h>
+#include <mempool_set_definitions.h>
 #include <policy/feerate.h>
 #include <policy/policy.h>
 #include <pow.h>
@@ -35,6 +36,7 @@
 
 using MemPoolMultiIndex::ancestor_score;
 using MemPoolMultiIndex::CompareTxMemPoolEntryByAncestorFee;
+using MemPoolMultiIndex::indexed_transaction_set;
 using MemPoolMultiIndex::raw_setEntries;
 using MemPoolMultiIndex::raw_txiter;
 using MemPoolMultiIndex::setEntries;
@@ -412,9 +414,9 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
     // because some of their txs are already in the block
     indexed_modified_transaction_set mapModifiedTx;
     // Keep track of entries that failed inclusion, to avoid duplicate work
-    CTxMemPool::setEntries failedTx;
+    setEntries failedTx;
 
-    CTxMemPool::indexed_transaction_set::index<ancestor_score>::type::iterator mi = mempool.mapTx->impl.get<ancestor_score>().begin();
+    indexed_transaction_set::index<ancestor_score>::type::iterator mi = mempool.mapTx->impl.get<ancestor_score>().begin();
     raw_txiter iter;
 
     // Limit the number of attempts to add transactions to the block when it is
