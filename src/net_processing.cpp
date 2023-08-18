@@ -18,6 +18,7 @@
 #include <index/blockfilterindex.h>
 #include <kernel/mempool_entry.h>
 #include <logging.h>
+#include <mempool_set_definitions.h>
 #include <merkleblock.h>
 #include <netbase.h>
 #include <netmessagemaker.h>

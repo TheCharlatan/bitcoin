@@ -1,6 +1,7 @@
 // Copyright (c) 2021 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
+#include <mempool_set_definitions.h>
 #include <node/mini_miner.h>
 #include <txmempool.h>
 #include <util/time.h>
@@ -12,7 +13,6 @@
 #include <optional>
 #include <vector>
 
-using MemPoolMultiIndex::raw_txiter;
 using MemPoolMultiIndex::raw_setEntries;
 
 BOOST_FIXTURE_TEST_SUITE(miniminer_tests, TestingSetup)
