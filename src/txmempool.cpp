@@ -50,9 +50,46 @@ bool TestLockPointValidity(CChain& active_chain, const LockPoints& lp)
     return true;
 }
 
-void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendants,
-                                      const std::set<uint256>& setExclude, std::set<uint256>& descendants_to_remove)
+/** UpdateForDescendants is used by UpdateTransactionsFromBlock to update
+ *  the descendants for a single transaction that has been added to the
+ *  mempool but may have child transactions in the mempool, eg during a
+ *  chain reorg.
+ *
+ * @pre CTxMemPoolEntry::m_children is correct for the given tx and all
+ *      descendants.
+ * @pre cachedDescendants is an accurate cache where each entry has all
+ *      descendants of the corresponding key, including those that should
+ *      be removed for violation of ancestor limits.
+ * @post if updateIt has any non-excluded descendants, cachedDescendants has
+ *       a new cache line for updateIt.
+ * @post descendants_to_remove has a new entry for any descendant which exceeded
+ *       ancestor limits relative to updateIt.
+ *
+ * @param[in] updateIt the entry to update for its descendants
+ * @param[in,out] cachedDescendants a cache where each line corresponds to all
+ *     descendants. It will be updated with the descendants of the transaction
+ *     being updated, so that future invocations don't need to walk the same
+ *     transaction again, if encountered in another transaction chain.
+ * @param[in] setExclude the set of descendant transactions in the mempool
+ *     that must not be accounted for (because any descendants in setExclude
+ *     were added to the mempool after the transaction being updated and hence
+ *     their state is already reflected in the parent state).
+ * @param[out] descendants_to_remove Populated with the txids of entries that
+ *     exceed ancestor limits. It's the responsibility of the caller to
+ *     removeRecursive them.
+ * @param[in,out] mapTx a reference to the complete mempool map.
+ * @param[in] limits the mempool limits configuration.
+ */
+static void UpdateForDescendants(
+    CTxMemPool::txiter updateIt,
+    CTxMemPool::cacheMap& cachedDescendants,
+    const std::set<uint256>& setExclude,
+    std::set<uint256>& descendants_to_remove,
+    CTxMemPool::indexed_transaction_set& mapTx,
+    const CTxMemPool::Limits& limits,
+    RecursiveMutex& cs) EXCLUSIVE_LOCKS_REQUIRED(cs)
 {
+    AssertLockHeld(cs);
     CTxMemPoolEntry::Children stageEntries, descendants;
     stageEntries = updateIt->GetMemPoolChildrenConst();
 
@@ -62,7 +99,7 @@ void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendan
         stageEntries.erase(descendant);
         const CTxMemPoolEntry::Children& children = descendant.GetMemPoolChildrenConst();
         for (const CTxMemPoolEntry& childEntry : children) {
-            cacheMap::iterator cacheIt = cachedDescendants.find(childEntry);
+            CTxMemPool::cacheMap::iterator cacheIt = cachedDescendants.find(childEntry);
             if (cacheIt != cachedDescendants.end()) {
                 // We've already calculated this one, just add the entries for this set
                 // but don't traverse again.
@@ -93,7 +130,7 @@ void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendan
             // Don't directly remove the transaction here -- doing so would
             // invalidate iterators in cachedDescendants. Mark it for removal
             // by inserting into descendants_to_remove.
-            if (descendant.GetCountWithAncestors() > uint64_t(m_limits.ancestor_count) || descendant.GetSizeWithAncestors() > m_limits.ancestor_size_vbytes) {
+            if (descendant.GetCountWithAncestors() > uint64_t(limits.ancestor_count) || descendant.GetSizeWithAncestors() > limits.ancestor_size_vbytes) {
                 descendants_to_remove.insert(descendant.GetTx().GetHash());
             }
         }
@@ -144,7 +181,7 @@ void CTxMemPool::UpdateTransactionsFromBlock(const std::vector<uint256>& vHashes
                 }
             }
         } // release epoch guard for UpdateForDescendants
-        UpdateForDescendants(it, mapMemPoolDescendantsToUpdate, setAlreadyIncluded, descendants_to_remove);
+        UpdateForDescendants(it, mapMemPoolDescendantsToUpdate, setAlreadyIncluded, descendants_to_remove, mapTx, m_limits, cs);
     }
 
     for (const auto& txid : descendants_to_remove) {
