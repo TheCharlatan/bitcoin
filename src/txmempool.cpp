@@ -401,6 +401,7 @@ void CTxMemPoolEntry::UpdateAncestorState(int32_t modifySize, CAmount modifyFee,
 CTxMemPool::CTxMemPool(const Options& opts)
     : m_check_ratio{opts.check_ratio},
       minerPolicyEstimator{opts.estimator},
+      vTxHashes{std::make_unique<std::vector<std::pair<uint256, txiter>>>()},
       m_max_size_bytes{opts.max_size_bytes},
       m_expiry{opts.expiry},
       m_incremental_relay_feerate{opts.incremental_relay_feerate},
@@ -481,8 +482,8 @@ void CTxMemPool::addUnchecked(const CTxMemPoolEntry &entry, setEntries &setAnces
         minerPolicyEstimator->processTransaction(entry, validFeeEstimate);
     }
 
-    vTxHashes.emplace_back(tx.GetWitnessHash(), newit);
-    newit->vTxHashesIdx = vTxHashes.size() - 1;
+    vTxHashes->emplace_back(tx.GetWitnessHash(), newit);
+    newit->vTxHashesIdx = vTxHashes->size() - 1;
 
     TRACE3(mempool, added,
         entry.GetTx().GetHash().data(),
@@ -519,14 +520,14 @@ void CTxMemPool::removeUnchecked(txiter& tx_it, MemPoolRemovalReason reason)
 
     RemoveUnbroadcastTx(hash, true /* add logging because unchecked */ );
 
-    if (vTxHashes.size() > 1) {
-        vTxHashes[it->vTxHashesIdx] = std::move(vTxHashes.back());
-        vTxHashes[it->vTxHashesIdx].second.impl->vTxHashesIdx = it->vTxHashesIdx;
-        vTxHashes.pop_back();
-        if (vTxHashes.size() * 2 < vTxHashes.capacity())
-            vTxHashes.shrink_to_fit();
+    if (vTxHashes->size() > 1) {
+        (*vTxHashes)[it->vTxHashesIdx] = std::move(vTxHashes->back());
+        (*vTxHashes)[it->vTxHashesIdx].second.impl->vTxHashesIdx = it->vTxHashesIdx;
+        vTxHashes->pop_back();
+        if (vTxHashes->size() * 2 < vTxHashes->capacity())
+            vTxHashes->shrink_to_fit();
     } else
-        vTxHashes.clear();
+        vTxHashes->clear();
 
     totalTxSize -= it->GetTxSize();
     m_total_fee -= it->GetFee();
