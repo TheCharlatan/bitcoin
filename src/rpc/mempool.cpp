@@ -320,7 +320,7 @@ static void entryToJSON(const CTxMemPool& pool, UniValue& info, const CTxMemPool
     info.pushKV("depends", depends);
 
     UniValue spent(UniValue::VARR);
-    const raw_txiter& it = pool.mapTx.find(tx.GetHash());
+    const raw_txiter& it = pool.mapTx->impl.find(tx.GetHash());
     const CTxMemPoolEntry::Children& children = it->GetMemPoolChildrenConst();
     for (const CTxMemPoolEntry& child : children) {
         spent.push_back(child.GetTx().GetHash().ToString());
@@ -349,7 +349,7 @@ UniValue MempoolToJSON(const CTxMemPool& pool, bool verbose, bool include_mempoo
         }
         LOCK(pool.cs);
         UniValue o(UniValue::VOBJ);
-        for (const CTxMemPoolEntry& e : pool.mapTx) {
+        for (const CTxMemPoolEntry& e : pool.mapTx->impl) {
             const uint256& hash = e.GetTx().GetHash();
             UniValue info(UniValue::VOBJ);
             entryToJSON(pool, info, e);
@@ -465,8 +465,8 @@ static RPCHelpMan getmempoolancestors()
     const CTxMemPool& mempool = EnsureAnyMemPool(request.context);
     LOCK(mempool.cs);
 
-    txiter it = mempool.mapTx.find(hash);
-    if (it.impl == mempool.mapTx.end()) {
+    txiter it = mempool.mapTx->impl.find(hash);
+    if (it.impl == mempool.mapTx->impl.end()) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not in mempool");
     }
 
@@ -527,8 +527,8 @@ static RPCHelpMan getmempooldescendants()
     const CTxMemPool& mempool = EnsureAnyMemPool(request.context);
     LOCK(mempool.cs);
 
-    txiter it = mempool.mapTx.find(hash);
-    if (it.impl == mempool.mapTx.end()) {
+    txiter it = mempool.mapTx->impl.find(hash);
+    if (it.impl == mempool.mapTx->impl.end()) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not in mempool");
     }
 
@@ -579,8 +579,8 @@ static RPCHelpMan getmempoolentry()
     const CTxMemPool& mempool = EnsureAnyMemPool(request.context);
     LOCK(mempool.cs);
 
-    raw_txiter it = mempool.mapTx.find(hash);
-    if (it == mempool.mapTx.end()) {
+    raw_txiter it = mempool.mapTx->impl.find(hash);
+    if (it == mempool.mapTx->impl.end()) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not in mempool");
     }
 

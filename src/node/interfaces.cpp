@@ -782,7 +782,7 @@ public:
     {
         if (!m_node.mempool) return;
         LOCK2(::cs_main, m_node.mempool->cs);
-        for (const CTxMemPoolEntry& entry : m_node.mempool->mapTx) {
+        for (const CTxMemPoolEntry& entry : m_node.mempool->mapTx->impl) {
             notifications.transactionAddedToMempool(entry.GetSharedTx());
         }
     }
