@@ -356,7 +356,7 @@ void Chainstate::MaybeUpdateMempoolForReorg(
             const std::optional<LockPoints> new_lock_points{CalculateLockPointsAtTip(m_chain.Tip(), view_mempool, tx)};
             if (new_lock_points.has_value() && CheckSequenceLocksAtTip(m_chain.Tip(), *new_lock_points)) {
                 // Now update the mempool entry lockpoints as well.
-                m_mempool->mapTx.modify(it.impl, [&new_lock_points](CTxMemPoolEntry& e) { e.UpdateLockPoints(*new_lock_points); });
+                m_mempool->mapTx->impl.modify(it.impl, [&new_lock_points](CTxMemPoolEntry& e) { e.UpdateLockPoints(*new_lock_points); });
             } else {
                 return true;
             }
@@ -365,8 +365,8 @@ void Chainstate::MaybeUpdateMempoolForReorg(
         // If the transaction spends any coinbase outputs, it must be mature.
         if (it.impl->GetSpendsCoinbase()) {
             for (const CTxIn& txin : tx.vin) {
-                auto it2 = m_mempool->mapTx.find(txin.prevout.hash);
-                if (it2 != m_mempool->mapTx.end())
+                auto it2 = m_mempool->mapTx->impl.find(txin.prevout.hash);
+                if (it2 != m_mempool->mapTx->impl.end())
                     continue;
                 const Coin& coin{CoinsTip().AccessCoin(txin.prevout)};
                 assert(!coin.IsSpent());
