@@ -9,7 +9,6 @@
 #include <uint256.h>
 #include <util/hasher.h>
 
-#include <map>
 #include <memory>
 #include <set>
 
@@ -236,8 +235,6 @@ struct setEntries {
     explicit setEntries()
         : impl{} {}
 };
-
-typedef std::map<raw_txiter, setEntries, CompareIteratorByHash> cacheMap;
 
 typedef indexed_transaction_set::const_iterator const_txiter;
 
