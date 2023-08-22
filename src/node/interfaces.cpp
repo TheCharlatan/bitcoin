@@ -20,7 +20,6 @@
 #include <kernel/mempool_entry.h>
 #include <logging.h>
 #include <mapport.h>
-#include <mempool_set_definitions.h>
 #include <net.h>
 #include <net_processing.h>
 #include <netaddress.h>
@@ -645,8 +644,7 @@ public:
     {
         if (!m_node.mempool) return false;
         LOCK(m_node.mempool->cs);
-        auto it = m_node.mempool->GetIter(txid);
-        return it && it->impl->GetCountWithDescendants() > 1;
+        return m_node.mempool->GetTxCountWithDescendants(txid) > 1;
     }
     bool broadcastTransaction(const CTransactionRef& tx,
         const CAmount& max_tx_fee,
@@ -681,7 +679,7 @@ public:
         CTxMemPoolEntry entry(tx, 0, 0, 0, false, 0, lp);
         const CTxMemPool::Limits& limits{m_node.mempool->m_limits};
         LOCK(m_node.mempool->cs);
-        return m_node.mempool->CalculateMemPoolAncestors(entry, limits).has_value();
+        return m_node.mempool->CalculateMemPoolAncestorsHasSuccess(entry, limits);
     }
     CFeeRate estimateSmartFee(int num_blocks, bool conservative, FeeCalculation* calc) override
     {
@@ -783,9 +781,9 @@ public:
     {
         if (!m_node.mempool) return;
         LOCK2(::cs_main, m_node.mempool->cs);
-        for (const CTxMemPoolEntry& entry : m_node.mempool->mapTx->impl) {
+        m_node.mempool->ForEachMemPoolEntry([&notifications](const CTxMemPoolEntry& entry) {
             notifications.transactionAddedToMempool(entry.GetSharedTx());
-        }
+        });
     }
     bool hasAssumedValidChain() override
     {

@@ -305,6 +305,14 @@ util::Result<std::unique_ptr<setEntries>> CTxMemPool::CalculateMemPoolAncestors(
                                             limits);
 }
 
+bool CTxMemPool::CalculateMemPoolAncestorsHasSuccess(
+    const CTxMemPoolEntry &entry,
+    const Limits& limits,
+    bool fSearchForParents /* = true */) const
+{
+    return CalculateMemPoolAncestors(entry, limits, fSearchForParents).has_value();
+}
+
 std::unique_ptr<setEntries> CTxMemPool::AssumeCalculateMemPoolAncestors(
     std::string_view calling_fn_name,
     const CTxMemPoolEntry &entry,
@@ -1033,6 +1041,22 @@ const CTxMemPoolEntry::Parents* CTxMemPool::GetTxMemPoolParents(const uint256& t
     auto tx_iter = GetIter(txid);
     if (!tx_iter) return nullptr;
     return &tx_iter->impl->GetMemPoolParentsConst();
+}
+
+uint64_t CTxMemPool::GetTxCountWithDescendants(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs)
+{
+    AssertLockHeld(cs);
+    auto it = GetIter(txid);
+    if (!it) return 0;
+    return it->impl->GetCountWithDescendants();
+}
+
+void CTxMemPool::ForEachMemPoolEntry(std::function<void(const CTxMemPoolEntry&)> func) const EXCLUSIVE_LOCKS_REQUIRED(cs)
+{
+    AssertLockHeld(cs);
+    for (const CTxMemPoolEntry& entry : mapTx->impl) {
+        func(entry);
+    }
 }
 
 bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const

@@ -368,6 +368,10 @@ public:
 
     const CTxMemPoolEntry::Parents* GetTxMemPoolParents(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
+    uint64_t GetTxCountWithDescendants(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    void ForEachMemPoolEntry(std::function<void(const CTxMemPoolEntry&)> func) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+
     /** Remove a set of transactions from the mempool.
      *  If a transaction is in this set, then all in-mempool descendants must
      *  also be in the set, unless this transaction is being removed for being
@@ -407,6 +411,10 @@ public:
     util::Result<std::unique_ptr<setEntries>> CalculateMemPoolAncestors(const CTxMemPoolEntry& entry,
                                    const Limits& limits,
                                    bool fSearchForParents = true) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    bool CalculateMemPoolAncestorsHasSuccess(const CTxMemPoolEntry& entry,
+        const Limits& limits,
+        bool fSearchForParents = true) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /**
      * Same as CalculateMemPoolAncestors, but always returns a (non-optional) setEntries.
