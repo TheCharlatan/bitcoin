@@ -366,6 +366,8 @@ public:
      * don't actually exist in the mempool, returns an empty vector. */
     std::unique_ptr<std::vector<txiter>> GetIterVec(const std::vector<uint256>& txids) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
+    const CTxMemPoolEntry::Parents* GetTxMemPoolParents(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+
     /** Remove a set of transactions from the mempool.
      *  If a transaction is in this set, then all in-mempool descendants must
      *  also be in the set, unless this transaction is being removed for being

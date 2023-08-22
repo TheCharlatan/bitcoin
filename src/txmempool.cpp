@@ -27,6 +27,7 @@
 #include <validationinterface.h>
 
 #include <cmath>
+#include <functional>
 #include <numeric>
 #include <optional>
 #include <string_view>
@@ -1024,6 +1025,14 @@ std::unique_ptr<std::vector<txiter>> CTxMemPool::GetIterVec(const std::vector<ui
         ret->push_back((*it).impl);
     }
     return ret;
+}
+
+const CTxMemPoolEntry::Parents* CTxMemPool::GetTxMemPoolParents(const uint256& txid) const
+{
+    AssertLockHeld(cs);
+    auto tx_iter = GetIter(txid);
+    if (!tx_iter) return nullptr;
+    return &tx_iter->impl->GetMemPoolParentsConst();
 }
 
 bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const

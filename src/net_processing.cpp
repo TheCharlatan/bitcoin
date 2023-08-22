@@ -16,7 +16,6 @@
 #include <hash.h>
 #include <headerssync.h>
 #include <index/blockfilterindex.h>
-#include <kernel/mempool_entry.h>
 #include <logging.h>
 #include <mempool_set_definitions.h>
 #include <merkleblock.h>
@@ -2358,11 +2357,10 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
             std::vector<uint256> parent_ids_to_add;
             {
                 LOCK(m_mempool.cs);
-                auto tx_iter = m_mempool.GetIter(tx->GetHash());
-                if (tx_iter) {
-                    const CTxMemPoolEntry::Parents& parents = tx_iter->impl->GetMemPoolParentsConst();
-                    parent_ids_to_add.reserve(parents.size());
-                    for (const CTxMemPoolEntry& parent : parents) {
+                auto parents = m_mempool.GetTxMemPoolParents(tx->GetHash());
+                if (parents) {
+                    parent_ids_to_add.reserve(parents->size());
+                    for (const CTxMemPoolEntry& parent : *parents) {
                         if (parent.GetTime() > now - UNCONDITIONAL_RELAY_DELAY) {
                             parent_ids_to_add.push_back(parent.GetTx().GetHash());
                         }
