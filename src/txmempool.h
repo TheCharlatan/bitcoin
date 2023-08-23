@@ -353,6 +353,8 @@ public:
 
     void ForEachMemPoolEntry(std::function<void(const CTxMemPoolEntry&)> func) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
+    void ForEachTxHash(std::function<bool(const uint256& txhash, CTransactionRef tx)> func) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+
     /** Remove a set of transactions from the mempool.
      *  If a transaction is in this set, then all in-mempool descendants must
      *  also be in the set, unless this transaction is being removed for being

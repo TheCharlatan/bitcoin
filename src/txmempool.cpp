@@ -1063,6 +1063,16 @@ void CTxMemPool::ForEachMemPoolEntry(std::function<void(const CTxMemPoolEntry&)>
     }
 }
 
+void CTxMemPool::ForEachTxHash(std::function<bool(const uint256& txhash, CTransactionRef tx)> func) const
+{
+    AssertLockHeld(cs);
+    for (size_t i = 0; i < vTxHashes->size(); i++) {
+        if (!func((*vTxHashes)[i].first, (*vTxHashes)[i].second.impl->GetSharedTx())) {
+            break;
+        }
+    }
+}
+
 bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const
 {
     for (unsigned int i = 0; i < tx.vin.size(); i++)

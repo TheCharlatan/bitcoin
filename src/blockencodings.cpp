@@ -10,7 +10,6 @@
 #include <crypto/sha256.h>
 #include <crypto/siphash.h>
 #include <logging.h>
-#include <mempool_set_definitions.h>
 #include <random.h>
 #include <streams.h>
 #include <txmempool.h>
@@ -108,12 +107,12 @@ ReadStatus PartiallyDownloadedBlock::InitData(const CBlockHeaderAndShortTxIDs& c
     std::vector<bool> have_txn(txn_available.size());
     {
     LOCK(pool->cs);
-    for (size_t i = 0; i < pool->vTxHashes->size(); i++) {
-        uint64_t shortid = cmpctblock.GetShortID((*pool->vTxHashes)[i].first);
+    pool->ForEachTxHash([this, &have_txn, &shorttxids, &cmpctblock](const uint256& txhash, CTransactionRef tx) {
+        uint64_t shortid = cmpctblock.GetShortID(txhash);
         std::unordered_map<uint64_t, uint16_t>::iterator idit = shorttxids.find(shortid);
         if (idit != shorttxids.end()) {
             if (!have_txn[idit->second]) {
-                txn_available[idit->second] = (*pool->vTxHashes)[i].second.impl->GetSharedTx();
+                txn_available[idit->second] = tx;
                 have_txn[idit->second]  = true;
                 mempool_count++;
             } else {
@@ -130,8 +129,9 @@ ReadStatus PartiallyDownloadedBlock::InitData(const CBlockHeaderAndShortTxIDs& c
         // the performance win of an early exit here is too good to pass up and worth
         // the extra risk.
         if (mempool_count == shorttxids.size())
-            break;
-    }
+            return false;
+        return true;
+    });
     }
 
     for (size_t i = 0; i < extra_txn.size(); i++) {
