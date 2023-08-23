@@ -9,6 +9,7 @@
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <test/util/setup_common.h>
+#include <txmempool.h>
 #include <validation.h>
 
 #include <boost/test/unit_test.hpp>

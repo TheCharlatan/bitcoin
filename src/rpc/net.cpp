@@ -21,6 +21,7 @@
 #include <rpc/util.h>
 #include <sync.h>
 #include <timedata.h>
+#include <txmempool.h>
 #include <util/chaintype.h>
 #include <util/strencodings.h>
 #include <util/string.h>
