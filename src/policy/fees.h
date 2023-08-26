@@ -38,6 +38,8 @@ class AutoFile;
 class CTxMemPoolEntry;
 class TxConfirmStats;
 
+struct NewMempoolTransactionInfo;
+
 /* Identifier for each of the 3 different TxConfirmStats which will track
  * history over different time horizons. */
 enum class FeeEstimateHorizon {
@@ -206,7 +208,7 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
 
     /** Process a transaction accepted to the mempool*/
-    void processTransaction(const CTxMemPoolEntry& entry, bool validFeeEstimate)
+    void processTransaction(const NewMempoolTransactionInfo& tx_info, bool validForFeeEstimation)
         EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
 
     /** Remove a transaction from the mempool tracking stats*/
@@ -272,6 +274,7 @@ private:
     {
         unsigned int blockHeight{0};
         unsigned int bucketIndex{0};
+        CAmount m_fee_per_k;
         TxStatsInfo() {}
     };
 

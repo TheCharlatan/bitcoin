@@ -41,7 +41,9 @@ FUZZ_TARGET(policy_estimator, .init = initialize_policy_estimator)
                     return;
                 }
                 const CTransaction tx{*mtx};
-                block_policy_estimator.processTransaction(ConsumeTxMemPoolEntry(fuzzed_data_provider, tx), fuzzed_data_provider.ConsumeBool());
+                const CTxMemPoolEntry entry = ConsumeTxMemPoolEntry(fuzzed_data_provider, tx);
+                const NewMempoolTransactionInfo tx_info = {entry.GetSharedTx(), entry.GetFee(), entry.GetTxSize(), entry.GetHeight()};
+                block_policy_estimator.processTransaction(tx_info, fuzzed_data_provider.ConsumeBool());
                 if (fuzzed_data_provider.ConsumeBool()) {
                     (void)block_policy_estimator.removeTx(tx.GetHash(), /*inBlock=*/fuzzed_data_provider.ConsumeBool());
                 }

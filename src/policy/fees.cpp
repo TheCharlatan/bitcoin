@@ -566,17 +566,16 @@ CBlockPolicyEstimator::CBlockPolicyEstimator(const fs::path& estimation_filepath
 
 CBlockPolicyEstimator::~CBlockPolicyEstimator() = default;
 
-void CBlockPolicyEstimator::processTransaction(const CTxMemPoolEntry& entry, bool validFeeEstimate)
+void CBlockPolicyEstimator::processTransaction(const NewMempoolTransactionInfo& tx_info, bool validForFeeEstimation)
 {
     LOCK(m_cs_fee_estimator);
-    unsigned int txHeight = entry.GetHeight();
-    uint256 hash = entry.GetTx().GetHash();
+    unsigned int txHeight = tx_info.txHeight;
+    uint256 hash = tx_info.m_tx->GetHash();
     if (mapMemPoolTxs.count(hash)) {
         LogPrint(BCLog::ESTIMATEFEE, "Blockpolicy error mempool tx %s already being tracked\n",
                  hash.ToString());
         return;
     }
-
     if (txHeight != nBestSeenHeight) {
         // Ignore side chains and re-orgs; assuming they are random they don't
         // affect the estimate.  We'll potentially double count transactions in 1-block reorgs.
@@ -584,19 +583,18 @@ void CBlockPolicyEstimator::processTransaction(const CTxMemPoolEntry& entry, boo
         // It will be synced next time a block is processed.
         return;
     }
-
     // Only want to be updating estimates when our blockchain is synced,
     // otherwise we'll miscalculate how many blocks its taking to get included.
-    if (!validFeeEstimate) {
+    if (!validForFeeEstimation) {
         untrackedTxs++;
         return;
     }
     trackedTxs++;
 
     // Feerates are stored and reported as BTC-per-kb:
-    CFeeRate feeRate(entry.GetFee(), entry.GetTxSize());
-
+    CFeeRate feeRate(tx_info.m_fee, tx_info.m_virtual_transaction_size);
     mapMemPoolTxs[hash].blockHeight = txHeight;
+    mapMemPoolTxs[hash].m_fee_per_k = feeRate.GetFeePerK();
     unsigned int bucketIndex = feeStats->NewTx(txHeight, (double)feeRate.GetFeePerK());
     mapMemPoolTxs[hash].bucketIndex = bucketIndex;
     unsigned int bucketIndex2 = shortStats->NewTx(txHeight, (double)feeRate.GetFeePerK());
