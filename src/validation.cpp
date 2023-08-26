@@ -1214,7 +1214,12 @@ bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& 
         results.emplace(ws.m_ptx->GetWitnessHash(),
                         MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize,
                                          ws.m_base_fees, effective_feerate, effective_feerate_wtxids));
-        GetMainSignals().TransactionAddedToMempool(ws.m_ptx, m_pool.GetAndIncrementSequence());
+        NewMempoolTransactionInfo tx_info = {
+            .m_tx = ws.m_ptx,
+            .m_fee = ws.m_base_fees,
+            .m_virtual_transaction_size = ws.m_vsize,
+            .txHeight = ws.m_entry->GetHeight()};
+        GetMainSignals().TransactionAddedToMempool(tx_info, m_pool.GetAndIncrementSequence());
     }
     return all_submitted;
 }
@@ -1246,7 +1251,12 @@ MempoolAcceptResult MemPoolAccept::AcceptSingleTransaction(const CTransactionRef
 
     if (!Finalize(args, ws)) return MempoolAcceptResult::Failure(ws.m_state);
 
-    GetMainSignals().TransactionAddedToMempool(ptx, m_pool.GetAndIncrementSequence());
+    NewMempoolTransactionInfo tx_info = {
+        .m_tx = ws.m_ptx,
+        .m_fee = ws.m_base_fees,
+        .m_virtual_transaction_size = ws.m_vsize,
+        .txHeight = ws.m_entry->GetHeight()};
+    GetMainSignals().TransactionAddedToMempool(tx_info, m_pool.GetAndIncrementSequence());
 
     return MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_base_fees,
                                         effective_feerate, single_wtxid);

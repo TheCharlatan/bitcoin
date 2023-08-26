@@ -176,4 +176,21 @@ public:
     mutable Epoch::Marker m_epoch_marker; //!< epoch when last touched, useful for graph algorithms
 };
 
+struct NewMempoolTransactionInfo {
+    CTransactionRef m_tx;
+    /* The fee the added transaction paid */
+    CAmount m_fee;
+    /**
+     * The virtual transaction size.
+     *
+     * This is a policy field which considers the sigop cost of the
+     * transaction as well as its weight, and reinterprets it as bytes.
+     *
+     * It is the primary metric by which the mining algorithm selects
+     * transactions.
+     */
+    int64_t m_virtual_transaction_size;
+    unsigned int txHeight;
+};
+
 #endif // BITCOIN_KERNEL_MEMPOOL_ENTRY_H
