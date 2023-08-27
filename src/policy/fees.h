@@ -13,6 +13,7 @@
 #include <threadsafety.h>
 #include <uint256.h>
 #include <util/fs.h>
+#include <validationinterface.h>
 
 #include <array>
 #include <chrono>
@@ -145,7 +146,7 @@ struct FeeCalculation
  * a certain number of blocks.  Every time a block is added to the best chain, this class records
  * stats on the transactions included in that block
  */
-class CBlockPolicyEstimator
+class CBlockPolicyEstimator : public CValidationInterface
 {
 private:
     /** Track confirm delays up to 12 blocks for short horizon */
@@ -200,15 +201,15 @@ private:
 public:
     /** Create new BlockPolicyEstimator and initialize stats tracking classes with default values */
     CBlockPolicyEstimator(const fs::path& estimation_filepath, const bool read_stale_estimates);
-    ~CBlockPolicyEstimator();
+    virtual ~CBlockPolicyEstimator();
 
     /** Process all the transactions that have been included in a block */
     void processBlock(unsigned int nBlockHeight,
-                      std::vector<CTransactionRef>& txs_removed_for_block)
+                      const std::vector<CTransactionRef>& txs_removed_for_block)
         EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
 
     /** Process a transaction accepted to the mempool*/
-    void processTransaction(const NewMempoolTransactionInfo& tx_info, bool validForFeeEstimation)
+    void processTransaction(const NewMempoolTransactionInfo& tx_info)
         EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
 
     /** Remove a transaction from the mempool tracking stats*/
@@ -261,6 +262,15 @@ public:
 
     /** Calculates the age of the file, since last modified */
     std::chrono::hours GetFeeEstimatorFileAge();
+
+protected:
+    /** Overridden from CValidationInterface. */
+    void TransactionAddedToMempool(const NewMempoolTransactionInfo& tx_info, uint64_t mempool_sequence) override
+        EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
+    void TransactionRemovedFromMempool(const CTransactionRef& tx, MemPoolRemovalReason reason, uint64_t mempool_sequence) override
+        EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
+    void MempoolTransactionsRemovedForConnectedBlock(const std::vector<CTransactionRef>& txs_removed_for_block, unsigned int nBlockHeight) override
+        EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
 
 private:
     mutable Mutex m_cs_fee_estimator;

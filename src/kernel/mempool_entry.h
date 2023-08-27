@@ -191,6 +191,10 @@ struct NewMempoolTransactionInfo {
      */
     int64_t m_virtual_transaction_size;
     unsigned int txHeight;
+    bool m_from_disconnected_block;
+    bool m_submitted_in_package;
+    bool m_chainstate_is_current;
+    bool m_has_no_mempool_parents;
 };
 
 #endif // BITCOIN_KERNEL_MEMPOOL_ENTRY_H

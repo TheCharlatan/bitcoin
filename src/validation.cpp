@@ -1214,11 +1214,16 @@ bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& 
         results.emplace(ws.m_ptx->GetWitnessHash(),
                         MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize,
                                          ws.m_base_fees, effective_feerate, effective_feerate_wtxids));
+        const CTransaction& tx = *ws.m_ptx;
         NewMempoolTransactionInfo tx_info = {
             .m_tx = ws.m_ptx,
             .m_fee = ws.m_base_fees,
             .m_virtual_transaction_size = ws.m_vsize,
-            .txHeight = ws.m_entry->GetHeight()};
+            .txHeight = ws.m_entry->GetHeight(),
+            .m_from_disconnected_block = args.m_bypass_limits,
+            .m_submitted_in_package = args.m_package_submission,
+            .m_chainstate_is_current = IsCurrentForFeeEstimation(m_active_chainstate),
+            .m_has_no_mempool_parents = m_pool.HasNoInputsOf(tx)};
         GetMainSignals().TransactionAddedToMempool(tx_info, m_pool.GetAndIncrementSequence());
     }
     return all_submitted;
@@ -1251,11 +1256,16 @@ MempoolAcceptResult MemPoolAccept::AcceptSingleTransaction(const CTransactionRef
 
     if (!Finalize(args, ws)) return MempoolAcceptResult::Failure(ws.m_state);
 
+    const CTransaction& tx = *ws.m_ptx;
     NewMempoolTransactionInfo tx_info = {
         .m_tx = ws.m_ptx,
         .m_fee = ws.m_base_fees,
         .m_virtual_transaction_size = ws.m_vsize,
-        .txHeight = ws.m_entry->GetHeight()};
+        .txHeight = ws.m_entry->GetHeight(),
+        .m_from_disconnected_block = args.m_bypass_limits,
+        .m_submitted_in_package = args.m_package_submission,
+        .m_chainstate_is_current = IsCurrentForFeeEstimation(m_active_chainstate),
+        .m_has_no_mempool_parents = m_pool.HasNoInputsOf(tx)};
     GetMainSignals().TransactionAddedToMempool(tx_info, m_pool.GetAndIncrementSequence());
 
     return MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_base_fees,

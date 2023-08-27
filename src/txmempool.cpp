@@ -12,9 +12,9 @@
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <logging.h>
-#include <policy/fees.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
+#include <random.h>
 #include <reverse_iterator.h>
 #include <util/check.h>
 #include <util/moneystr.h>
@@ -402,7 +402,6 @@ void CTxMemPoolEntry::UpdateAncestorState(int32_t modifySize, CAmount modifyFee,
 
 CTxMemPool::CTxMemPool(const Options& opts)
     : m_check_ratio{opts.check_ratio},
-      minerPolicyEstimator{opts.estimator},
       m_max_size_bytes{opts.max_size_bytes},
       m_expiry{opts.expiry},
       m_incremental_relay_feerate{opts.incremental_relay_feerate},
@@ -476,11 +475,6 @@ void CTxMemPool::addUnchecked(const CTxMemPoolEntry &entry, setEntries &setAnces
     nTransactionsUpdated++;
     totalTxSize += entry.GetTxSize();
     m_total_fee += entry.GetFee();
-    NewMempoolTransactionInfo tx_info = {entry.GetSharedTx(), entry.GetFee(), entry.GetTxSize(), entry.GetHeight()};
-    if (minerPolicyEstimator) {
-        minerPolicyEstimator->processTransaction(tx_info, validFeeEstimate);
-    }
-
     vTxHashes.emplace_back(tx.GetWitnessHash(), newit);
     newit->vTxHashesIdx = vTxHashes.size() - 1;
 
@@ -503,9 +497,6 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         // in transactions included in blocks can subscribe to the BlockConnected
         // notification.
         GetMainSignals().TransactionRemovedFromMempool(it->GetSharedTx(), reason, mempool_sequence);
-        if (minerPolicyEstimator) {
-            minerPolicyEstimator->removeTx(hash, false);
-        }
     }
     TRACE5(mempool, removed,
         it->GetTx().GetHash().data(),
@@ -634,7 +625,7 @@ void CTxMemPool::removeConflicts(const CTransaction &tx)
 }
 
 /**
- * Called when a block is connected. Removes from mempool and updates the miner fee estimator.
+ * Called when a block is connected. Removes from mempool.
  */
 void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight)
 {
@@ -652,10 +643,6 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
         }
         removeConflicts(*tx);
         ClearPrioritisation(tx->GetHash());
-    }
-    // Before the txs in the new block have been removed from the mempool, update policy estimates
-    if (minerPolicyEstimator) {
-        minerPolicyEstimator->processBlock(nBlockHeight, txs_removed_for_block);
     }
     GetMainSignals().MempoolTransactionsRemovedForConnectedBlock(txs_removed_for_block, nBlockHeight);
     lastRollingFeeUpdate = GetTime();
