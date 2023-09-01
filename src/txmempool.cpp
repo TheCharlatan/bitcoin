@@ -978,6 +978,14 @@ bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const
     return true;
 }
 
+uint64_t CTxMemPool::GetTxCountWithDescendants(const uint256& txid) const
+{
+    AssertLockHeld(cs);
+    auto it = GetIter(txid);
+    if (!it) return 0;
+    return (*it)->GetCountWithDescendants();
+}
+
 CCoinsViewMemPool::CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn) : CCoinsViewBacked(baseIn), mempool(mempoolIn) { }
 
 bool CCoinsViewMemPool::GetCoin(const COutPoint &outpoint, Coin &coin) const {
