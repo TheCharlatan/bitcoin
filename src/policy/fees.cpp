@@ -627,9 +627,9 @@ bool CBlockPolicyEstimator::processBlockTx(unsigned int nBlockHeight, const CTra
         return false;
     }
 
-    feeStats->Record(blocksToConfirm, (double)feerate);
-    shortStats->Record(blocksToConfirm, (double)feerate);
-    longStats->Record(blocksToConfirm, (double)feerate);
+    feeStats->Record(blocksToConfirm, static_cast<double>(feerate));
+    shortStats->Record(blocksToConfirm, static_cast<double>(feerate));
+    longStats->Record(blocksToConfirm, static_cast<double>(feerate));
     return true;
 }
 
