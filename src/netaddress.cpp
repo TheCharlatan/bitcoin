@@ -8,6 +8,7 @@
 #include <crypto/common.h>
 #include <crypto/sha3.h>
 #include <hash.h>
+#include <kernel/chainparams.h>
 #include <prevector.h>
 #include <tinyformat.h>
 #include <util/strencodings.h>
@@ -19,6 +20,17 @@
 #include <ios>
 #include <iterator>
 #include <tuple>
+
+uint16_t GetDefaultPort(const CChainParams& params, Network net)
+{
+    return net == NET_I2P ? I2P_SAM31_PORT : params.GetDefaultPort();
+}
+
+uint16_t GetDefaultPort(const CChainParams& params, const std::string& addr)
+{
+    CNetAddr a;
+    return a.SetSpecial(addr) ? GetDefaultPort(params, a.GetNetwork()) : params.GetDefaultPort();
+}
 
 CNetAddr::BIP155Network CNetAddr::GetBIP155Network() const
 {

@@ -24,6 +24,8 @@
 #include <string>
 #include <vector>
 
+class CChainParams;
+
 /**
  * A flag that is ORed into the protocol version to designate that addresses
  * should be serialized in (unserialized from) v2 format (BIP155).
@@ -67,6 +69,9 @@ enum Network {
     /// Dummy value to indicate the number of NET_* constants.
     NET_MAX,
 };
+
+uint16_t GetDefaultPort(const CChainParams& params, Network net);
+uint16_t GetDefaultPort(const CChainParams& params, const std::string& addr);
 
 /// Prefix of an IPv6 address when it contains an embedded IPv4 address.
 /// Used when (un)serializing addresses in ADDRv1 format (pre-BIP155).

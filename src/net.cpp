@@ -469,7 +469,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         Ticks<HoursDouble>(pszDest ? 0h : Now<NodeSeconds>() - addrConnect.nTime));
 
     // Resolve
-    const uint16_t default_port{pszDest != nullptr ? Params().GetDefaultPort(pszDest) :
+    const uint16_t default_port{pszDest != nullptr ? GetDefaultPort(Params(), pszDest) :
                                                      Params().GetDefaultPort()};
     if (pszDest) {
         const std::vector<CService> resolved{Lookup(pszDest, default_port, fNameLookup && !HaveNameProxy(), 256)};
@@ -2083,7 +2083,7 @@ std::vector<AddedNodeInfo> CConnman::GetAddedNodeInfo() const
     }
 
     for (const std::string& strAddNode : lAddresses) {
-        CService service(LookupNumeric(strAddNode, Params().GetDefaultPort(strAddNode)));
+        CService service(LookupNumeric(strAddNode, GetDefaultPort(Params(), strAddNode)));
         AddedNodeInfo addedNode{strAddNode, CService(), false, false};
         if (service.IsValid()) {
             // strAddNode is an IP:port
