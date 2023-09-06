@@ -22,6 +22,7 @@
 #include <hash.h>
 #include <kernel/chainparams.h>
 #include <kernel/mempool_entry.h>
+#include <kernel/messagestartmagic.h>
 #include <kernel/notifications_interface.h>
 #include <logging.h>
 #include <logging/timer.h>
@@ -4532,7 +4533,7 @@ void ChainstateManager::LoadExternalBlockFile(
             unsigned int nSize = 0;
             try {
                 // locate a header
-                CMessageHeader::MessageStartChars buf;
+                MessageStartMagic buf;
                 blkdat.FindByte(std::byte(params.MessageStart()[0]));
                 nRewind = blkdat.GetPos() + 1;
                 blkdat >> buf;

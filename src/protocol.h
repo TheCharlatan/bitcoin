@@ -6,6 +6,7 @@
 #ifndef BITCOIN_PROTOCOL_H
 #define BITCOIN_PROTOCOL_H
 
+#include <kernel/messagestartmagic.h>
 #include <netaddress.h>
 #include <primitives/transaction.h>
 #include <serialize.h>
@@ -26,7 +27,7 @@
 class CMessageHeader
 {
 public:
-    using MessageStartChars = std::array<uint8_t, 4>;
+    using MessageStartChars = MessageStartMagic;
     static constexpr size_t MESSAGE_START_SIZE = std::tuple_size_v<MessageStartChars>;
     static constexpr size_t COMMAND_SIZE = 12;
     static constexpr size_t MESSAGE_SIZE_SIZE = 4;
