@@ -45,6 +45,7 @@
 
 class AddrMan;
 class BanMan;
+class CChainParams;
 class CNode;
 class CScheduler;
 struct bilingual_str;
@@ -847,7 +848,7 @@ public:
     }
 
     CConnman(uint64_t seed0, uint64_t seed1, AddrMan& addrman, const NetGroupManager& netgroupman,
-             bool network_active = true);
+             const CChainParams& params, bool network_active = true);
 
     ~CConnman();
 
@@ -1123,6 +1124,9 @@ private:
     // Whether the node should be passed out in ForEach* callbacks
     static bool NodeFullyConnected(const CNode* pnode);
 
+    uint16_t GetDefaultPort(Network net) const;
+    uint16_t GetDefaultPort(const std::string& addr) const;
+
     // Network usage totals
     mutable Mutex m_total_bytes_sent_mutex;
     std::atomic<uint64_t> nTotalBytesRecv{0};
@@ -1331,6 +1335,8 @@ private:
     private:
         std::vector<CNode*> m_nodes_copy;
     };
+
+    const CChainParams& m_params;
 
     friend struct ConnmanTestMsg;
 };
