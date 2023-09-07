@@ -6,6 +6,7 @@
 #include <random.h>
 
 #include <compat/cpuid.h>
+#include <compat/compat.h>
 #include <crypto/chacha20.h>
 #include <crypto/sha256.h>
 #include <crypto/sha512.h>
