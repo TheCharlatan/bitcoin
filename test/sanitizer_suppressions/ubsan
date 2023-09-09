@@ -71,4 +71,5 @@ shift-base:crypto/
 shift-base:ROTL32
 shift-base:streams.h
 shift-base:FormatHDKeypath
+shift-base:common/bip32.cpp
 shift-base:xoroshiro128plusplus.h
