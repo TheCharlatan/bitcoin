@@ -62,5 +62,5 @@ shift-base:arith_uint256.cpp
 shift-base:crypto/
 shift-base:hash.cpp
 shift-base:streams.h
-shift-base:util/bip32.cpp
+shift-base:common/bip32.cpp
 shift-base:xoroshiro128plusplus.h
