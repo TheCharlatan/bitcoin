@@ -4,7 +4,6 @@
 
 #include <dbwrapper.h>
 
-#include <clientversion.h>
 #include <logging.h>
 #include <random.h>
 #include <serialize.h>
@@ -158,7 +157,7 @@ struct CDBBatch::WriteBatchImpl {
 
 CDBBatch::CDBBatch(const CDBWrapper& _parent) : parent(_parent),
                                                 m_impl_batch{std::make_unique<CDBBatch::WriteBatchImpl>()},
-                                                ssValue(SER_DISK, CLIENT_VERSION){};
+                                                ssValue(){};
 
 CDBBatch::~CDBBatch() = default;
 
@@ -168,7 +167,7 @@ void CDBBatch::Clear()
     size_estimate = 0;
 }
 
-void CDBBatch::WriteImpl(Span<const std::byte> key, CDataStream& ssValue)
+void CDBBatch::WriteImpl(Span<const std::byte> key, DataStream& ssValue)
 {
     leveldb::Slice slKey(CharCast(key.data()), key.size());
     ssValue.Xor(dbwrapper_private::GetObfuscateKey(parent));
