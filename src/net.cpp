@@ -729,7 +729,7 @@ V1Transport::V1Transport(const NodeId node_id, int nTypeIn, int nVersionIn) noex
     m_node_id(node_id), hdrbuf(nTypeIn, nVersionIn), vRecv(nTypeIn, nVersionIn)
 {
     assert(std::size(Params().MessageStart()) == std::size(m_magic_bytes));
-    std::copy(std::begin(Params().MessageStart()), std::end(Params().MessageStart()), m_magic_bytes);
+    m_magic_bytes = Params().MessageStart();
     LOCK(m_recv_mutex);
     Reset();
 }
@@ -758,7 +758,7 @@ int V1Transport::readHeader(Span<const uint8_t> msg_bytes)
     }
 
     // Check start string, network magic
-    if (memcmp(hdr.pchMessageStart, m_magic_bytes, CMessageHeader::MESSAGE_START_SIZE) != 0) {
+    if (hdr.pchMessageStart != m_magic_bytes) {
         LogPrint(BCLog::NET, "Header error: Wrong MessageStart %s received, peer=%d\n", HexStr(hdr.pchMessageStart), m_node_id);
         return -1;
     }
