@@ -46,6 +46,7 @@
 
 class AddrMan;
 class BanMan;
+class CChainParams;
 class CNode;
 class CScheduler;
 struct bilingual_str;
@@ -848,7 +849,7 @@ public:
     }
 
     CConnman(uint64_t seed0, uint64_t seed1, AddrMan& addrman, const NetGroupManager& netgroupman,
-             bool network_active = true);
+             const CChainParams& params, bool network_active = true);
 
     ~CConnman();
 
@@ -1332,6 +1333,8 @@ private:
     private:
         std::vector<CNode*> m_nodes_copy;
     };
+
+    const CChainParams& m_params;
 
     friend struct ConnmanTestMsg;
 };
