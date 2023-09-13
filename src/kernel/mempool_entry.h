@@ -170,6 +170,15 @@ public:
     const Parents& GetMemPoolParentsConst() const { return m_parents; }
     const Children& GetMemPoolChildrenConst() const { return m_children; }
     Parents& GetMemPoolParents() const { return m_parents; }
+    std::vector<CTransactionRef> GetMemPoolParentsCopy() const
+    {
+        std::vector<CTransactionRef> parents;
+        parents.reserve(m_parents.size());
+        for (const auto& parent : m_parents) {
+            parents.push_back(parent.get().GetSharedTx());
+        }
+        return parents;
+    }
     Children& GetMemPoolChildren() const { return m_children; }
 
     mutable size_t vTxHashesIdx; //!< Index in mempool's vTxHashes
@@ -178,6 +187,7 @@ public:
 
 struct NewMempoolTransactionInfo {
     CTransactionRef m_tx;
+    std::vector<CTransactionRef> m_parents;
     /* The fee the added transaction paid */
     CAmount m_fee;
     /**
@@ -191,6 +201,8 @@ struct NewMempoolTransactionInfo {
      */
     int64_t m_virtual_transaction_size;
     unsigned int txHeight;
+    int64_t nSizeWithAncestors;
+    CAmount nModFeesWithAncestors;
     bool m_from_disconnected_block;
     bool m_submitted_in_package;
     bool m_chainstate_is_current;

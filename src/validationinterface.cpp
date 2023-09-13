@@ -216,7 +216,7 @@ void CMainSignals::TransactionAddedToMempool(const NewMempoolTransactionInfo& tx
                           tx_info.m_tx->GetWitnessHash().ToString());
 }
 
-void CMainSignals::MempoolTransactionsRemovedForConnectedBlock(const std::vector<CTransactionRef>& txs_removed_for_block, unsigned int nBlockHeight)
+void CMainSignals::MempoolTransactionsRemovedForConnectedBlock(const std::vector<NewMempoolTransactionInfo>& txs_removed_for_block, unsigned int nBlockHeight)
 {
     auto event = [txs_removed_for_block, nBlockHeight, this] {
         m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.MempoolTransactionsRemovedForConnectedBlock(txs_removed_for_block, nBlockHeight); });

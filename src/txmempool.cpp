@@ -630,21 +630,32 @@ void CTxMemPool::removeConflicts(const CTransaction &tx)
 void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight)
 {
     AssertLockHeld(cs);
-    std::vector<CTransactionRef> txs_removed_for_block;
+    std::vector<NewMempoolTransactionInfo> txs_removed_for_block;
     txs_removed_for_block.reserve(vtx.size());
     for (const auto& tx : vtx)
     {
         txiter it = mapTx.find(tx->GetHash());
         if (it != mapTx.end()) {
-            setEntries stage;
-            stage.insert(it);
-            txs_removed_for_block.push_back(tx);
-            RemoveStaged(stage, true, MemPoolRemovalReason::BLOCK);
+            NewMempoolTransactionInfo tx_info = {
+                .m_tx = it->GetSharedTx(),
+                .m_parents = it->GetMemPoolParentsCopy(),
+                .m_fee = it->GetFee(),
+                .m_virtual_transaction_size = it->GetTxSize(),
+                .txHeight = it->GetHeight(),
+                .nSizeWithAncestors = it->GetSizeWithAncestors(),
+                .nModFeesWithAncestors = it->GetModFeesWithAncestors()};
+            txs_removed_for_block.push_back(tx_info);
         }
         removeConflicts(*tx);
         ClearPrioritisation(tx->GetHash());
     }
     GetMainSignals().MempoolTransactionsRemovedForConnectedBlock(txs_removed_for_block, nBlockHeight);
+    for (const auto& tx_info : txs_removed_for_block) {
+        txiter it = *CHECK_NONFATAL(GetIter(tx_info.m_tx->GetHash()));
+        setEntries stage;
+        stage.insert(it);
+        RemoveStaged(stage, true, MemPoolRemovalReason::BLOCK);
+    }
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = true;
 }

@@ -67,16 +67,16 @@ BOOST_AUTO_TEST_CASE(BlockPolicyEstimates)
                     // Since TransactionAddedToMempool callbacks are generated in ATMP,
                     // not addUnchecked, we cheat and create one manually here
                     int64_t virtual_size = GetVirtualTransactionSize(*MakeTransactionRef(tx));
-                    GetMainSignals().TransactionAddedToMempool(
-                        {MakeTransactionRef(tx),
-                         feeV[j],
-                         virtual_size,
-                         entry.nHeight,
-                         false,
-                         false,
-                         true,
-                         true},
-                        mpool.GetAndIncrementSequence());
+                    NewMempoolTransactionInfo tx_info = {
+                        .m_tx = MakeTransactionRef(tx),
+                        .m_fee = feeV[j],
+                        .m_virtual_transaction_size = virtual_size,
+                        .txHeight = entry.nHeight,
+                        .m_from_disconnected_block = false,
+                        .m_submitted_in_package = false,
+                        .m_chainstate_is_current = true,
+                        .m_has_no_mempool_parents = true};
+                    GetMainSignals().TransactionAddedToMempool(tx_info, mpool.GetAndIncrementSequence());
                 }
                 txHashes[j].push_back(hash);
             }
@@ -165,7 +165,16 @@ BOOST_AUTO_TEST_CASE(BlockPolicyEstimates)
                     // Since TransactionAddedToMempool callbacks are generated in ATMP,
                     // not addUnchecked, we cheat and create one manually here
                     int64_t virtual_size = GetVirtualTransactionSize(*MakeTransactionRef(tx));
-                    GetMainSignals().TransactionAddedToMempool({MakeTransactionRef(tx), feeV[j], virtual_size, entry.nHeight, false, false, true, true}, mpool.GetAndIncrementSequence());
+                    NewMempoolTransactionInfo tx_info = {
+                        .m_tx = MakeTransactionRef(tx),
+                        .m_fee = feeV[j],
+                        .m_virtual_transaction_size = virtual_size,
+                        .txHeight = entry.nHeight,
+                        .m_from_disconnected_block = false,
+                        .m_submitted_in_package = false,
+                        .m_chainstate_is_current = true,
+                        .m_has_no_mempool_parents = true};
+                    GetMainSignals().TransactionAddedToMempool(tx_info, mpool.GetAndIncrementSequence());
                 }
                 txHashes[j].push_back(hash);
             }
@@ -221,7 +230,16 @@ BOOST_AUTO_TEST_CASE(BlockPolicyEstimates)
                     // Since TransactionAddedToMempool callbacks are generated in ATMP,
                     // not addUnchecked, we cheat and create one manually here
                     int64_t virtual_size = GetVirtualTransactionSize(*MakeTransactionRef(tx));
-                    GetMainSignals().TransactionAddedToMempool({MakeTransactionRef(tx), feeV[j], virtual_size, entry.nHeight, false, false, true, true}, mpool.GetAndIncrementSequence());
+                    NewMempoolTransactionInfo tx_info = {
+                        .m_tx = MakeTransactionRef(tx),
+                        .m_fee = feeV[j],
+                        .m_virtual_transaction_size = virtual_size,
+                        .txHeight = entry.nHeight,
+                        .m_from_disconnected_block = false,
+                        .m_submitted_in_package = false,
+                        .m_chainstate_is_current = true,
+                        .m_has_no_mempool_parents = true};
+                    GetMainSignals().TransactionAddedToMempool(tx_info, mpool.GetAndIncrementSequence());
                 }
                 CTransactionRef ptx = mpool.get(hash);
                 if (ptx)

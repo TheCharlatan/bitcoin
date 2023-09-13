@@ -205,7 +205,7 @@ public:
 
     /** Process all the transactions that have been included in a block */
     void processBlock(unsigned int nBlockHeight,
-                      const std::vector<CTransactionRef>& txs_removed_for_block)
+                      const std::vector<NewMempoolTransactionInfo>& txs_removed_for_block)
         EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
 
     /** Process a transaction accepted to the mempool*/
@@ -269,7 +269,7 @@ protected:
         EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
     void TransactionRemovedFromMempool(const CTransactionRef& tx, MemPoolRemovalReason reason, uint64_t mempool_sequence) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
-    void MempoolTransactionsRemovedForConnectedBlock(const std::vector<CTransactionRef>& txs_removed_for_block, unsigned int nBlockHeight) override
+    void MempoolTransactionsRemovedForConnectedBlock(const std::vector<NewMempoolTransactionInfo>& txs_removed_for_block, unsigned int nBlockHeight) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
 
 private:

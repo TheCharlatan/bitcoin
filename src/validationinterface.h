@@ -138,7 +138,7 @@ protected:
      *
      * Called on a background thread.
      */
-    virtual void MempoolTransactionsRemovedForConnectedBlock(const std::vector<CTransactionRef>& txs_removed_for_block, unsigned int nBlockHeight) {}
+    virtual void MempoolTransactionsRemovedForConnectedBlock(const std::vector<NewMempoolTransactionInfo>& txs_removed_for_block, unsigned int nBlockHeight) {}
     /**
      * Notifies listeners of a block being connected.
      * Provides the block that was connected.
@@ -212,7 +212,7 @@ public:
     void UpdatedBlockTip(const CBlockIndex *, const CBlockIndex *, bool fInitialDownload);
     void TransactionAddedToMempool(const NewMempoolTransactionInfo&, uint64_t mempool_sequence);
     void TransactionRemovedFromMempool(const CTransactionRef&, MemPoolRemovalReason, uint64_t mempool_sequence);
-    void MempoolTransactionsRemovedForConnectedBlock(const std::vector<CTransactionRef>&, unsigned int nBlockHeight);
+    void MempoolTransactionsRemovedForConnectedBlock(const std::vector<NewMempoolTransactionInfo>&, unsigned int nBlockHeight);
     void BlockConnected(ChainstateRole, const std::shared_ptr<const CBlock> &, const CBlockIndex *pindex);
     void BlockDisconnected(const std::shared_ptr<const CBlock> &, const CBlockIndex* pindex);
     void ChainStateFlushed(ChainstateRole, const CBlockLocator &);

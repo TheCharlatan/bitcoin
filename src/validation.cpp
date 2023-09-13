@@ -1209,9 +1209,12 @@ bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& 
         const CTransaction& tx = *ws.m_ptx;
         NewMempoolTransactionInfo tx_info = {
             .m_tx = ws.m_ptx,
+            .m_parents = ws.m_entry->GetMemPoolParentsCopy(),
             .m_fee = ws.m_base_fees,
             .m_virtual_transaction_size = ws.m_vsize,
             .txHeight = ws.m_entry->GetHeight(),
+            .nSizeWithAncestors = ws.m_entry->GetSizeWithAncestors(),
+            .nModFeesWithAncestors = ws.m_entry->GetModFeesWithAncestors(),
             .m_from_disconnected_block = args.m_bypass_limits,
             .m_submitted_in_package = args.m_package_submission,
             .m_chainstate_is_current = IsCurrentForFeeEstimation(m_active_chainstate),
@@ -1251,9 +1254,12 @@ MempoolAcceptResult MemPoolAccept::AcceptSingleTransaction(const CTransactionRef
     const CTransaction& tx = *ws.m_ptx;
     NewMempoolTransactionInfo tx_info = {
         .m_tx = ws.m_ptx,
+        .m_parents = ws.m_entry->GetMemPoolParentsCopy(),
         .m_fee = ws.m_base_fees,
         .m_virtual_transaction_size = ws.m_vsize,
         .txHeight = ws.m_entry->GetHeight(),
+        .nSizeWithAncestors = ws.m_entry->GetSizeWithAncestors(),
+        .nModFeesWithAncestors = ws.m_entry->GetModFeesWithAncestors(),
         .m_from_disconnected_block = args.m_bypass_limits,
         .m_submitted_in_package = args.m_package_submission,
         .m_chainstate_is_current = IsCurrentForFeeEstimation(m_active_chainstate),

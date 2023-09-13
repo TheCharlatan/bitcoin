@@ -637,7 +637,7 @@ bool CBlockPolicyEstimator::processBlockTx(unsigned int nBlockHeight, const CTra
 }
 
 void CBlockPolicyEstimator::processBlock(unsigned int nBlockHeight,
-                                         const std::vector<CTransactionRef>& txs_removed_for_block)
+                                         const std::vector<NewMempoolTransactionInfo>& txs_removed_for_block)
 {
     LOCK(m_cs_fee_estimator);
     if (nBlockHeight <= nBestSeenHeight) {
@@ -666,8 +666,8 @@ void CBlockPolicyEstimator::processBlock(unsigned int nBlockHeight,
 
     unsigned int countedTxs = 0;
     // Update averages with data points from current block
-    for (const auto& tx : txs_removed_for_block) {
-        if (processBlockTx(nBlockHeight, tx))
+    for (const auto& tx_info : txs_removed_for_block) {
+        if (processBlockTx(nBlockHeight, tx_info.m_tx))
             countedTxs++;
     }
 
@@ -1049,7 +1049,7 @@ void CBlockPolicyEstimator::TransactionRemovedFromMempool(const CTransactionRef&
     removeTx(tx->GetHash(), false);
 }
 
-void CBlockPolicyEstimator::MempoolTransactionsRemovedForConnectedBlock(const std::vector<CTransactionRef>& txs_removed_for_block, unsigned int nBlockHeight)
+void CBlockPolicyEstimator::MempoolTransactionsRemovedForConnectedBlock(const std::vector<NewMempoolTransactionInfo>& txs_removed_for_block, unsigned int nBlockHeight)
 {
     processBlock(nBlockHeight, txs_removed_for_block);
 }

@@ -43,16 +43,18 @@ FUZZ_TARGET(policy_estimator, .init = initialize_policy_estimator)
                 }
                 const CTransaction tx{*mtx};
                 const CTxMemPoolEntry entry = ConsumeTxMemPoolEntry(fuzzed_data_provider, tx);
-                const NewMempoolTransactionInfo tx_info = { 
+                NewMempoolTransactionInfo tx_info = {
                     .m_tx = entry.GetSharedTx(),
+                    .m_parents = entry.GetMemPoolParentsCopy(),
                     .m_fee = entry.GetFee(),
                     .m_virtual_transaction_size = entry.GetTxSize(),
                     .txHeight = entry.GetHeight(),
+                    .nSizeWithAncestors = entry.GetSizeWithAncestors(),
+                    .nModFeesWithAncestors = entry.GetModFeesWithAncestors(),
                     .m_from_disconnected_block = fuzzed_data_provider.ConsumeBool(),
                     .m_submitted_in_package = fuzzed_data_provider.ConsumeBool(),
                     .m_chainstate_is_current = fuzzed_data_provider.ConsumeBool(),
-                    .m_has_no_mempool_parents = fuzzed_data_provider.ConsumeBool()
-                };
+                    .m_has_no_mempool_parents = fuzzed_data_provider.ConsumeBool()};
                 block_policy_estimator.processTransaction(tx_info);
                 if (fuzzed_data_provider.ConsumeBool()) {
                     (void)block_policy_estimator.removeTx(tx.GetHash(), /*inBlock=*/fuzzed_data_provider.ConsumeBool());
@@ -68,10 +70,19 @@ FUZZ_TARGET(policy_estimator, .init = initialize_policy_estimator)
                     const CTransaction tx{*mtx};
                     mempool_entries.push_back(ConsumeTxMemPoolEntry(fuzzed_data_provider, tx));
                 }
-                std::vector<CTransactionRef> txs;
+                std::vector<NewMempoolTransactionInfo> txs;
                 txs.reserve(mempool_entries.size());
                 for (const CTxMemPoolEntry& mempool_entry : mempool_entries) {
-                    txs.push_back(mempool_entry.GetSharedTx());
+                    NewMempoolTransactionInfo tx_info = {
+                        .m_tx = mempool_entry.GetSharedTx(),
+                        .m_parents = mempool_entry.GetMemPoolParentsCopy(),
+                        .m_fee = mempool_entry.GetFee(),
+                        .m_virtual_transaction_size = mempool_entry.GetTxSize(),
+                        .txHeight = mempool_entry.GetHeight(),
+                        .nSizeWithAncestors = mempool_entry.GetSizeWithAncestors(),
+                        .nModFeesWithAncestors = mempool_entry.GetModFeesWithAncestors(),
+                    };
+                    txs.push_back(tx_info);
                 }
                 block_policy_estimator.processBlock(fuzzed_data_provider.ConsumeIntegral<unsigned int>(), txs);
             },
