@@ -706,8 +706,14 @@ public:
         LockPoints lp;
         CTxMemPoolEntry entry(tx, 0, 0, 0, 0, false, 0, lp);
         LOCK(m_node.mempool->cs);
-        std::string err_string;
-        return m_node.mempool->CheckPackageLimits({tx}, entry.GetTxSize(), err_string);
+        auto ancestors = m_node.mempool->CalculateMemPoolAncestors(entry, m_node.mempool->m_limits);
+        if (ancestors.has_value()) {
+            CTxMemPoolEntry::Parents parents;
+            for (const CTxMemPoolEntry& ancestor : *ancestors) parents.insert(ancestor);
+            return m_node.mempool->CheckClusterSizeLimit(entry.GetTxSize(), 1, m_node.mempool->m_limits, parents).has_value();
+        } else {
+            return false;
+        }
     }
     CFeeRate estimateSmartFee(int num_blocks, bool conservative, FeeCalculation* calc) override
     {
