@@ -6,6 +6,7 @@
 #define BITCOIN_NODE_MINI_MINER_H
 
 #include <consensus/amount.h>
+#include <kernel/mempool_entry.h>
 #include <primitives/transaction.h>
 #include <uint256.h>
 
@@ -34,16 +35,20 @@ class MiniMinerMempoolEntry
 // methods can be called without holding that lock.
 
 public:
-    explicit MiniMinerMempoolEntry(const CTransactionRef& tx_in,
-                                   int64_t vsize_self,
-                                   int64_t vsize_ancestor,
-                                   CAmount fee_self,
-                                   CAmount fee_ancestor):
+    MiniMinerMempoolEntry(const CTxMemPoolEntry& entry, int64_t ancestor_size, CAmount ancestor_fee) :
+        tx{entry.GetSharedTx()},
+        vsize_individual(entry.GetTxSize()),
+        vsize_with_ancestors{ancestor_size},
+        fee_individual{entry.GetModifiedFee()},
+        fee_with_ancestors{ancestor_fee}
+    { }
+
+    MiniMinerMempoolEntry(const CTransactionRef tx_in, int64_t individual_size, int64_t size_ancestors, CAmount individual_fee, CAmount ancestors_fee) :
         tx{tx_in},
-        vsize_individual{vsize_self},
-        vsize_with_ancestors{vsize_ancestor},
-        fee_individual{fee_self},
-        fee_with_ancestors{fee_ancestor}
+        vsize_individual{individual_size},
+        vsize_with_ancestors{size_ancestors},
+        fee_individual{individual_fee},
+        fee_with_ancestors{ancestors_fee}
     { }
 
     CAmount GetModifiedFee() const { return fee_individual; }
