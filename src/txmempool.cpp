@@ -241,12 +241,6 @@ util::Result<CTxMemPool::setEntryRefs> CTxMemPool::CalculateAncestorsAndCheckLim
         ancestors.insert(stage);
         staged_ancestors.erase(stage);
 
-        if (stage.GetSizeWithDescendants() + entry_size > limits.descendant_size_vbytes) {
-            return util::Error{Untranslated(strprintf("exceeds descendant size limit for tx %s [limit: %u]", stage.GetTx().GetHash().ToString(), limits.descendant_size_vbytes))};
-        } else if (stage.GetCountWithDescendants() + entry_count > static_cast<uint64_t>(limits.descendant_count)) {
-            return util::Error{Untranslated(strprintf("too many descendants for tx %s [limit: %u]", stage.GetTx().GetHash().ToString(), limits.descendant_count))};
-        }
-
         const CTxMemPoolEntry::Parents& parents = stage.GetMemPoolParentsConst();
         for (const CTxMemPoolEntry& parent : parents) {
             // If this is a new ancestor, add it.
@@ -263,17 +257,6 @@ bool CTxMemPool::CheckPackageLimits(const Package& package,
                                     const int64_t total_vsize,
                                     std::string &errString) const
 {
-    size_t pack_count = package.size();
-
-    // Package itself is busting mempool limits; should be rejected even if no staged_ancestors exist
-    if (pack_count > static_cast<uint64_t>(m_limits.descendant_count)) {
-        errString = strprintf("package count %u exceeds descendant count limit [limit: %u]", pack_count, m_limits.descendant_count);
-        return false;
-    } else if (total_vsize > m_limits.descendant_size_vbytes) {
-        errString = strprintf("package size %u exceeds descendant size limit [limit: %u]", total_vsize, m_limits.descendant_size_vbytes);
-        return false;
-    }
-
     CTxMemPoolEntry::Parents staged_ancestors;
     for (const auto& tx : package) {
         for (const auto& input : tx->vin) {
