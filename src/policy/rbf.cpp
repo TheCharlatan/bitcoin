@@ -61,25 +61,26 @@ std::optional<std::string> GetEntriesForConflicts(const CTransaction& tx,
 {
     AssertLockHeld(pool.cs);
     const uint256 txid = tx.GetHash();
-    uint64_t nConflictingCount = 0;
-    for (const CTxMemPoolEntry& entry : entries_conflicting) {
-        nConflictingCount += entry.GetCountWithDescendants();
-        // Rule #4: don't consider replacing more than MAX_REPLACEMENT_CANDIDATES
-        // entries from the mempool. This potentially overestimates the number of actual
-        // descendants (i.e. if multiple conflicts share a descendant, it will be counted multiple
-        // times), but we just want to be conservative to avoid doing too much work.
-        if (nConflictingCount > MAX_REPLACEMENT_CANDIDATES) {
-            return strprintf("rejecting replacement %s; too many potential replacements (%d > %d)\n",
-                             txid.ToString(),
-                             nConflictingCount,
-                             MAX_REPLACEMENT_CANDIDATES);
-        }
-    }
     // Calculate the set of all transactions that would have to be evicted.
-    for (const CTxMemPoolEntry& entry : entries_conflicting) {
+    for (const CTxMemPoolEntry& entry: entries_conflicting) {
+        // Exit early if we're going to fail (see below)
+        if (all_conflicts.size() > MAX_REPLACEMENT_CANDIDATES) {
+            break;
+        }
+        // The cluster count limit ensures that we won't do too much work on a
+        // single invocation of this function.
         pool.CalculateDescendants(entry, all_conflicts);
     }
-    return std::nullopt;
+    if (all_conflicts.size() > MAX_REPLACEMENT_CANDIDATES) {
+        // Rule #4: don't consider replacing more than MAX_REPLACEMENT_CANDIDATES
+        // entries from the mempool.
+        return strprintf("rejecting replacement %s; too many potential replacements (%ud > %d)\n",
+                txid.ToString(),
+                all_conflicts.size(),
+                MAX_REPLACEMENT_CANDIDATES);
+    } else {
+        return std::nullopt;
+    }
 }
 
 std::optional<std::string> EntriesAndTxidsDisjoint(const CTxMemPool::setEntryRefs& ancestors,
