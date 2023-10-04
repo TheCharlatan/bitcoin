@@ -372,8 +372,6 @@ public:
 
     using Limits = kernel::MemPoolLimits;
 
-    uint64_t CalculateDescendantMaximum(const CTxMemPoolEntry& entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
-
     bool CompareMiningScore(txiter a, txiter b) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     void TopoSort(std::vector<CTxMemPoolEntry::CTxMemPoolEntryRef>& to_be_sorted) const;

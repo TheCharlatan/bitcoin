@@ -1735,28 +1735,6 @@ void CTxMemPool::TrimToSize(size_t sizelimit, std::vector<COutPoint>* pvNoSpends
     }
 }
 
-uint64_t CTxMemPool::CalculateDescendantMaximum(const CTxMemPoolEntry& entry) const {
-    // find parent with highest descendant count
-    std::vector<CTxMemPoolEntryRef> candidates;
-    setEntryRefs counted;
-    candidates.emplace_back(entry);
-    uint64_t maximum = 0;
-    while (candidates.size()) {
-        const CTxMemPoolEntry& candidate = candidates.back();
-        candidates.pop_back();
-        if (!counted.insert(candidate).second) continue;
-        const CTxMemPoolEntry::Parents& parents = candidate.GetMemPoolParentsConst();
-        if (parents.size() == 0) {
-            maximum = std::max(maximum, candidate.GetCountWithDescendants());
-        } else {
-            for (const CTxMemPoolEntry& e : parents) {
-                candidates.emplace_back(e);
-            }
-        }
-    }
-    return maximum;
-}
-
 void CTxMemPool::CalculateAncestorData(const CTxMemPoolEntry& entry, size_t& ancestor_count, size_t& ancestor_size, CAmount& ancestor_fees) const
 {
     ancestor_count = 1;
