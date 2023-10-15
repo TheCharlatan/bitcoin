@@ -705,7 +705,7 @@ public:
         LockPoints lp;
         CTxMemPoolEntry entry(tx, 0, 0, 0, 0, false, 0, lp);
         LOCK(m_node.mempool->cs);
-        auto ancestors = m_node.mempool->CalculateMemPoolAncestors(entry, m_node.mempool->m_limits);
+        auto ancestors = m_node.mempool->CalculateMemPoolAncestors(entry);
         if (ancestors.has_value()) {
             CTxMemPoolEntry::Parents parents;
             for (const CTxMemPoolEntry& ancestor : *ancestors) parents.insert(ancestor);

@@ -385,21 +385,14 @@ private:
 
 
     /**
-     * Helper function to calculate all in-mempool ancestors of staged_ancestors and apply ancestor
-     * and descendant limits (including staged_ancestors themselves, entry_size and entry_count).
+     * Helper function to calculate all in-mempool ancestors of staged_ancestors
      *
-     * @param[in]   entry_size          Virtual size to include in the limits.
-     * @param[in]   entry_count         How many entries to include in the limits.
      * @param[in]   staged_ancestors    Should contain entries in the mempool.
-     * @param[in]   limits              Maximum number and size of ancestors and descendants
      *
      * @return all in-mempool ancestors, or an error if any ancestor or descendant limits were hit
      */
-    util::Result<setEntryRefs> CalculateAncestorsAndCheckLimits(int64_t entry_size,
-                                                              size_t entry_count,
-                                                              CTxMemPoolEntry::Parents &staged_ancestors,
-                                                              const Limits& limits
-                                                              ) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    util::Result<setEntryRefs> CalculateAncestors(CTxMemPoolEntry::Parents &staged_ancestors)
+            const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Returns an iterator to the given hash, if found */
     std::optional<txiter> GetIter(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -539,15 +532,13 @@ public:
      * (these are all calculated including the tx itself)
      *
      * @param[in]   entry               CTxMemPoolEntry of which all in-mempool ancestors are calculated
-     * @param[in]   limits              Maximum number and size of ancestors and descendants
      * @param[in]   fSearchForParents   Whether to search a tx's vin for in-mempool parents, or look
      *                                  up parents from mapLinks. Must be true for entries not in
      *                                  the mempool
      *
-     * @return all in-mempool ancestors, or an error if any ancestor or descendant limits were hit
+     * @return all in-mempool ancestors
      */
     util::Result<setEntryRefs> CalculateMemPoolAncestors(const CTxMemPoolEntry& entry,
-                                   const Limits& limits,
                                    bool fSearchForParents = true) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /**
@@ -567,7 +558,6 @@ public:
     setEntryRefs AssumeCalculateMemPoolAncestors(
         std::string_view calling_fn_name,
         const CTxMemPoolEntry& entry,
-        const Limits& limits,
         bool fSearchForParents = true) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     void CalculateParents(CTxMemPoolEntry &entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
