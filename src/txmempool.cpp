@@ -187,9 +187,9 @@ bool CTxMemPool::CheckPackageLimits(const Package& package,
     CTxMemPoolEntry::Parents staged_ancestors;
     for (const auto& tx : package) {
         for (const auto& input : tx->vin) {
-            std::optional<txiter> piter = GetIter(input.prevout.hash);
+            auto piter = GetEntry(input.prevout.hash);
             if (piter) {
-                staged_ancestors.insert(**piter);
+                staged_ancestors.insert(*piter);
             }
         }
     }
@@ -207,9 +207,9 @@ bool CTxMemPool::CheckPackageLimits(const Package& package,
 void CTxMemPool::CalculateParents(CTxMemPoolEntry &entry) const
 {
     for (const CTxIn &txin : entry.GetTx().vin) {
-        std::optional<txiter> piter = GetIter(txin.prevout.hash);
+        auto piter = GetEntry(txin.prevout.hash);
         if (piter) {
-            entry.GetMemPoolParents().insert(**piter);
+            entry.GetMemPoolParents().insert(*piter);
         }
     }
 }
@@ -315,9 +315,9 @@ util::Result<CTxMemPool::setEntryRefs> CTxMemPool::CalculateMemPoolAncestors(
         // GetMemPoolParents() is only valid for entries in the mempool, so we
         // iterate mapTx to find parents.
         for (unsigned int i = 0; i < tx.vin.size(); i++) {
-            std::optional<txiter> piter = GetIter(tx.vin[i].prevout.hash);
-            if (piter) {
-                staged_ancestors.insert(**piter);
+            auto pentry = GetEntry(tx.vin[i].prevout.hash);
+            if (pentry) {
+                staged_ancestors.insert(*pentry);
             }
         }
     } else {
@@ -1218,13 +1218,6 @@ const CTransaction* CTxMemPool::GetConflictTx(const COutPoint& prevout) const
 {
     const auto it = mapNextTx.find(prevout);
     return it == mapNextTx.end() ? nullptr : it->second;
-}
-
-std::optional<CTxMemPool::txiter> CTxMemPool::GetIter(const uint256& txid) const
-{
-    auto it = mapTx.find(txid);
-    if (it != mapTx.end()) return it;
-    return std::nullopt;
 }
 
 CTxMemPool::setEntryRefs CTxMemPool::GetEntrySet(const std::set<uint256>& hashes) const
