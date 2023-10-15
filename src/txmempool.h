@@ -389,9 +389,9 @@ private:
      *
      * @param[in]   staged_ancestors    Should contain entries in the mempool.
      *
-     * @return all in-mempool ancestors, or an error if any ancestor or descendant limits were hit
+     * @return all in-mempool ancestors
      */
-    util::Result<setEntryRefs> CalculateAncestors(CTxMemPoolEntry::Parents &staged_ancestors)
+    setEntryRefs CalculateAncestors(CTxMemPoolEntry::Parents &staged_ancestors)
             const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     // Helper to remove all transactions that conflict with a given
@@ -529,7 +529,7 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /**
-     * Try to calculate all in-mempool ancestors of entry.
+     * Calculate all in-mempool ancestors of entry.
      * (these are all calculated including the tx itself)
      *
      * @param[in]   entry               CTxMemPoolEntry of which all in-mempool ancestors are calculated
@@ -539,27 +539,8 @@ public:
      *
      * @return all in-mempool ancestors
      */
-    util::Result<setEntryRefs> CalculateMemPoolAncestors(const CTxMemPoolEntry& entry,
+    setEntryRefs CalculateMemPoolAncestors(const CTxMemPoolEntry& entry,
                                    bool fSearchForParents = true) const EXCLUSIVE_LOCKS_REQUIRED(cs);
-
-    /**
-     * Same as CalculateMemPoolAncestors, but always returns a (non-optional) setEntryRefs.
-     * Should only be used when it is assumed CalculateMemPoolAncestors would not fail. If
-     * CalculateMemPoolAncestors does unexpectedly fail, an empty setEntryRefs is returned and the
-     * error is logged to BCLog::MEMPOOL with level BCLog::Level::Error. In debug builds, failure
-     * of CalculateMemPoolAncestors will lead to shutdown due to assertion failure.
-     *
-     * @param[in]   calling_fn_name     Name of calling function so we can properly log the call site
-     *
-     * @return a setEntryRefs corresponding to the result of CalculateMemPoolAncestors or an empty
-     *         setEntryRefs if it failed
-     *
-     * @see CTXMemPool::CalculateMemPoolAncestors()
-     */
-    setEntryRefs AssumeCalculateMemPoolAncestors(
-        std::string_view calling_fn_name,
-        const CTxMemPoolEntry& entry,
-        bool fSearchForParents = true) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     void CalculateParents(CTxMemPoolEntry &entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 

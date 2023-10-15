@@ -576,7 +576,7 @@ static RPCHelpMan getmempoolancestors()
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not in mempool");
     }
 
-    auto ancestors{mempool.AssumeCalculateMemPoolAncestors(__func__, *entry, /*fSearchForParents=*/false)};
+    auto ancestors{mempool.CalculateMemPoolAncestors(*entry, /*fSearchForParents=*/false)};
 
     if (!fVerbose) {
         UniValue o(UniValue::VARR);
