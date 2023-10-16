@@ -581,7 +581,7 @@ public:
     /** Populate setDescendants with all in-mempool descendants of hash.
      *  Assumes that setDescendants includes all in-mempool descendants of anything
      *  already in it.  */
-    void CalculateDescendants(const CTxMemPoolEntry& entry, setEntryRefs& setDescendants) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void CalculateDescendantsSlow(const CTxMemPoolEntry& entry, setEntryRefs& setDescendants) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     Entries CalculateDescendants(Entries txs) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
