@@ -386,13 +386,13 @@ private:
 
 
     /**
-     * Helper function to calculate all in-mempool ancestors of staged_ancestors
+     * Helper function to calculate all in-mempool ancestors of parents
      *
-     * @param[in]   staged_ancestors    Should contain entries in the mempool.
+     * @param[in]   parents    Should contain entries in the mempool.
      *
      * @return all in-mempool ancestors
      */
-    setEntryRefs CalculateAncestors(CTxMemPoolEntry::Parents &staged_ancestors)
+    Entries CalculateAncestors(const CTxMemPool::Entries &parents)
             const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     // Helper to remove all transactions that conflict with a given
@@ -540,10 +540,12 @@ public:
      *
      * @return all in-mempool ancestors
      */
-    setEntryRefs CalculateMemPoolAncestors(const CTxMemPoolEntry& entry,
+    setEntryRefs CalculateMemPoolAncestorsSlow(const CTxMemPoolEntry& entry,
                                    bool fSearchForParents = true) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    Entries CalculateMemPoolAncestors(const CTxMemPoolEntry& entry,
+                                   bool fSearchForParents) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
-    void CalculateParents(CTxMemPoolEntry &entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    Entries CalculateParents(const CTxMemPoolEntry &entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /**
      * Temporarily construct the cluster that would correspond to a
