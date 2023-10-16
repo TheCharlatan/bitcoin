@@ -636,22 +636,23 @@ static RPCHelpMan getmempooldescendants()
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not in mempool");
     }
 
-    CTxMemPool::setEntryRefs setDescendants;
-    mempool.CalculateDescendants(*it, setDescendants);
-    // CTxMemPool::CalculateDescendants will include the given tx
-    setDescendants.erase(*it);
+    CTxMemPool::Entries descendants = mempool.CalculateDescendants({*it});
 
+    // Note: CTxMemPool::CalculateDescendants will include the given tx
     if (!fVerbose) {
         UniValue o(UniValue::VARR);
-        for (const CTxMemPoolEntry& descendant : setDescendants) {
+        for (const CTxMemPoolEntry& descendant : descendants) {
+            if (descendant.GetSharedTx()->GetHash() == it->GetSharedTx()->GetHash()) continue;
             o.push_back(descendant.GetTx().GetHash().ToString());
         }
 
         return o;
     } else {
         UniValue o(UniValue::VOBJ);
-        for (const CTxMemPoolEntry& descendant : setDescendants) {
-            const uint256& _hash = descendant.GetTx().GetHash();
+        for (const CTxMemPoolEntry& descendant : descendants) {
+            if (descendant.GetSharedTx()->GetHash() == it->GetSharedTx()->GetHash()) continue;
+            const CTxMemPoolEntry &e = descendant;
+            const uint256& _hash = e.GetTx().GetHash();
             UniValue info(UniValue::VOBJ);
             entryToJSON(mempool, info, descendant);
             o.pushKV(_hash.ToString(), info);

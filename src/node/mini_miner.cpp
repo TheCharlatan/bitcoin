@@ -49,8 +49,7 @@ MiniMiner::MiniMiner(const CTxMemPool& mempool, const std::vector<COutPoint>& ou
             //
             // Note that the descendants of a transaction include the transaction itself. Also note,
             // that this is only calculating bump fees. RBF fee rules should be handled separately.
-            CTxMemPool::setEntryRefs descendants;
-            mempool.CalculateDescendants(*Assert(mempool.GetEntry(ptx->GetHash())), descendants);
+            CTxMemPool::Entries descendants = mempool.CalculateDescendants({*mempool.GetEntry(ptx->GetHash())});
             for (const CTxMemPoolEntry& desc : descendants) {
                 m_to_be_replaced.insert(desc.GetTx().GetHash());
             }
@@ -103,9 +102,7 @@ MiniMiner::MiniMiner(const CTxMemPool& mempool, const std::vector<COutPoint>& ou
         // will not exist without its ancestor MiniMinerMempoolEntry, so these sets won't be invalidated.
         std::vector<MockEntryMap::iterator> cached_descendants;
         const bool remove{m_to_be_replaced.count(txid) > 0};
-        CTxMemPool::setEntryRefs descendants;
-        mempool.CalculateDescendants(entry, descendants);
-        Assume(descendants.count(entry) > 0);
+        CTxMemPool::Entries descendants = mempool.CalculateDescendants({entry});
         for (const CTxMemPoolEntry& desc : descendants) {
             const auto txid_desc = desc.GetTx().GetHash();
             const bool remove_desc{m_to_be_replaced.count(txid_desc) > 0};
