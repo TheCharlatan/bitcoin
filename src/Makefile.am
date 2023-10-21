@@ -696,36 +696,65 @@ libbitcoin_kernel_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLA
 libbitcoin_kernel_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_kernel_a_SOURCES = \
   chain.cpp \
+  chain.h \
   compressor.cpp \
+  compressor.h \
   consensus/tx_verify.cpp \
+  consensus/tx_verify.h \
   dbwrapper.cpp \
+  dbwrapper.h \
   deploymentinfo.cpp \
+  deploymentinfo.h \
   deploymentstatus.cpp \
+  deploymentstatus.h \
   flatfile.cpp \
+  flatfile.h \
   kernel/chain.cpp \
+  kernel/chain.h \
   kernel/checks.cpp \
+  kernel/checks.h \
   kernel/coinstats.cpp \
+  kernel/coinstats.h \
   kernel/context.cpp \
+  kernel/context.h \
   kernel/cs_main.cpp \
+  kernel/cs_main.h \
   kernel/mempool_persist.cpp \
+  kernel/mempool_persist.h \
   kernel/mempool_removal_reason.cpp \
+  kernel/mempool_removal_reason.h \
   node/blockstorage.cpp \
+  node/blockstorage.h \
   node/chainstate.cpp \
+  node/chainstate.h \
   node/utxo_snapshot.cpp \
+  node/utxo_snapshot.h \
   policy/fees.cpp \
+  policy/fees.h \
   policy/packages.cpp \
+  policy/packages.h \
   policy/rbf.cpp \
+  policy/rbf.h \
   policy/settings.cpp \
+  policy/settings.h \
   pow.cpp \
+  pow.h \
   script/sigcache.cpp \
+  script/sigcache.h \
   signet.cpp \
+  signet.h \
   txdb.cpp \
+  txdb.h \
   txmempool.cpp \
+  txmempool.h \
   validation.cpp \
+  validation.h \
   validationinterface.cpp \
+  validationinterface.h \
   versionbits.cpp \
+  versionbits.h \
   warnings.cpp \
-  $(BITCOIN_CORE_H)
+  warnings.h
 #
 
 # util #
@@ -733,42 +762,76 @@ libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_util_a_SOURCES = \
   clientversion.cpp \
+  clientversion.h \
   coins.cpp \
+  coins.h \
   core_read.cpp \
   kernel/chainparams.cpp \
+  kernel/chainparams.h \
   key.cpp \
+  key.h \
   logging.cpp \
+  logging.h \
   policy/feerate.cpp \
+  policy/feerate.h \
   policy/policy.cpp \
+  policy/policy.h \
   random.cpp \
+  random.h \
   randomenv.cpp \
+  randomenv.h \
   scheduler.cpp \
+  scheduler.h \
   script/solver.cpp \
+  script/solver.h \
   streams.cpp \
+  streams.h \
   support/cleanse.cpp \
+  support/cleanse.h \
   support/lockedpool.cpp \
+  support/lockedpool.h \
   sync.cpp \
+  sync.h \
   util/batchpriority.cpp \
+  util/batchpriority.h \
   util/chaintype.cpp \
+  util/chaintype.h \
   util/check.cpp \
+  util/check.h \
   util/exception.cpp \
+  util/exception.h \
   util/fs.cpp \
+  util/fs.h \
   util/fs_helpers.cpp \
+  util/fs_helpers.h \
   util/getuniquepath.cpp \
+  util/getuniquepath.h \
   util/hasher.cpp \
+  util/hasher.h \
   util/moneystr.cpp \
+  util/moneystr.h \
   util/rbf.cpp \
+  util/rbf.h \
   util/serfloat.cpp \
+  util/serfloat.h \
   util/signalinterrupt.cpp \
+  util/signalinterrupt.h \
   util/strencodings.cpp \
+  util/strencodings.h \
   util/string.cpp \
+  util/string.h \
   util/syserror.cpp \
+  util/syserror.h \
   util/thread.cpp \
+  util/thread.h \
   util/threadinterrupt.cpp \
+  util/threadinterrupt.h \
   util/threadnames.cpp \
+  util/threadnames.h \
   util/time.cpp \
+  util/time.h \
   util/tokenpipe.cpp \
-  $(BITCOIN_CORE_H)
+  util/tokenpipe.h
 #
 
 # cli #
