@@ -5,6 +5,7 @@
 
 #include <uint256.h>
 
+#include <crypto/hex_base.h>
 #include <util/strencodings.h>
 
 template <unsigned int BITS>
