@@ -692,7 +692,7 @@ endif
 #
 
 # kernel #
-libbitcoin_kernel_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS)
+libbitcoin_kernel_a_CPPFLAGS = $(AM_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS)
 libbitcoin_kernel_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_kernel_a_SOURCES = \
   chain.cpp \
@@ -758,7 +758,7 @@ libbitcoin_kernel_a_SOURCES = \
 #
 
 # util #
-libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/secp256k1/include
 libbitcoin_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_util_a_SOURCES = \
   clientversion.cpp \
