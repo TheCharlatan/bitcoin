@@ -319,6 +319,7 @@ BITCOIN_CORE_H = \
   util/result.h \
   util/serfloat.h \
   util/signalinterrupt.h \
+  util/strencodings.h \
   util/string.h \
   util/syserror.h \
   util/thread.h \
@@ -561,6 +562,8 @@ crypto_libbitcoin_crypto_base_la_SOURCES = \
   crypto/cleanse.cpp \
   crypto/cleanse.h \
   crypto/common.h \
+  crypto/hex_base.cpp \
+  crypto/hex_base.h \
   crypto/hkdf_sha256_32.cpp \
   crypto/hkdf_sha256_32.h \
   crypto/hmac_sha256.cpp \
@@ -658,8 +661,6 @@ libbitcoin_consensus_a_SOURCES = \
   tinyformat.h \
   uint256.cpp \
   uint256.h \
-  util/strencodings.cpp \
-  util/strencodings.h \
   version.h
 #
 
