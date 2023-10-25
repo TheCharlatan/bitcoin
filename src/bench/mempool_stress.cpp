@@ -41,7 +41,7 @@ static std::vector<CTransactionRef> CreateCoinCluster(FastRandomContext& det_ran
     for (auto x = 0; x < 10; ++x) {
         CMutableTransaction tx = CMutableTransaction();
         tx.vin.resize(1);
-        tx.vin[0].prevout.hash = GetRandHash();
+        tx.vin[0].prevout.hash = Txid::FromUint256(GetRandHash());
         tx.vin[0].prevout.n = 1;
         tx.vin[0].scriptSig = CScript() << CScriptNum(tx_counter);
         tx.vin[0].scriptWitness.stack.push_back(CScriptNum(x).getvch());
@@ -174,12 +174,12 @@ static void MemPoolAncestorsDescendants(benchmark::Bench& bench)
         AddTx(tx, pool, det_rand);
     }
 
-    CTxMemPool::txiter first_tx = *pool.GetIter(transactions[0]->GetHash());
-    CTxMemPool::txiter last_tx = *pool.GetIter(transactions.back()->GetHash());
+    const CTxMemPoolEntry& first_tx = *Assert(pool.GetEntry(transactions[0]->GetHash()));
+    const CTxMemPoolEntry& last_tx = *Assert(pool.GetEntry(transactions.back()->GetHash()));
 
     bench.run([&]() NO_THREAD_SAFETY_ANALYSIS {
         ankerl::nanobench::doNotOptimizeAway(pool.CalculateDescendants({first_tx}));
-        ankerl::nanobench::doNotOptimizeAway(pool.CalculateMemPoolAncestors(*last_tx, false));
+        ankerl::nanobench::doNotOptimizeAway(pool.CalculateMemPoolAncestors(last_tx, false));
     });
 }
 
@@ -245,7 +245,7 @@ static void MemPoolMiningScoreCheck(benchmark::Bench& bench)
         out.nValue = 10 * COIN;
     }
 
-    CTxMemPool::setEntries all_conflicts = pool.GetIterSet(child_txs_to_conflict_with);
+    CTxMemPool::setEntryRefs all_conflicts = pool.GetEntrySet(child_txs_to_conflict_with);
     CTxMemPoolEntry entry(MakeTransactionRef(tx), det_rand.randrange(10000)+1000, 0, 1, 0, false, 4, LockPoints());
 
     bench.run([&]() NO_THREAD_SAFETY_ANALYSIS {
