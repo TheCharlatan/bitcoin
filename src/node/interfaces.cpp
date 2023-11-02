@@ -648,8 +648,8 @@ public:
     {
         if (!m_node.mempool) return false;
         LOCK(m_node.mempool->cs);
-        auto it = m_node.mempool->GetIter(txid);
-        return it && (*it)->GetCountWithDescendants() > 1;
+        auto entry = m_node.mempool->GetEntry(txid);
+        return entry && (*entry).get().GetCountWithDescendants() > 1;
     }
     bool broadcastTransaction(const CTransactionRef& tx,
         const CAmount& max_tx_fee,
