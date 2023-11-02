@@ -850,6 +850,15 @@ std::vector<TxMempoolInfo> CTxMemPool::infoAll() const
     return ret;
 }
 
+std::optional<CTxMemPoolEntry::CTxMemPoolEntryRef> CTxMemPool::GetEntry(const uint256& hash) const
+{
+    indexed_transaction_set::const_iterator i = mapTx.find(hash);
+    if (i == mapTx.end()) {
+        return std::nullopt;
+    }
+    return *i;
+}
+
 CTransactionRef CTxMemPool::get(const uint256& hash) const
 {
     LOCK(cs);
