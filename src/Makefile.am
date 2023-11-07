@@ -387,6 +387,7 @@ libbitcoin_node_a_SOURCES = \
   bip324.cpp \
   blockencodings.cpp \
   blockfilter.cpp \
+  common/sock.cpp \
   headerssync.cpp \
   httprpc.cpp \
   httpserver.cpp \
@@ -406,7 +407,11 @@ libbitcoin_node_a_SOURCES = \
   kernel/mempool_removal_reason.cpp \
   mapport.cpp \
   net.cpp \
+  net_permissions.cpp \
   net_processing.cpp \
+  net_types.cpp \
+  netaddress.cpp \
+  netbase.cpp \
   netgroup.cpp \
   node/abort.cpp \
   node/blockmanager_args.cpp \
@@ -669,7 +674,6 @@ libbitcoin_common_a_SOURCES = \
   common/readwritefile.cpp \
   common/run_command.cpp \
   common/settings.cpp \
-  common/sock.cpp \
   common/spanparsing.cpp \
   common/system.cpp \
   core_write.cpp \
@@ -678,10 +682,6 @@ libbitcoin_common_a_SOURCES = \
   init/common.cpp \
   key_io.cpp \
   merkleblock.cpp \
-  net_types.cpp \
-  netaddress.cpp \
-  netbase.cpp \
-  net_permissions.cpp \
   outputtype.cpp \
   protocol.cpp \
   psbt.cpp \
