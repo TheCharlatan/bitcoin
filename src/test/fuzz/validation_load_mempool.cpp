@@ -40,7 +40,8 @@ FUZZ_TARGET(validation_load_mempool, .init = initialize_validation_load_mempool)
     SetMockTime(ConsumeTime(fuzzed_data_provider));
     FuzzedFileProvider fuzzed_file_provider{fuzzed_data_provider};
 
-    CTxMemPool pool{MemPoolOptionsForTest(g_setup->m_node)};
+    auto mempool{std::move(Assert(CTxMemPool::Make(MemPoolOptionsForTest(g_setup->m_node))).value())};
+    CTxMemPool& pool = *mempool;
 
     auto& chainstate{static_cast<DummyChainState&>(g_setup->m_node.chainman->ActiveChainstate())};
     chainstate.SetMempool(&pool);

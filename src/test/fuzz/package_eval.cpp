@@ -106,7 +106,7 @@ void MockTime(FuzzedDataProvider& fuzzed_data_provider, const Chainstate& chains
     SetMockTime(time);
 }
 
-CTxMemPool MakeMempool(FuzzedDataProvider& fuzzed_data_provider, const NodeContext& node)
+std::unique_ptr<CTxMemPool> MakeMempool(FuzzedDataProvider& fuzzed_data_provider, const NodeContext& node)
 {
     // Take the default options for tests...
     CTxMemPool::Options mempool_opts{MemPoolOptionsForTest(node)};
@@ -125,7 +125,7 @@ CTxMemPool MakeMempool(FuzzedDataProvider& fuzzed_data_provider, const NodeConte
     mempool_opts.require_standard = fuzzed_data_provider.ConsumeBool();
 
     // ...and construct a CTxMemPool from it
-    return CTxMemPool{mempool_opts};
+    return std::move(Assert(CTxMemPool::Make(mempool_opts)).value());
 }
 
 FUZZ_TARGET(tx_package_eval, .init = initialize_tx_pool)
@@ -147,8 +147,8 @@ FUZZ_TARGET(tx_package_eval, .init = initialize_tx_pool)
     auto outpoints_updater = std::make_shared<OutpointsUpdater>(mempool_outpoints);
     RegisterSharedValidationInterface(outpoints_updater);
 
-    CTxMemPool tx_pool_{MakeMempool(fuzzed_data_provider, node)};
-    MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&tx_pool_);
+    auto tx_pool_{Assert(MakeMempool(fuzzed_data_provider, node))};
+    MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&*tx_pool_);
 
     chainstate.SetMempool(&tx_pool);
 

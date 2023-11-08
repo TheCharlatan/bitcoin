@@ -117,7 +117,7 @@ void MockTime(FuzzedDataProvider& fuzzed_data_provider, const Chainstate& chains
     SetMockTime(time);
 }
 
-CTxMemPool MakeMempool(FuzzedDataProvider& fuzzed_data_provider, const NodeContext& node)
+std::unique_ptr<CTxMemPool> MakeMempool(FuzzedDataProvider& fuzzed_data_provider, const NodeContext& node)
 {
     // Take the default options for tests...
     CTxMemPool::Options mempool_opts{MemPoolOptionsForTest(node)};
@@ -127,7 +127,7 @@ CTxMemPool MakeMempool(FuzzedDataProvider& fuzzed_data_provider, const NodeConte
     mempool_opts.require_standard = fuzzed_data_provider.ConsumeBool();
 
     // ...and construct a CTxMemPool from it
-    return CTxMemPool{mempool_opts};
+    return std::move(Assert(CTxMemPool::Make(mempool_opts)).value());
 }
 
 void CheckATMPInvariants(const MempoolAcceptResult& res, bool txid_in_mempool, bool wtxid_in_mempool)
@@ -201,8 +201,8 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
     constexpr CAmount SUPPLY_TOTAL{COINBASE_MATURITY * 50 * COIN};
 
     SetMempoolConstraints(*node.args, fuzzed_data_provider);
-    CTxMemPool tx_pool_{MakeMempool(fuzzed_data_provider, node)};
-    MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&tx_pool_);
+    auto tx_pool_{MakeMempool(fuzzed_data_provider, node)};
+    MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&*tx_pool_);
 
     chainstate.SetMempool(&tx_pool);
 
@@ -378,8 +378,8 @@ FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
     }
 
     SetMempoolConstraints(*node.args, fuzzed_data_provider);
-    CTxMemPool tx_pool_{MakeMempool(fuzzed_data_provider, node)};
-    MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&tx_pool_);
+    auto tx_pool_{MakeMempool(fuzzed_data_provider, node)};
+    MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(&*tx_pool_);
 
     chainstate.SetMempool(&tx_pool);
 

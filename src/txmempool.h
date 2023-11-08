@@ -394,9 +394,12 @@ public:
     typedef std::set<txiter, CompareIteratorByHash> setEntries;
 
     using Limits = kernel::MemPoolLimits;
+    using Options = kernel::MemPoolOptions;
 
     uint64_t CalculateDescendantMaximum(txiter entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 private:
+    explicit CTxMemPool(const Options& opts);
+
     typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;
 
 
@@ -428,11 +431,10 @@ private:
                                                               const Limits& limits
                                                               ) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
+
 public:
     indirectmap<COutPoint, const CTransaction*> mapNextTx GUARDED_BY(cs);
     std::map<uint256, CAmount> mapDeltas GUARDED_BY(cs);
-
-    using Options = kernel::MemPoolOptions;
 
     const int64_t m_max_size_bytes;
     const std::chrono::seconds m_expiry;
@@ -452,7 +454,7 @@ public:
      * accepting transactions becomes O(N^2) where N is the number of transactions
      * in the pool.
      */
-    explicit CTxMemPool(const Options& opts);
+    static util::Result<std::unique_ptr<CTxMemPool>> Make(const Options& opts);
 
     /**
      * If sanity-checking is turned on, check makes sure the pool is
