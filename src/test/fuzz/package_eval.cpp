@@ -125,7 +125,9 @@ CTxMemPool MakeMempool(FuzzedDataProvider& fuzzed_data_provider, const NodeConte
     mempool_opts.require_standard = fuzzed_data_provider.ConsumeBool();
 
     // ...and construct a CTxMemPool from it
-    return CTxMemPool{mempool_opts};
+    std::optional<bilingual_str> error{};
+    return CTxMemPool{mempool_opts, error};
+    Assert(!error);
 }
 
 FUZZ_TARGET(tx_package_eval, .init = initialize_tx_pool)

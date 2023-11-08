@@ -23,6 +23,7 @@
 #include <test/util/setup_common.h>
 
 #include <memory>
+#include <optional>
 
 #include <boost/test/unit_test.hpp>
 
@@ -47,7 +48,9 @@ struct MinerTestingSetup : public TestingSetup {
         // pointer is not accessed, when the new one should be accessed
         // instead.
         m_node.mempool.reset();
-        m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
+        std::optional<bilingual_str> error{};
+        m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node), error);
+        Assert(!error);
         return *m_node.mempool;
     }
     BlockAssembler AssemblerForTest(CTxMemPool& tx_mempool);
