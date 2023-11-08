@@ -14,6 +14,7 @@
 #include <txmempool.h>
 
 #include <deque>
+#include <optional>
 #include <vector>
 
 namespace {
@@ -33,7 +34,9 @@ void initialize_miner()
 FUZZ_TARGET(mini_miner, .init = initialize_miner)
 {
     FuzzedDataProvider fuzzed_data_provider{buffer.data(), buffer.size()};
-    CTxMemPool pool{CTxMemPool::Options{}};
+    std::optional<bilingual_str> error{};
+    CTxMemPool pool{CTxMemPool::Options{}, error};
+    Assert(!error);
     std::vector<COutPoint> outpoints;
     std::deque<COutPoint> available_coins = g_available_coins;
     LOCK2(::cs_main, pool.cs);
@@ -109,7 +112,9 @@ FUZZ_TARGET(mini_miner, .init = initialize_miner)
 FUZZ_TARGET(mini_miner_selection, .init = initialize_miner)
 {
     FuzzedDataProvider fuzzed_data_provider{buffer.data(), buffer.size()};
-    CTxMemPool pool{CTxMemPool::Options{}};
+    std::optional<bilingual_str> error{};
+    CTxMemPool pool{CTxMemPool::Options{}, error};
+    Assert(!error);
     // Make a copy to preserve determinism.
     std::deque<COutPoint> available_coins = g_available_coins;
     std::vector<CTransactionRef> transactions;

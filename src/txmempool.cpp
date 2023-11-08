@@ -400,8 +400,8 @@ void CTxMemPoolEntry::UpdateAncestorState(int32_t modifySize, CAmount modifyFee,
     assert(int(nSigOpCostWithAncestors) >= 0);
 }
 
-CTxMemPool::CTxMemPool(const Options& opts)
-    : m_check_ratio{opts.check_ratio},
+CTxMemPool::CTxMemPool(const Options& opts, std::optional<bilingual_str>& error)
+    : m_check_ratio{std::clamp<int>(opts.check_ratio, 0, 1'000'000)},
       m_max_size_bytes{opts.max_size_bytes},
       m_expiry{opts.expiry},
       m_incremental_relay_feerate{opts.incremental_relay_feerate},
@@ -414,6 +414,10 @@ CTxMemPool::CTxMemPool(const Options& opts)
       m_persist_v1_dat{opts.persist_v1_dat},
       m_limits{opts.limits}
 {
+    int64_t descendant_limit_bytes = opts.limits.descendant_size_vbytes * 40;
+    if (opts.max_size_bytes < 0 || opts.max_size_bytes < descendant_limit_bytes) {
+        error = strprintf(_("-maxmempool must be at least %d MB"), std::ceil(descendant_limit_bytes / 1'000'000.0));
+    }
 }
 
 bool CTxMemPool::isSpent(const COutPoint& outpoint) const

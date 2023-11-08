@@ -175,7 +175,9 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
     GetMainSignals().RegisterBackgroundSignalScheduler(*m_node.scheduler);
 
     m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>(FeeestPath(*m_node.args), DEFAULT_ACCEPT_STALE_FEE_ESTIMATES);
-    m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
+    std::optional<bilingual_str> error{};
+    m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node), error);
+    Assert(!error);
 
     m_cache_sizes = CalculateCacheSizes(m_args);
 
