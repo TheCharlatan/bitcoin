@@ -806,8 +806,8 @@ public:
     {
         if (!m_node.mempool) return;
         LOCK2(::cs_main, m_node.mempool->cs);
-        for (const CTxMemPoolEntry& entry : m_node.mempool->mapTx) {
-            notifications.transactionAddedToMempool(entry.GetSharedTx());
+        for (const auto& entry : m_node.mempool->entryAll()) {
+            notifications.transactionAddedToMempool(Assert(entry)->GetSharedTx());
         }
     }
     bool hasAssumedValidChain() override

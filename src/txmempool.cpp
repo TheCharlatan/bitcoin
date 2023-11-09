@@ -836,6 +836,19 @@ static TxMempoolInfo GetInfo(CTxMemPool::indexed_transaction_set::const_iterator
     return TxMempoolInfo{it->GetSharedTx(), it->GetTime(), it->GetFee(), it->GetTxSize(), it->GetModifiedFee() - it->GetFee()};
 }
 
+std::vector<const CTxMemPoolEntry*> CTxMemPool::entryAll() const
+{
+    AssertLockHeld(cs);
+
+    std::vector<const CTxMemPoolEntry*> ret;
+    ret.reserve(mapTx.size());
+    for (const auto& it : GetSortedDepthAndScore()) {
+        ret.push_back(&(*it));
+    }
+
+    return ret;
+}
+
 std::vector<TxMempoolInfo> CTxMemPool::infoAll() const
 {
     LOCK(cs);
