@@ -695,6 +695,7 @@ public:
     /** Returns info for a transaction if its entry_sequence < last_sequence */
     TxMempoolInfo info_for_relay(const GenTxid& gtxid, uint64_t last_sequence) const;
 
+    std::vector<std::reference_wrapper<const CTxMemPoolEntry>> entryAll() const EXCLUSIVE_LOCKS_REQUIRED(cs);
     std::vector<TxMempoolInfo> infoAll() const;
 
     size_t DynamicMemoryUsage() const;
