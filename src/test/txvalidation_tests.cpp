@@ -96,7 +96,7 @@ BOOST_FIXTURE_TEST_CASE(version3_tests, RegTestingSetup)
     LOCK2(cs_main, pool.cs);
     TestMemPoolEntryHelper entry;
     std::set<Txid> empty_conflicts_set;
-    CTxMemPool::setEntries empty_ancestors;
+    CTxMemPool::setEntryRefs empty_ancestors;
 
     auto mempool_tx_v3 = make_tx(random_outpoints(1), /*version=*/3);
     pool.addUnchecked(entry.FromTx(mempool_tx_v3));
