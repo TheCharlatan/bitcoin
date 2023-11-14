@@ -31,6 +31,8 @@
 #include <string_view>
 #include <utility>
 
+typedef std::set<CTxMemPool::txiter, CompareIteratorByHash> setEntries;
+
 bool TestLockPointValidity(CChain& active_chain, const LockPoints& lp)
 {
     AssertLockHeld(cs_main);
