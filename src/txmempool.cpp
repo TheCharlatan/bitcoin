@@ -435,7 +435,15 @@ void CTxMemPool::addUnchecked(const CTxMemPoolEntry& entry, setEntryRefs& setAnc
     // Add to memory pool without checking anything.
     // Used by AcceptToMemoryPool(), which DOES do
     // all the appropriate checks.
-    indexed_transaction_set::iterator newit = mapTx.insert(entry).first;
+    indexed_transaction_set::iterator newit = mapTx.emplace(
+        entry.GetSharedTx(), 
+        entry.GetFee(), 
+        entry.nTime,
+        entry.entryHeight, 
+        entry.entry_sequence, 
+        entry.spendsCoinbase, 
+        entry.sigOpCost, 
+        entry.GetLockPoints()).first;
 
     // Update transaction for any feeDelta created by PrioritiseTransaction
     CAmount delta{0};

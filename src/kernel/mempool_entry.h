@@ -77,11 +77,14 @@ private:
     const CAmount nFee;             //!< Cached to avoid expensive parent-transaction lookups
     const int32_t nTxWeight;         //!< ... and avoid recomputing tx weight (also used for GetTxSize())
     const size_t nUsageSize;        //!< ... and total memory usage
+public:
     const int64_t nTime;            //!< Local time when entering the mempool
+public:
     const uint64_t entry_sequence;  //!< Sequence number used to determine whether this transaction is too recent for relay
     const unsigned int entryHeight; //!< Chain height when entering the mempool
     const bool spendsCoinbase;      //!< keep track of transactions that spend a coinbase
     const int64_t sigOpCost;        //!< Total sigop cost
+private:
     CAmount m_modified_fee;         //!< Used for determining the priority of the transaction for mining in a block
     mutable LockPoints lockPoints;  //!< Track the height and time at which tx was final
 
@@ -121,6 +124,11 @@ public:
           nSizeWithAncestors{GetTxSize()},
           nModFeesWithAncestors{nFee},
           nSigOpCostWithAncestors{sigOpCost} {}
+
+    CTxMemPoolEntry(const CTxMemPoolEntry&) = delete;
+    CTxMemPoolEntry(CTxMemPoolEntry&&) = delete;
+    CTxMemPoolEntry& operator=(const CTxMemPoolEntry&) = delete;
+    CTxMemPoolEntry& operator=(CTxMemPoolEntry&&) = delete;
 
     const CTransaction& GetTx() const { return *this->tx; }
     CTransactionRef GetSharedTx() const { return this->tx; }
