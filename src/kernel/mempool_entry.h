@@ -122,6 +122,11 @@ public:
           nModFeesWithAncestors{nFee},
           nSigOpCostWithAncestors{sigOpCost} {}
 
+    CTxMemPoolEntry(const CTxMemPoolEntry&) = delete;
+    CTxMemPoolEntry& operator=(const CTxMemPoolEntry&) = delete;
+    CTxMemPoolEntry(CTxMemPoolEntry&&) = delete;
+    CTxMemPoolEntry& operator=(CTxMemPoolEntry&&) = delete;
+
     const CTransaction& GetTx() const { return *this->tx; }
     CTransactionRef GetSharedTx() const { return this->tx; }
     const CAmount& GetFee() const { return nFee; }

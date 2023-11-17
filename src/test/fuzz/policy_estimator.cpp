@@ -49,7 +49,7 @@ FUZZ_TARGET(policy_estimator, .init = initialize_policy_estimator)
                 }
             },
             [&] {
-                std::vector<CTxMemPoolEntry> mempool_entries;
+                std::list<CTxMemPoolEntry> mempool_entries;
                 LIMITED_WHILE(fuzzed_data_provider.ConsumeBool(), 10000)
                 {
                     const std::optional<CMutableTransaction> mtx = ConsumeDeserializable<CMutableTransaction>(fuzzed_data_provider, TX_WITH_WITNESS);
@@ -58,7 +58,16 @@ FUZZ_TARGET(policy_estimator, .init = initialize_policy_estimator)
                         break;
                     }
                     const CTransaction tx{*mtx};
-                    mempool_entries.push_back(ConsumeTxMemPoolEntry(fuzzed_data_provider, tx));
+                    const CTxMemPoolEntry entry{ConsumeTxMemPoolEntry(fuzzed_data_provider, tx)};
+                    mempool_entries.emplace_back(
+                        entry.GetSharedTx(),
+                        entry.GetFee(),
+                        entry.GetTime().count(),
+                        entry.GetHeight(),
+                        entry.GetSequence(),
+                        entry.GetSpendsCoinbase(),
+                        entry.GetSigOpCost(),
+                        entry.GetLockPoints());
                 }
                 std::vector<const CTxMemPoolEntry*> ptrs;
                 ptrs.reserve(mempool_entries.size());
