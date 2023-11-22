@@ -350,7 +350,12 @@ void CTxMemPool::UpdateAncestorsOf(bool add, const CTxMemPoolEntry& entry, setEn
     }
 }
 
-void CTxMemPool::UpdateEntryForAncestors(txiter it, const setEntryRefs& setAncestors)
+/** Set ancestor state for an entry */
+static void UpdateEntryForAncestors(
+    CTxMemPool::txiter it,
+    const CTxMemPool::setEntryRefs& setAncestors,
+    CTxMemPool::indexed_transaction_set& mapTx,
+    RecursiveMutex& cs) EXCLUSIVE_LOCKS_REQUIRED(cs)
 {
     int64_t updateCount = setAncestors.size();
     int64_t updateSize = 0;
@@ -520,7 +525,7 @@ void CTxMemPool::addUnchecked(const CTxMemPoolEntry& entry, setEntryRefs& setAnc
         UpdateParent(*newit, pentry, true);
     }
     UpdateAncestorsOf(true, *newit, setAncestors);
-    UpdateEntryForAncestors(newit, setAncestors);
+    UpdateEntryForAncestors(newit, setAncestors, mapTx, cs);
 
     nTransactionsUpdated++;
     totalTxSize += entry.GetTxSize();
