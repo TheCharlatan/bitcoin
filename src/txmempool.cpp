@@ -544,7 +544,7 @@ void CTxMemPool::addUnchecked(const CTxMemPoolEntry& entry, setEntryRefs& setAnc
     );
 }
 
-void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
+void CTxMemPool::removeUnchecked(const CTxMemPoolEntry& entry, MemPoolRemovalReason reason)
 {
     // We increment mempool sequence value no matter removal reason
     // even if not directly reported below.
@@ -555,7 +555,7 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         // for any reason except being included in a block. Clients interested
         // in transactions included in blocks can subscribe to the BlockConnected
         // notification.
-        GetMainSignals().TransactionRemovedFromMempool(it->GetSharedTx(), reason, mempool_sequence);
+        GetMainSignals().TransactionRemovedFromMempool(entry.GetSharedTx(), reason, mempool_sequence);
     }
     TRACE5(mempool, removed,
         it->GetTx().GetHash().data(),
@@ -565,28 +565,28 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         std::chrono::duration_cast<std::chrono::duration<std::uint64_t>>(it->GetTime()).count()
     );
 
-    const uint256 hash = it->GetTx().GetHash();
-    for (const CTxIn& txin : it->GetTx().vin)
+    const uint256 hash = entry.GetTx().GetHash();
+    for (const CTxIn& txin : entry.GetTx().vin)
         mapNextTx.erase(txin.prevout);
 
     RemoveUnbroadcastTx(hash, true /* add logging because unchecked */ );
 
     if (txns_randomized.size() > 1) {
         // Update idx_randomized of the to-be-moved entry.
-        Assert(GetEntry(txns_randomized.back()->GetHash()))->idx_randomized = it->idx_randomized;
+        Assert(GetEntry(txns_randomized.back()->GetHash()))->idx_randomized = entry.idx_randomized;
         // Remove entry from txns_randomized by replacing it with the back and deleting the back.
-        txns_randomized[it->idx_randomized] = std::move(txns_randomized.back());
+        txns_randomized[entry.idx_randomized] = std::move(txns_randomized.back());
         txns_randomized.pop_back();
         if (txns_randomized.size() * 2 < txns_randomized.capacity())
             txns_randomized.shrink_to_fit();
     } else
         txns_randomized.clear();
 
-    totalTxSize -= it->GetTxSize();
-    m_total_fee -= it->GetFee();
-    cachedInnerUsage -= it->DynamicMemoryUsage();
-    cachedInnerUsage -= memusage::DynamicUsage(it->GetMemPoolParentsConst()) + memusage::DynamicUsage(it->GetMemPoolChildrenConst());
-    mapTx.erase(it);
+    totalTxSize -= entry.GetTxSize();
+    m_total_fee -= entry.GetFee();
+    cachedInnerUsage -= entry.DynamicMemoryUsage();
+    cachedInnerUsage -= memusage::DynamicUsage(entry.GetMemPoolParentsConst()) + memusage::DynamicUsage(entry.GetMemPoolChildrenConst());
+    mapTx.erase(mapTx.iterator_to(entry));
     nTransactionsUpdated++;
     if (minerPolicyEstimator) {minerPolicyEstimator->removeTx(hash, false);}
 }
@@ -1118,7 +1118,7 @@ void CTxMemPool::RemoveStaged(setEntryRefs& stage, bool updateDescendants, MemPo
     AssertLockHeld(cs);
     UpdateForRemoveFromMempool(stage, updateDescendants);
     for (const auto& entry : stage) {
-        removeUnchecked(mapTx.iterator_to(entry), reason);
+        removeUnchecked(entry, reason);
     }
 }
 
