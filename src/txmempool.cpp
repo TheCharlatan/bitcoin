@@ -31,7 +31,8 @@
 #include <string_view>
 #include <utility>
 
-using setEntries = std::set<CTxMemPool::txiter, CompareIteratorByHash>;
+using txiter = CTxMemPool::indexed_transaction_set::nth_index<0>::type::const_iterator;
+using setEntries = std::set<txiter, CompareIteratorByHash>;
 
 bool TestLockPointValidity(CChain& active_chain, const LockPoints& lp)
 {
@@ -81,7 +82,7 @@ bool TestLockPointValidity(CChain& active_chain, const LockPoints& lp)
  * @param[in] limits the mempool limits configuration.
  */
 static void UpdateForDescendants(
-    CTxMemPool::txiter updateIt,
+    txiter updateIt,
     CTxMemPool::cacheMap& cachedDescendants,
     const std::set<uint256>& setExclude,
     std::set<uint256>& descendants_to_remove,
@@ -139,14 +140,14 @@ static void UpdateForDescendants(
 }
 
 /** Returns an iterator to the given hash, if found */
-static std::optional<CTxMemPool::txiter> GetIter(const uint256& txid, const CTxMemPool::indexed_transaction_set& mapTx)
+static std::optional<txiter> GetIter(const uint256& txid, const CTxMemPool::indexed_transaction_set& mapTx)
 {
     auto it = mapTx.find(txid);
     if (it != mapTx.end()) return it;
     return std::nullopt;
 }
 
-static CTxMemPool::txiter GetIterFromWtxid(const uint256& wtxid, const CTxMemPool::indexed_transaction_set& mapTx, RecursiveMutex& cs) EXCLUSIVE_LOCKS_REQUIRED(cs)
+static txiter GetIterFromWtxid(const uint256& wtxid, const CTxMemPool::indexed_transaction_set& mapTx, RecursiveMutex& cs) EXCLUSIVE_LOCKS_REQUIRED(cs)
 {
     AssertLockHeld(cs);
     return mapTx.project<0>(mapTx.get<index_by_wtxid>().find(wtxid));
@@ -352,7 +353,7 @@ void CTxMemPool::UpdateAncestorsOf(bool add, const CTxMemPoolEntry& entry, setEn
 
 /** Set ancestor state for an entry */
 static void UpdateEntryForAncestors(
-    CTxMemPool::txiter it,
+    txiter it,
     const CTxMemPool::setEntryRefs& setAncestors,
     CTxMemPool::indexed_transaction_set& mapTx,
     RecursiveMutex& cs) EXCLUSIVE_LOCKS_REQUIRED(cs)
