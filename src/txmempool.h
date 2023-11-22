@@ -736,12 +736,6 @@ private:
      */
     void removeUnchecked(txiter entry, MemPoolRemovalReason reason) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
-    txiter get_iter_from_wtxid(const uint256& wtxid) const EXCLUSIVE_LOCKS_REQUIRED(cs)
-    {
-        AssertLockHeld(cs);
-        return mapTx.project<0>(mapTx.get<index_by_wtxid>().find(wtxid));
-    }
-
     /** visited marks a CTxMemPoolEntry as having been traversed
      * during the lifetime of the most recently created Epoch::Guard
      * and returns false if we are the first visitor, true otherwise.

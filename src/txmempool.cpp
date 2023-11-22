@@ -146,6 +146,12 @@ static std::optional<CTxMemPool::txiter> GetIter(const uint256& txid, const CTxM
     return std::nullopt;
 }
 
+static CTxMemPool::txiter GetIterFromWtxid(const uint256& wtxid, const CTxMemPool::indexed_transaction_set& mapTx, RecursiveMutex& cs) EXCLUSIVE_LOCKS_REQUIRED(cs)
+{
+    AssertLockHeld(cs);
+    return mapTx.project<0>(mapTx.get<index_by_wtxid>().find(wtxid));
+}
+
 void CTxMemPool::UpdateTransactionsFromBlock(const std::vector<uint256>& vHashesToUpdate)
 {
     AssertLockHeld(cs);
@@ -852,9 +858,9 @@ bool CTxMemPool::CompareDepthAndScore(const uint256& hasha, const uint256& hashb
      *   both are in the mempool and a has a higher score than b
      */
     LOCK(cs);
-    indexed_transaction_set::const_iterator j = wtxid ? get_iter_from_wtxid(hashb) : mapTx.find(hashb);
+    indexed_transaction_set::const_iterator j = wtxid ? GetIterFromWtxid(hashb, mapTx, cs) : mapTx.find(hashb);
     if (j == mapTx.end()) return false;
-    indexed_transaction_set::const_iterator i = wtxid ? get_iter_from_wtxid(hasha) : mapTx.find(hasha);
+    indexed_transaction_set::const_iterator i = wtxid ? GetIterFromWtxid(hasha, mapTx, cs) : mapTx.find(hasha);
     if (i == mapTx.end()) return true;
     uint64_t counta = i->GetCountWithAncestors();
     uint64_t countb = j->GetCountWithAncestors();
@@ -926,7 +932,7 @@ CTransactionRef CTxMemPool::get(const uint256& hash) const
 TxMempoolInfo CTxMemPool::info(const GenTxid& gtxid) const
 {
     LOCK(cs);
-    indexed_transaction_set::const_iterator i = (gtxid.IsWtxid() ? get_iter_from_wtxid(gtxid.GetHash()) : mapTx.find(gtxid.GetHash()));
+    indexed_transaction_set::const_iterator i = (gtxid.IsWtxid() ? GetIterFromWtxid(gtxid.GetHash(), mapTx, cs) : mapTx.find(gtxid.GetHash()));
     if (i == mapTx.end())
         return TxMempoolInfo();
     return GetInfo(i);
@@ -935,7 +941,7 @@ TxMempoolInfo CTxMemPool::info(const GenTxid& gtxid) const
 TxMempoolInfo CTxMemPool::info_for_relay(const GenTxid& gtxid, uint64_t last_sequence) const
 {
     LOCK(cs);
-    indexed_transaction_set::const_iterator i = (gtxid.IsWtxid() ? get_iter_from_wtxid(gtxid.GetHash()) : mapTx.find(gtxid.GetHash()));
+    indexed_transaction_set::const_iterator i = (gtxid.IsWtxid() ? GetIterFromWtxid(gtxid.GetHash(), mapTx, cs) : mapTx.find(gtxid.GetHash()));
     if (i != mapTx.end() && i->GetSequence() < last_sequence) {
         return GetInfo(i);
     } else {
