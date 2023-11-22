@@ -138,6 +138,14 @@ static void UpdateForDescendants(
     mapTx.modify(updateIt, [=](CTxMemPoolEntry& e) { e.UpdateDescendantState(modifySize, modifyFee, modifyCount); });
 }
 
+/** Returns an iterator to the given hash, if found */
+static std::optional<CTxMemPool::txiter> GetIter(const uint256& txid, const CTxMemPool::indexed_transaction_set& mapTx)
+{
+    auto it = mapTx.find(txid);
+    if (it != mapTx.end()) return it;
+    return std::nullopt;
+}
+
 void CTxMemPool::UpdateTransactionsFromBlock(const std::vector<uint256>& vHashesToUpdate)
 {
     AssertLockHeld(cs);
@@ -187,7 +195,7 @@ void CTxMemPool::UpdateTransactionsFromBlock(const std::vector<uint256>& vHashes
     for (const auto& txid : descendants_to_remove) {
         // This txid may have been removed already in a prior call to removeRecursive.
         // Therefore we ensure it is not yet removed already.
-        if (const std::optional<txiter> txiter = GetIter(txid)) {
+        if (const std::optional<txiter> txiter = GetIter(txid, mapTx)) {
             removeRecursive((*txiter)->GetTx(), MemPoolRemovalReason::SIZELIMIT);
         }
     }
@@ -256,7 +264,7 @@ bool CTxMemPool::CheckPackageLimits(const Package& package,
     CTxMemPoolEntry::Parents staged_ancestors;
     for (const auto& tx : package) {
         for (const auto& input : tx->vin) {
-            std::optional<txiter> piter = GetIter(input.prevout.hash);
+            std::optional<txiter> piter = GetIter(input.prevout.hash, mapTx);
             if (piter) {
                 staged_ancestors.insert(**piter);
                 if (staged_ancestors.size() + package.size() > static_cast<uint64_t>(m_limits.ancestor_count)) {
@@ -289,7 +297,7 @@ util::Result<CTxMemPool::setEntryRefs> CTxMemPool::CalculateMemPoolAncestors(
         // GetMemPoolParents() is only valid for entries in the mempool, so we
         // iterate mapTx to find parents.
         for (unsigned int i = 0; i < tx.vin.size(); i++) {
-            std::optional<txiter> piter = GetIter(tx.vin[i].prevout.hash);
+            std::optional<txiter> piter = GetIter(tx.vin[i].prevout.hash, mapTx);
             if (piter) {
                 staged_ancestors.insert(**piter);
                 if (staged_ancestors.size() + 1 > static_cast<uint64_t>(limits.ancestor_count)) {
@@ -1007,13 +1015,6 @@ const CTransaction* CTxMemPool::GetConflictTx(const COutPoint& prevout) const
 {
     const auto it = mapNextTx.find(prevout);
     return it == mapNextTx.end() ? nullptr : it->second;
-}
-
-std::optional<CTxMemPool::txiter> CTxMemPool::GetIter(const uint256& txid) const
-{
-    auto it = mapTx.find(txid);
-    if (it != mapTx.end()) return it;
-    return std::nullopt;
 }
 
 CTxMemPool::setEntryRefs CTxMemPool::GetEntrySet(const std::set<uint256>& hashes) const
