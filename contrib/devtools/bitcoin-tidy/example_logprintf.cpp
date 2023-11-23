@@ -14,6 +14,15 @@ enum Level {
     None
 };
 
+int lol{0};
+int g_lol{0};
+const int LOL{0};
+int LOL_ALASDL{0};
+static constexpr int lolf{0};
+static constexpr int LOLF{0};
+static constexpr int lofa{0};
+static constexpr int LOFA_AD{0};
+
 template <typename... Args>
 static inline void LogPrintf_(const std::string& logging_function, const std::string& source_file, const int source_line, const LogFlags flag, const Level level, const char* fmt, const Args&... args)
 {

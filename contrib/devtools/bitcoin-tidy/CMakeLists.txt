@@ -14,7 +14,7 @@ find_program(CLANG_TIDY_EXE NAMES "clang-tidy-${LLVM_VERSION_MAJOR}" "clang-tidy
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Found clang-tidy: ${CLANG_TIDY_EXE}")
 
-add_library(bitcoin-tidy MODULE bitcoin-tidy.cpp logprintf.cpp)
+add_library(bitcoin-tidy MODULE bitcoin-tidy.cpp logprintf.cpp globalnaming.cpp)
 target_include_directories(bitcoin-tidy SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
 
 # Disable RTTI and exceptions as necessary
