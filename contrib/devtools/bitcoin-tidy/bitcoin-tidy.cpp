@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "classnames.h"
 #include "logprintf.h"
 
 #include <clang-tidy/ClangTidyModule.h>
@@ -12,6 +13,7 @@ class BitcoinModule final : public clang::tidy::ClangTidyModule
 public:
     void addCheckFactories(clang::tidy::ClangTidyCheckFactories& CheckFactories) override
     {
+        CheckFactories.registerCheck<bitcoin::ClassNameCheck>("bitcoin-classnames");
         CheckFactories.registerCheck<bitcoin::LogPrintfCheck>("bitcoin-unterminated-logprintf");
     }
 };
