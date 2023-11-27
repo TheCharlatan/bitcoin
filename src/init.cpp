@@ -377,7 +377,6 @@ void Shutdown(NodeContext& node)
     node.chain_clients.clear();
     if (node.main_signals) {
         node.main_signals->UnregisterAllValidationInterfaces();
-        node.main_signals->UnregisterBackgroundSignalScheduler();
     }
     node.mempool.reset();
     node.fee_estimator.reset();
@@ -1152,9 +1151,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         return InitError(strprintf(_("Unable to allocate memory for -maxsigcachesize: '%s' MiB"), args.GetIntArg("-maxsigcachesize", DEFAULT_MAX_SIG_CACHE_BYTES >> 20)));
     }
 
-    assert(!node.scheduler);
-    node.scheduler = std::make_unique<CScheduler>();
-
     // Start the lightweight task scheduler thread
     node.scheduler->m_service_thread = std::thread(util::TraceThread, "scheduler", [&] { node.scheduler->serviceQueue(); });
 
@@ -1173,8 +1169,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             }
         }
     }, std::chrono::minutes{5});
-
-    node.main_signals->RegisterBackgroundSignalScheduler(*node.scheduler);
 
     // Create client interfaces for wallets that are supposed to be loaded
     // according to -wallet and -disablewallet options. This only constructs

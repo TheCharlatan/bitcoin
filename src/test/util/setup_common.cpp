@@ -138,7 +138,8 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
     InitLogging(*m_node.args);
     AppInitParameterInteraction(*m_node.args);
     LogInstance().StartLogging();
-    m_node.main_signals = std::make_unique<CMainSignals>();
+    m_node.scheduler = std::make_unique<CScheduler>();
+    m_node.main_signals = std::make_unique<CMainSignals>(*m_node.scheduler);
     m_node.kernel = std::make_unique<kernel::Context>();
     SetupEnvironment();
 
@@ -171,9 +172,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
 
     // We have to run a scheduler thread to prevent ActivateBestChain
     // from blocking due to queue overrun.
-    m_node.scheduler = std::make_unique<CScheduler>();
     m_node.scheduler->m_service_thread = std::thread(util::TraceThread, "scheduler", [&] { m_node.scheduler->serviceQueue(); });
-    m_node.main_signals->RegisterBackgroundSignalScheduler(*m_node.scheduler);
 
     m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>(FeeestPath(*m_node.args), DEFAULT_ACCEPT_STALE_FEE_ESTIMATES);
     m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node), *m_node.main_signals);
@@ -210,7 +209,6 @@ ChainTestingSetup::~ChainTestingSetup()
 {
     if (m_node.scheduler) m_node.scheduler->stop();
     m_node.main_signals->FlushBackgroundCallbacks();
-    m_node.main_signals->UnregisterBackgroundSignalScheduler();
     m_node.connman.reset();
     m_node.banman.reset();
     m_node.addrman.reset();
@@ -219,6 +217,7 @@ ChainTestingSetup::~ChainTestingSetup()
     m_node.mempool.reset();
     m_node.fee_estimator.reset();
     m_node.chainman.reset();
+    m_node.main_signals.reset();
     m_node.scheduler.reset();
 }
 
