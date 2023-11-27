@@ -69,9 +69,9 @@ std::shared_ptr<CWallet> TestLoadWallet(WalletContext& context)
     return TestLoadWallet(std::move(database), context, options.create_flags);
 }
 
-void TestUnloadWallet(std::shared_ptr<CWallet>&& wallet)
+void TestUnloadWallet(std::shared_ptr<CWallet>&& wallet, ValidationSignals& validation_signals)
 {
-    SyncWithValidationInterfaceQueue();
+    validation_signals.SyncWithValidationInterfaceQueue();
     wallet->m_chain_notifications_handler.reset();
     UnloadWallet(std::move(wallet));
 }
