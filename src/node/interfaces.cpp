@@ -101,7 +101,7 @@ public:
         if (!AppInitParameterInteraction(args())) return false;
 
         m_context->scheduler = std::make_unique<CScheduler>();
-        m_context->validation_signals = std::make_unique<ValidationSignals>(*m_context->scheduler);
+        m_context->validation_signals = std::make_unique<ValidationSignals>(std::make_unique<SerialTaskRunner>(*m_context->scheduler));
         m_context->kernel = std::make_unique<kernel::Context>();
         if (!AppInitSanityChecks(*m_context->kernel)) return false;
 
