@@ -21,6 +21,7 @@
 #include <util/epochguard.h>
 #include <util/hasher.h>
 #include <util/result.h>
+#include <validationinterface.h>
 
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/identity.hpp>
@@ -413,6 +414,7 @@ private:
      */
     std::set<uint256> m_unbroadcast_txids GUARDED_BY(cs);
 
+    CMainSignals& m_signals;
 
     /**
      * Helper function to calculate all in-mempool ancestors of staged_ancestors and apply ancestor
@@ -455,7 +457,7 @@ public:
      * accepting transactions becomes O(N^2) where N is the number of transactions
      * in the pool.
      */
-    explicit CTxMemPool(const Options& opts);
+    explicit CTxMemPool(const Options& opts, CMainSignals& signals);
 
     /**
      * If sanity-checking is turned on, check makes sure the pool is

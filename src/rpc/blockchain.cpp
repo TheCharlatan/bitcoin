@@ -387,19 +387,18 @@ static RPCHelpMan waitforblockheight()
 
 static RPCHelpMan syncwithvalidationinterfacequeue()
 {
-    return RPCHelpMan{"syncwithvalidationinterfacequeue",
-                "\nWaits for the validation interface queue to catch up on everything that was there when we entered this function.\n",
-                {},
-                RPCResult{RPCResult::Type::NONE, "", ""},
-                RPCExamples{
-                    HelpExampleCli("syncwithvalidationinterfacequeue","")
-            + HelpExampleRpc("syncwithvalidationinterfacequeue","")
-                },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-{
-    SyncWithValidationInterfaceQueue();
-    return UniValue::VNULL;
-},
+    return RPCHelpMan{
+        "syncwithvalidationinterfacequeue",
+        "\nWaits for the validation interface queue to catch up on everything that was there when we entered this function.\n",
+        {},
+        RPCResult{RPCResult::Type::NONE, "", ""},
+        RPCExamples{
+            HelpExampleCli("syncwithvalidationinterfacequeue", "") + HelpExampleRpc("syncwithvalidationinterfacequeue", "")},
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+            NodeContext& node = EnsureAnyNodeContext(request.context);
+            node.main_signals->SyncWithValidationInterfaceQueue();
+            return UniValue::VNULL;
+        },
     };
 }
 
