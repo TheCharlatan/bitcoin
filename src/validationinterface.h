@@ -10,6 +10,7 @@
 #include <kernel/cs_main.h>
 #include <primitives/transaction.h> // CTransaction(Ref)
 #include <sync.h>
+#include <util/task_runner.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -17,6 +18,7 @@
 #include <list>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 
 class BlockValidationState;
 class CBlock;
@@ -160,8 +162,13 @@ class ValidationSignals {
 private:
     std::unique_ptr<ValidationSignalsImpl> m_internals;
 
+    // We are not allowed to assume the scheduler only runs in one thread,
+    // but must ensure all callbacks happen in-order, so we end up creating
+    // our own queue here :(
+    std::unique_ptr<util::TaskRunnerInterface> m_serial_task_runner;
+
 public:
-    ValidationSignals(CScheduler& scheduler LIFETIMEBOUND);
+    explicit ValidationSignals(std::unique_ptr<util::TaskRunnerInterface> task_runner);
 
     ~ValidationSignals();
 
