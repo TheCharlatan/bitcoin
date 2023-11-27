@@ -63,12 +63,12 @@ template<typename F> void MainSignalsImpl::Iterate(F&& f) EXCLUSIVE_LOCKS_REQUIR
 
 void CMainSignals::FlushBackgroundCallbacks()
 {
-    m_internals.m_schedulerClient.EmptyQueue();
+    m_schedulerClient.EmptyQueue();
 }
 
 size_t CMainSignals::CallbacksPending()
 {
-    return m_internals.m_schedulerClient.CallbacksPending();
+    return m_schedulerClient.CallbacksPending();
 }
 
 void CMainSignals::RegisterSharedValidationInterface(std::shared_ptr<CValidationInterface> callbacks)
@@ -102,7 +102,7 @@ void CMainSignals::UnregisterAllValidationInterfaces()
 
 void CMainSignals::CallFunctionInValidationInterfaceQueue(std::function<void()> func)
 {
-    m_internals.m_schedulerClient.AddToProcessQueue(std::move(func));
+    m_schedulerClient.AddToProcessQueue(std::move(func));
 }
 
 void CMainSignals::SyncWithValidationInterfaceQueue()
@@ -124,7 +124,7 @@ void CMainSignals::SyncWithValidationInterfaceQueue()
     do {                                                       \
         auto local_name = (name);                              \
         LOG_EVENT("Enqueuing " fmt, local_name, __VA_ARGS__);  \
-        m_internals.m_schedulerClient.AddToProcessQueue([=] { \
+        m_schedulerClient.AddToProcessQueue([=] { \
             LOG_EVENT(fmt, local_name, __VA_ARGS__);           \
             event();                                           \
         });                                                    \
