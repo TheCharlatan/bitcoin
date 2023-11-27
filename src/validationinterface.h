@@ -162,13 +162,38 @@ private:
     std::list<ListEntry> m_list GUARDED_BY(m_mutex);
     std::unordered_map<CValidationInterface*, std::list<ListEntry>::iterator> m_map GUARDED_BY(m_mutex);
 
+    CScheduler& m_scheduler;
+
+    Mutex m_callbacks_mutex;
+    std::list<std::function<void()>> m_callbacks_pending GUARDED_BY(m_callbacks_mutex);
+    bool m_are_callbacks_running GUARDED_BY(m_callbacks_mutex) = false;
+
 public:
     // We are not allowed to assume the scheduler only runs in one thread,
     // but must ensure all callbacks happen in-order, so we end up creating
     // our own queue here :(
-    SingleThreadedSchedulerClient m_schedulerClient;
+    // SingleThreadedSchedulerClient m_schedulerClient;
 
-    explicit MainSignalsImpl(CScheduler& scheduler LIFETIMEBOUND) : m_schedulerClient(scheduler) {}
+    explicit MainSignalsImpl(CScheduler& scheduler LIFETIMEBOUND) : m_scheduler(scheduler) {}
+
+    /**
+     * Processes all remaining queue members on the calling thread, blocking until queue is empty
+     * Must be called after the CScheduler has no remaining processing threads!
+     */
+    void EmptyQueue() EXCLUSIVE_LOCKS_REQUIRED(!m_callbacks_mutex);
+
+    size_t CallbacksPending() EXCLUSIVE_LOCKS_REQUIRED(!m_callbacks_mutex);
+
+    void MaybeScheduleProcessQueue() EXCLUSIVE_LOCKS_REQUIRED(!m_callbacks_mutex);
+    void ProcessQueue() EXCLUSIVE_LOCKS_REQUIRED(!m_callbacks_mutex);
+
+    /**
+     * Add a callback to be executed. Callbacks are executed serially
+     * and memory is release-acquire consistent between callback executions.
+     * Practically, this means that callbacks can behave as if they are executed
+     * in order by a single thread.
+     */
+    void AddToProcessQueue(std::function<void()> func) EXCLUSIVE_LOCKS_REQUIRED(!m_callbacks_mutex);
 
     void Register(std::shared_ptr<CValidationInterface> callbacks) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
     {

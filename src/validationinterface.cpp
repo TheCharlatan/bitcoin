@@ -18,16 +18,86 @@
 #include <unordered_map>
 #include <utility>
 
+void MainSignalsImpl::MaybeScheduleProcessQueue()
+{
+    {
+        LOCK(m_callbacks_mutex);
+        // Try to avoid scheduling too many copies here, but if we
+        // accidentally have two ProcessQueue's scheduled at once its
+        // not a big deal.
+        if (m_are_callbacks_running) return;
+        if (m_callbacks_pending.empty()) return;
+    }
+    m_scheduler.schedule([this] { this->ProcessQueue(); }, std::chrono::steady_clock::now());
+}
+
+void MainSignalsImpl::ProcessQueue()
+{
+    std::function<void()> callback;
+    {
+        LOCK(m_callbacks_mutex);
+        if (m_are_callbacks_running) return;
+        if (m_callbacks_pending.empty()) return;
+        m_are_callbacks_running = true;
+
+        callback = std::move(m_callbacks_pending.front());
+        m_callbacks_pending.pop_front();
+    }
+
+    // RAII the setting of fCallbacksRunning and calling MaybeScheduleProcessQueue
+    // to ensure both happen safely even if callback() throws.
+    struct RAIICallbacksRunning {
+        MainSignalsImpl* instance;
+        explicit RAIICallbacksRunning(MainSignalsImpl* _instance) : instance(_instance) {}
+        ~RAIICallbacksRunning()
+        {
+            {
+                LOCK(instance->m_callbacks_mutex);
+                instance->m_are_callbacks_running = false;
+            }
+            instance->MaybeScheduleProcessQueue();
+        }
+    } raiicallbacksrunning(this);
+
+    callback();
+}
+
+void MainSignalsImpl::AddToProcessQueue(std::function<void()> func)
+{
+    {
+        LOCK(m_callbacks_mutex);
+        m_callbacks_pending.emplace_back(std::move(func));
+    }
+    MaybeScheduleProcessQueue();
+}
+
+void MainSignalsImpl::EmptyQueue()
+{
+    assert(!m_scheduler.AreThreadsServicingQueue());
+    bool should_continue = true;
+    while (should_continue) {
+        ProcessQueue();
+        LOCK(m_callbacks_mutex);
+        should_continue = !m_callbacks_pending.empty();
+    }
+}
+
+size_t MainSignalsImpl::CallbacksPending()
+{
+    LOCK(m_callbacks_mutex);
+    return m_callbacks_pending.size();
+}
+
 std::string RemovalReasonToString(const MemPoolRemovalReason& r) noexcept;
 
 void CMainSignals::FlushBackgroundCallbacks()
 {
-    m_internals->m_schedulerClient.EmptyQueue();
+    m_internals->EmptyQueue();
 }
 
 size_t CMainSignals::CallbacksPending()
 {
-    return m_internals->m_schedulerClient.CallbacksPending();
+    return m_internals->CallbacksPending();
 }
 
 void CMainSignals::RegisterSharedValidationInterface(std::shared_ptr<CValidationInterface> callbacks)
@@ -61,7 +131,7 @@ void CMainSignals::UnregisterAllValidationInterfaces()
 
 void CMainSignals::CallFunctionInValidationInterfaceQueue(std::function<void()> func)
 {
-    m_internals->m_schedulerClient.AddToProcessQueue(std::move(func));
+    m_internals->AddToProcessQueue(std::move(func));
 }
 
 void CMainSignals::SyncWithValidationInterfaceQueue()
@@ -83,7 +153,7 @@ void CMainSignals::SyncWithValidationInterfaceQueue()
     do {                                                       \
         auto local_name = (name);                              \
         LOG_EVENT("Enqueuing " fmt, local_name, __VA_ARGS__);  \
-        m_internals->m_schedulerClient.AddToProcessQueue([=] { \
+        m_internals->AddToProcessQueue([=] { \
             LOG_EVENT(fmt, local_name, __VA_ARGS__);           \
             event();                                           \
         });                                                    \
