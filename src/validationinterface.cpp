@@ -5,7 +5,6 @@
 
 #include <validationinterface.h>
 
-#include <attributes.h>
 #include <chain.h>
 #include <consensus/validation.h>
 #include <kernel/chain.h>
@@ -13,7 +12,7 @@
 #include <logging.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
-#include <scheduler.h>
+#include <util/check.h>
 
 #include <future>
 #include <unordered_map>
@@ -61,17 +60,17 @@ template<typename F> void ValidationSignalsImpl::Iterate(F&& f) EXCLUSIVE_LOCKS_
     }
 }
 
-ValidationSignals::ValidationSignals(CScheduler& scheduler)
-    : m_schedulerClient{scheduler} {}
+ValidationSignals::ValidationSignals(std::unique_ptr<ValidationInterfaceQueue> schedulerclient)
+    : m_schedulerClient{std::move(Assert(schedulerclient))} {}
 
 void ValidationSignals::FlushBackgroundCallbacks()
 {
-    m_schedulerClient.EmptyQueue();
+    m_schedulerClient->EmptyQueue();
 }
 
 size_t ValidationSignals::CallbacksPending()
 {
-    return m_schedulerClient.CallbacksPending();
+    return m_schedulerClient->CallbacksPending();
 }
 
 void ValidationSignals::RegisterSharedValidationInterface(std::shared_ptr<CValidationInterface> callbacks)
@@ -105,7 +104,7 @@ void ValidationSignals::UnregisterAllValidationInterfaces()
 
 void ValidationSignals::CallFunctionInValidationInterfaceQueue(std::function<void()> func)
 {
-    m_schedulerClient.AddToProcessQueue(std::move(func));
+    m_schedulerClient->AddToProcessQueue(std::move(func));
 }
 
 void ValidationSignals::SyncWithValidationInterfaceQueue()
@@ -127,7 +126,7 @@ void ValidationSignals::SyncWithValidationInterfaceQueue()
     do {                                                       \
         auto local_name = (name);                              \
         LOG_EVENT("Enqueuing " fmt, local_name, __VA_ARGS__);  \
-        m_schedulerClient.AddToProcessQueue([=] { \
+        m_schedulerClient->AddToProcessQueue([=] { \
             LOG_EVENT(fmt, local_name, __VA_ARGS__);           \
             event();                                           \
         });                                                    \
