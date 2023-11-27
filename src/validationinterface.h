@@ -9,8 +9,8 @@
 #include <kernel/chain.h>
 #include <kernel/cs_main.h>
 #include <primitives/transaction.h> // CTransaction(Ref)
-#include <scheduler.h>
 #include <sync.h>
+#include <util/task_queue_interface.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -18,6 +18,7 @@
 #include <list>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 
 class BlockValidationState;
 class CBlock;
@@ -198,10 +199,10 @@ private:
     // We are not allowed to assume the scheduler only runs in one thread,
     // but must ensure all callbacks happen in-order, so we end up creating
     // our own queue here :(
-    SingleThreadedSchedulerClient m_schedulerClient;
+    std::unique_ptr<util::TaskQueueInterface> m_schedulerClient;
 
 public:
-    explicit ValidationSignals(CScheduler& scheduler LIFETIMEBOUND);
+    explicit ValidationSignals(std::unique_ptr<util::TaskQueueInterface> schedulerclient);
 
     /** Call any remaining callbacks on the calling thread */
     void FlushBackgroundCallbacks();
