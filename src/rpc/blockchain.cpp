@@ -395,7 +395,8 @@ static RPCHelpMan syncwithvalidationinterfacequeue()
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    SyncWithValidationInterfaceQueue();
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    node.main_signals->SyncWithValidationInterfaceQueue();
     return UniValue::VNULL;
 },
     };
