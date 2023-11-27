@@ -175,11 +175,6 @@ private:
     std::list<ListEntry> m_list GUARDED_BY(m_mutex);
     std::unordered_map<CValidationInterface*, std::list<ListEntry>::iterator> m_map GUARDED_BY(m_mutex);
 
-    // We are not allowed to assume the scheduler only runs in one thread,
-    // but must ensure all callbacks happen in-order, so we end up creating
-    // our own queue here :(
-    SingleThreadedSchedulerClient m_schedulerClient;
-
     void Register(std::shared_ptr<CValidationInterface> callbacks) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
     void Unregister(CValidationInterface* callbacks) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
@@ -193,15 +188,17 @@ private:
     template <typename F> void Iterate(F&& f) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
     friend class ValidationSignals;
-
-public:
-    explicit ValidationSignalsImpl(CScheduler& scheduler LIFETIMEBOUND) : m_schedulerClient(scheduler) {}
 };
 
 
 class ValidationSignals {
 private:
     ValidationSignalsImpl m_internals;
+
+    // We are not allowed to assume the scheduler only runs in one thread,
+    // but must ensure all callbacks happen in-order, so we end up creating
+    // our own queue here :(
+    SingleThreadedSchedulerClient m_schedulerClient;
 
 public:
     explicit ValidationSignals(CScheduler& scheduler LIFETIMEBOUND);
