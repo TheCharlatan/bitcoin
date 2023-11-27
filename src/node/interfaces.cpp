@@ -39,6 +39,7 @@
 #include <primitives/transaction.h>
 #include <rpc/protocol.h>
 #include <rpc/server.h>
+#include <scheduler.h>
 #include <support/allocators/secure.h>
 #include <sync.h>
 #include <txmempool.h>
@@ -99,7 +100,7 @@ public:
         if (!AppInitParameterInteraction(args())) return false;
 
         m_context->scheduler = std::make_unique<CScheduler>();
-        m_context->main_signals = std::make_unique<CMainSignals>(*m_context->scheduler);
+        m_context->main_signals = std::make_unique<CMainSignals>(std::make_unique<SingleThreadedSchedulerClient>(*m_context->scheduler));
         m_context->kernel = std::make_unique<kernel::Context>();
         if (!AppInitSanityChecks(*m_context->kernel)) return false;
 

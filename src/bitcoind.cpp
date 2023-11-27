@@ -20,6 +20,7 @@
 #include <node/context.h>
 #include <node/interface_ui.h>
 #include <noui.h>
+#include <scheduler.h>
 #include <util/check.h>
 #include <util/exception.h>
 #include <util/strencodings.h>
@@ -185,7 +186,7 @@ static bool AppInit(NodeContext& node)
         }
 
         node.scheduler = std::make_unique<CScheduler>();
-        node.main_signals = std::make_unique<CMainSignals>(*node.scheduler);
+        node.main_signals = std::make_unique<CMainSignals>(std::make_unique<SingleThreadedSchedulerClient>(*node.scheduler));
         node.kernel = std::make_unique<kernel::Context>();
         if (!AppInitSanityChecks(*node.kernel))
         {

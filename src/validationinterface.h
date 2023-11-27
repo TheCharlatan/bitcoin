@@ -8,8 +8,8 @@
 
 #include <kernel/chain.h>
 #include <kernel/cs_main.h>
+#include <kernel/validation_interface_queue.h>
 #include <primitives/transaction.h> // CTransaction(Ref)
-#include <scheduler.h>
 #include <sync.h>
 
 #include <cstddef>
@@ -18,6 +18,7 @@
 #include <list>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 
 class BlockValidationState;
 class CBlock;
@@ -197,10 +198,10 @@ private:
     // We are not allowed to assume the scheduler only runs in one thread,
     // but must ensure all callbacks happen in-order, so we end up creating
     // our own queue here :(
-    SingleThreadedSchedulerClient m_schedulerClient;
+    std::unique_ptr<ValidationInterfaceQueue> m_schedulerClient;
 
 public:
-    explicit CMainSignals(CScheduler& scheduler LIFETIMEBOUND) : m_schedulerClient{scheduler} {}
+    explicit CMainSignals(std::unique_ptr<ValidationInterfaceQueue> schedulerclient) : m_schedulerClient{std::move(schedulerclient)} {}
 
     /** Call any remaining callbacks on the calling thread */
     void FlushBackgroundCallbacks();

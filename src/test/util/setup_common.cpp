@@ -139,7 +139,7 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
     AppInitParameterInteraction(*m_node.args);
     LogInstance().StartLogging();
     m_node.scheduler = std::make_unique<CScheduler>();
-    m_node.main_signals = std::make_unique<CMainSignals>(*m_node.scheduler);
+    m_node.main_signals = std::make_unique<CMainSignals>(std::make_unique<SingleThreadedSchedulerClient>(*m_node.scheduler));
     m_node.kernel = std::make_unique<kernel::Context>();
     SetupEnvironment();
 
