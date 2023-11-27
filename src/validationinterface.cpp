@@ -20,36 +20,15 @@
 
 std::string RemovalReasonToString(const MemPoolRemovalReason& r) noexcept;
 
-// static CMainSignals g_signals;
-
-void CMainSignals::RegisterBackgroundSignalScheduler(CScheduler& scheduler)
-{
-    assert(!m_internals);
-    m_internals = std::make_unique<MainSignalsImpl>(scheduler);
-}
-
-void CMainSignals::UnregisterBackgroundSignalScheduler()
-{
-    m_internals.reset(nullptr);
-}
-
 void CMainSignals::FlushBackgroundCallbacks()
 {
-    if (m_internals) {
-        m_internals->m_schedulerClient.EmptyQueue();
-    }
+    m_internals->m_schedulerClient.EmptyQueue();
 }
 
 size_t CMainSignals::CallbacksPending()
 {
-    if (!m_internals) return 0;
     return m_internals->m_schedulerClient.CallbacksPending();
 }
-
-// CMainSignals& GetMainSignals()
-// {
-    // return g_signals;
-// }
 
 void CMainSignals::RegisterSharedValidationInterface(std::shared_ptr<CValidationInterface> callbacks)
 {
@@ -72,16 +51,11 @@ void CMainSignals::UnregisterSharedValidationInterface(std::shared_ptr<CValidati
 
 void CMainSignals::UnregisterValidationInterface(CValidationInterface* callbacks)
 {
-    if (m_internals) {
-        m_internals->Unregister(callbacks);
-    }
+    m_internals->Unregister(callbacks);
 }
 
 void CMainSignals::UnregisterAllValidationInterfaces()
 {
-    if (!m_internals) {
-        return;
-    }
     m_internals->Clear();
 }
 
