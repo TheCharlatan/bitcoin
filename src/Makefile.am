@@ -306,6 +306,7 @@ BITCOIN_CORE_H = \
   util/golombrice.h \
   util/hash_type.h \
   util/hasher.h \
+  util/immediate_task_queue.h \
   util/insert.h \
   util/macros.h \
   util/message.h \
@@ -321,6 +322,7 @@ BITCOIN_CORE_H = \
   util/spanparsing.h \
   util/string.h \
   util/syserror.h \
+  util/task_queue_interface.h \
   util/thread.h \
   util/threadinterrupt.h \
   util/threadnames.h \
@@ -739,6 +741,7 @@ libbitcoin_util_a_SOURCES = \
   util/fs.cpp \
   util/fs_helpers.cpp \
   util/hasher.cpp \
+  util/immediate_task_queue.cpp \
   util/sock.cpp \
   util/syserror.cpp \
   util/message.cpp \
@@ -960,7 +963,6 @@ libbitcoinkernel_la_SOURCES = \
   pubkey.cpp \
   random.cpp \
   randomenv.cpp \
-  scheduler.cpp \
   script/interpreter.cpp \
   script/script.cpp \
   script/script_error.cpp \
@@ -977,10 +979,10 @@ libbitcoinkernel_la_SOURCES = \
   util/batchpriority.cpp \
   util/chaintype.cpp \
   util/check.cpp \
-  util/exception.cpp \
   util/fs.cpp \
   util/fs_helpers.cpp \
   util/hasher.cpp \
+  util/immediate_task_queue.cpp \
   util/moneystr.cpp \
   util/rbf.cpp \
   util/serfloat.cpp \
@@ -988,7 +990,6 @@ libbitcoinkernel_la_SOURCES = \
   util/strencodings.cpp \
   util/string.cpp \
   util/syserror.cpp \
-  util/thread.cpp \
   util/threadnames.cpp \
   util/time.cpp \
   util/tokenpipe.cpp \
