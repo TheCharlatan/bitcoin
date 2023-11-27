@@ -1220,7 +1220,7 @@ bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& 
                                                        args.m_bypass_limits, args.m_package_submission,
                                                        IsCurrentForFeeEstimation(m_active_chainstate),
                                                        m_pool.HasNoInputsOf(tx));
-        GetValidationSignals().TransactionAddedToMempool(tx_info, m_pool.GetAndIncrementSequence());
+        m_active_chainstate.GetValidationSignals().TransactionAddedToMempool(tx_info, m_pool.GetAndIncrementSequence());
     }
     return all_submitted;
 }
@@ -1269,7 +1269,7 @@ MempoolAcceptResult MemPoolAccept::AcceptSingleTransaction(const CTransactionRef
                                                    args.m_bypass_limits, args.m_package_submission,
                                                    IsCurrentForFeeEstimation(m_active_chainstate),
                                                    m_pool.HasNoInputsOf(tx));
-    GetValidationSignals().TransactionAddedToMempool(tx_info, m_pool.GetAndIncrementSequence());
+    m_active_chainstate.GetValidationSignals().TransactionAddedToMempool(tx_info, m_pool.GetAndIncrementSequence());
 
     return MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_base_fees,
                                         effective_feerate, single_wtxid);
@@ -1703,6 +1703,11 @@ const CBlockIndex* Chainstate::SnapshotBase()
     if (!m_from_snapshot_blockhash) return nullptr;
     if (!m_cached_snapshot_base) m_cached_snapshot_base = Assert(m_chainman.m_blockman.LookupBlockIndex(*m_from_snapshot_blockhash));
     return m_cached_snapshot_base;
+}
+
+ValidationSignals& Chainstate::GetValidationSignals()
+{
+    return m_chainman.m_signals;
 }
 
 void Chainstate::InitCoinsDB(
@@ -3187,11 +3192,11 @@ static bool NotifyHeaderTip(ChainstateManager& chainman) LOCKS_EXCLUDED(cs_main)
     return fNotify;
 }
 
-static void LimitValidationInterfaceQueue() LOCKS_EXCLUDED(cs_main) {
+static void LimitValidationInterfaceQueue(ValidationSignals& signals) LOCKS_EXCLUDED(cs_main) {
     AssertLockNotHeld(cs_main);
 
-    if (GetValidationSignals().CallbacksPending() > 10) {
-        SyncWithValidationInterfaceQueue();
+    if (signals.CallbacksPending() > 10) {
+        signals.SyncWithValidationInterfaceQueue();
     }
 }
 
@@ -3229,7 +3234,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
         // Note that if a validationinterface callback ends up calling
         // ActivateBestChain this may lead to a deadlock! We should
         // probably have a DEBUG_LOCKORDER test for this in the future.
-        LimitValidationInterfaceQueue();
+        LimitValidationInterfaceQueue(GetValidationSignals());
 
         {
             LOCK(cs_main);
@@ -3428,7 +3433,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         if (m_chainman.m_interrupt) break;
 
         // Make sure the queue of validation callbacks doesn't grow unboundedly.
-        LimitValidationInterfaceQueue();
+        LimitValidationInterfaceQueue(GetValidationSignals());
 
         LOCK(cs_main);
         // Lock for as long as disconnectpool is in scope to make sure MaybeUpdateMempoolForReorg is
@@ -4137,7 +4142,7 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
     // Header is valid/has work, merkle tree and segwit merkle tree are good...RELAY NOW
     // (but if it does not build on our best tip, let the SendMessages loop relay it)
     if (!IsInitialBlockDownload() && ActiveTip() == pindex->pprev)
-        GetValidationSignals().NewPoWValidBlock(pindex, pblock);
+        m_signals.NewPoWValidBlock(pindex, pblock);
 
     // Write block to history file
     if (fNewBlock) *fNewBlock = true;
@@ -4190,7 +4195,7 @@ bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& blo
             ret = AcceptBlock(block, state, &pindex, force_processing, nullptr, new_block, min_pow_checked);
         }
         if (!ret) {
-            GetValidationSignals().BlockChecked(*block, state);
+            m_signals.BlockChecked(*block, state);
             return error("%s: AcceptBlock FAILED (%s)", __func__, state.ToString());
         }
     }
@@ -5785,13 +5790,12 @@ static ChainstateManager::Options&& Flatten(ChainstateManager::Options&& opts)
     return std::move(opts);
 }
 
-ChainstateManager::ChainstateManager(const util::SignalInterrupt& interrupt, Options options, node::BlockManager::Options blockman_options)
+ChainstateManager::ChainstateManager(const util::SignalInterrupt& interrupt, Options options, node::BlockManager::Options blockman_options, ValidationSignals& signals)
     : m_script_check_queue{/*batch_size=*/128, options.worker_threads_num},
       m_interrupt{interrupt},
       m_options{Flatten(std::move(options))},
-      m_blockman{interrupt, std::move(blockman_options)}
-{
-}
+      m_blockman{interrupt, std::move(blockman_options)},
+      m_signals{signals} {}
 
 ChainstateManager::~ChainstateManager()
 {

@@ -40,6 +40,7 @@
 #include <vector>
 
 class CChain;
+class ValidationSignals;
 
 /** Fake height value used in Coin to signify they are only in the memory pool (since 0.8) */
 static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
@@ -396,6 +397,9 @@ public:
     using Limits = kernel::MemPoolLimits;
 
     uint64_t CalculateDescendantMaximum(txiter entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    ValidationSignals& m_signals;
+
 private:
     typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;
 
@@ -409,7 +413,6 @@ private:
      * Track locally submitted transactions to periodically retry initial broadcast.
      */
     std::set<uint256> m_unbroadcast_txids GUARDED_BY(cs);
-
 
     /**
      * Helper function to calculate all in-mempool ancestors of staged_ancestors and apply ancestor
@@ -452,7 +455,7 @@ public:
      * accepting transactions becomes O(N^2) where N is the number of transactions
      * in the pool.
      */
-    explicit CTxMemPool(const Options& opts);
+    explicit CTxMemPool(const Options& opts, ValidationSignals& signals);
 
     /**
      * If sanity-checking is turned on, check makes sure the pool is
