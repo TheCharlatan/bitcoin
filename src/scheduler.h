@@ -6,6 +6,7 @@
 #define BITCOIN_SCHEDULER_H
 
 #include <attributes.h>
+#include <kernel/validation_interface_queue.h>
 #include <sync.h>
 #include <threadsafety.h>
 
@@ -120,7 +121,7 @@ private:
  * B() will be able to observe all of the effects of callback A() which executed
  * before it.
  */
-class SingleThreadedSchedulerClient
+class SingleThreadedSchedulerClient : public ValidationInterfaceQueue
 {
 private:
     CScheduler& m_scheduler;
@@ -141,15 +142,15 @@ public:
      * Practically, this means that callbacks can behave as if they are executed
      * in order by a single thread.
      */
-    void AddToProcessQueue(std::function<void()> func) EXCLUSIVE_LOCKS_REQUIRED(!m_callbacks_mutex);
+    void AddToProcessQueue(std::function<void()> func) override EXCLUSIVE_LOCKS_REQUIRED(!m_callbacks_mutex);
 
     /**
      * Processes all remaining queue members on the calling thread, blocking until queue is empty
      * Must be called after the CScheduler has no remaining processing threads!
      */
-    void EmptyQueue() EXCLUSIVE_LOCKS_REQUIRED(!m_callbacks_mutex);
+    void EmptyQueue() override EXCLUSIVE_LOCKS_REQUIRED(!m_callbacks_mutex);
 
-    size_t CallbacksPending() EXCLUSIVE_LOCKS_REQUIRED(!m_callbacks_mutex);
+    size_t CallbacksPending() override EXCLUSIVE_LOCKS_REQUIRED(!m_callbacks_mutex);
 };
 
 #endif // BITCOIN_SCHEDULER_H
