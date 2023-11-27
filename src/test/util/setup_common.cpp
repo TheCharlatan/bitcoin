@@ -139,7 +139,7 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
     AppInitParameterInteraction(*m_node.args);
     LogInstance().StartLogging();
     m_node.scheduler = std::make_unique<CScheduler>();
-    m_node.validation_signals = std::make_unique<ValidationSignals>(*m_node.scheduler);
+    m_node.validation_signals = std::make_unique<ValidationSignals>(std::make_unique<SerialTaskRunner>(*m_node.scheduler));
     m_node.kernel = std::make_unique<kernel::Context>();
     SetupEnvironment();
 

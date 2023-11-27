@@ -186,7 +186,7 @@ static bool AppInit(NodeContext& node)
         }
 
         node.scheduler = std::make_unique<CScheduler>();
-        node.validation_signals = std::make_unique<ValidationSignals>(*node.scheduler);
+        node.validation_signals = std::make_unique<ValidationSignals>(std::make_unique<SerialTaskRunner>(*node.scheduler));
         node.kernel = std::make_unique<kernel::Context>();
         if (!AppInitSanityChecks(*node.kernel))
         {
