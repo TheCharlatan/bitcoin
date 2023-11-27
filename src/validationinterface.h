@@ -17,11 +17,14 @@
 #include <memory>
 #include <vector>
 
+namespace util {
+class TaskRunnerInterface;
+} // namespace util
+
 class BlockValidationState;
 class CBlock;
 class CBlockIndex;
 struct CBlockLocator;
-class CScheduler;
 enum class MemPoolRemovalReason;
 struct RemovedMempoolTransactionInfo;
 struct NewMempoolTransactionInfo;
@@ -160,7 +163,7 @@ private:
     std::unique_ptr<ValidationSignalsImpl> m_internals;
 
 public:
-    ValidationSignals(CScheduler& scheduler LIFETIMEBOUND);
+    explicit ValidationSignals(std::unique_ptr<util::TaskRunnerInterface> task_runner);
 
     ~ValidationSignals();
 
