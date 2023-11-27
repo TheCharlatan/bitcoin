@@ -184,7 +184,8 @@ static bool AppInit(NodeContext& node)
             return false;
         }
 
-        node.validation_signals = std::make_unique<ValidationSignals>();
+        node.scheduler = std::make_unique<CScheduler>();
+        node.validation_signals = std::make_unique<ValidationSignals>(*node.scheduler);
         node.kernel = std::make_unique<kernel::Context>();
         if (!AppInitSanityChecks(*node.kernel))
         {
