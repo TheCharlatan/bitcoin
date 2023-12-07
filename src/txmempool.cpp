@@ -832,8 +832,8 @@ std::vector<CTxMemPoolEntryRef> CTxMemPool::entryAll() const
 
     std::vector<CTxMemPoolEntryRef> ret;
     ret.reserve(mapTx.size());
-    for (const auto& it : GetSortedDepthAndScore()) {
-        ret.emplace_back(*it);
+    for (const auto& it : mapTx) {
+        ret.emplace_back(it);
     }
     return ret;
 }
