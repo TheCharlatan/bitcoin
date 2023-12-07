@@ -1737,7 +1737,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         if (tip_info) {
             tip_info->block_height = chain_active_height;
             tip_info->block_time = chainman.ActiveChain().Tip() ? chainman.ActiveChain().Tip()->GetBlockTime() : chainman.GetParams().GenesisBlock().GetBlockTime();
-            tip_info->verification_progress = GuessVerificationProgress(chainman.GetParams().TxData(), chainman.ActiveChain().Tip());
+            tip_info->verification_progress = GuessVerificationProgress(chainman.GetParams().TxData(), *Assert(chainman.ActiveChain().Tip()));
         }
         if (tip_info && chainman.m_best_header) {
             tip_info->header_height = chainman.m_best_header->nHeight;

@@ -1258,7 +1258,7 @@ RPCHelpMan getblockchaininfo()
     obj.pushKV("difficulty", GetDifficulty(tip));
     obj.pushKV("time", tip.GetBlockTime());
     obj.pushKV("mediantime", tip.GetMedianTimePast());
-    obj.pushKV("verificationprogress", GuessVerificationProgress(chainman.GetParams().TxData(), &tip));
+    obj.pushKV("verificationprogress", GuessVerificationProgress(chainman.GetParams().TxData(), tip));
     obj.pushKV("initialblockdownload", chainman.IsInitialBlockDownload());
     obj.pushKV("chainwork", tip.nChainWork.GetHex());
     obj.pushKV("size_on_disk", chainman.m_blockman.CalculateCurrentUsage());
@@ -1505,7 +1505,7 @@ static RPCHelpMan preciousblock()
     }
 
     BlockValidationState state;
-    chainman.ActiveChainstate().PreciousBlock(state, pblockindex);
+    chainman.ActiveChainstate().PreciousBlock(state, *pblockindex);
 
     if (!state.IsValid()) {
         throw JSONRPCError(RPC_DATABASE_ERROR, state.ToString());
@@ -2839,11 +2839,11 @@ return RPCHelpMan{
             return data;
         }
         const CChain& chain = cs.m_chain;
-        const CBlockIndex* tip = chain.Tip();
+        const CBlockIndex& tip = *CHECK_NONFATAL(chain.Tip());
 
         data.pushKV("blocks",                (int)chain.Height());
-        data.pushKV("bestblockhash",         tip->GetBlockHash().GetHex());
-        data.pushKV("difficulty", GetDifficulty(*tip));
+        data.pushKV("bestblockhash",         tip.GetBlockHash().GetHex());
+        data.pushKV("difficulty", GetDifficulty(tip));
         data.pushKV("verificationprogress",  GuessVerificationProgress(Params().TxData(), tip));
         data.pushKV("coins_db_cache_bytes",  cs.m_coinsdb_cache_size_bytes);
         data.pushKV("coins_tip_cache_bytes", cs.m_coinstip_cache_size_bytes);

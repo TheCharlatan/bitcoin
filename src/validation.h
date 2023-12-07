@@ -100,7 +100,7 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 bool FatalError(kernel::Notifications& notifications, BlockValidationState& state, const std::string& strMessage, const bilingual_str& userMessage = {});
 
 /** Guess verification progress (as a fraction between 0.0=genesis and 1.0=current tip). */
-double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex* pindex);
+double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex& pindex);
 
 /** Prune block files up to a given height */
 void PruneBlockFilesManual(Chainstate& active_chainstate, int nManualPruneHeight);
@@ -689,7 +689,7 @@ public:
         LOCKS_EXCLUDED(::cs_main);
 
     // Block (dis)connection on a given view:
-    DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* pindex, CCoinsViewCache& view)
+    DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex& pindex, CCoinsViewCache& view)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     bool ConnectBlock(const CBlock& block, BlockValidationState& state, CBlockIndex* pindex,
                       CCoinsViewCache& view, bool fJustCheck = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
@@ -702,7 +702,7 @@ public:
      *
      * May not be called in a validationinterface callback.
      */
-    bool PreciousBlock(BlockValidationState& state, CBlockIndex* pindex)
+    bool PreciousBlock(BlockValidationState& state, CBlockIndex& pindex)
         EXCLUSIVE_LOCKS_REQUIRED(!m_chainstate_mutex)
         LOCKS_EXCLUDED(::cs_main);
 
@@ -753,15 +753,15 @@ public:
 
 private:
     bool ActivateBestChainStep(BlockValidationState& state, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
-    bool ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
+    bool ConnectTip(BlockValidationState& state, CBlockIndex& pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
 
-    void InvalidBlockFound(CBlockIndex* pindex, const BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    void InvalidBlockFound(CBlockIndex& pindex, const BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     CBlockIndex* FindMostWorkChain() EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-    bool RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& inputs) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    bool RollforwardBlock(const CBlockIndex& pindex, CCoinsViewCache& inputs) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     void CheckForkWarningConditions() EXCLUSIVE_LOCKS_REQUIRED(cs_main);
-    void InvalidChainFound(CBlockIndex* pindexNew) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    void InvalidChainFound(CBlockIndex& pindexNew) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     /**
      * Make mempool consistent after a reorg, by re-adding or recursively erasing
@@ -781,7 +781,7 @@ private:
         bool fAddToMempool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
 
     /** Check warning conditions and do some notifications on new chain tip set. */
-    void UpdateTip(const CBlockIndex* pindexNew)
+    void UpdateTip(const CBlockIndex& pindexNew)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     SteadyClock::time_point m_last_write{};
@@ -1196,7 +1196,7 @@ public:
      */
     bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock, bool min_pow_checked) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-    void ReceivedBlockTransactions(const CBlock& block, CBlockIndex* pindexNew, const FlatFilePos& pos) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    void ReceivedBlockTransactions(const CBlock& block, CBlockIndex& pindexNew, const FlatFilePos& pos) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     /**
      * Try to add a transaction to the memory pool.
