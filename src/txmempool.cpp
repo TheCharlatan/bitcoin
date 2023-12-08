@@ -797,14 +797,9 @@ public:
 
 std::vector<CTxMemPool::indexed_transaction_set::const_iterator> CTxMemPool::GetSortedDepthAndScore() const
 {
-    std::vector<indexed_transaction_set::const_iterator> iters;
     AssertLockHeld(cs);
+    std::vector<indexed_transaction_set::const_iterator> iters{mapTx.begin(), mapTx.end()};
 
-    iters.reserve(mapTx.size());
-
-    for (indexed_transaction_set::iterator mi = mapTx.begin(); mi != mapTx.end(); ++mi) {
-        iters.push_back(mi);
-    }
     std::sort(iters.begin(), iters.end(), DepthAndScoreComparator());
     return iters;
 }
@@ -830,12 +825,7 @@ std::vector<CTxMemPoolEntryRef> CTxMemPool::entryAll() const
 {
     AssertLockHeld(cs);
 
-    std::vector<CTxMemPoolEntryRef> ret;
-    ret.reserve(mapTx.size());
-    for (const auto& it : GetSortedDepthAndScore()) {
-        ret.emplace_back(*it);
-    }
-    return ret;
+    return {mapTx.begin(), mapTx.end()};
 }
 
 std::vector<TxMempoolInfo> CTxMemPool::infoAll() const
