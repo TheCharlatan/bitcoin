@@ -118,5 +118,50 @@ static void MempoolCheck(benchmark::Bench& bench)
     });
 }
 
+static void MempoolIteratorCast(benchmark::Bench& bench)
+{
+    FastRandomContext det_rand{true};
+    auto testing_setup = MakeNoLogFileContext<TestChain100Setup>(ChainType::REGTEST, {"-checkmempool=1"});
+    CTxMemPool& pool = *testing_setup.get()->m_node.mempool;
+    LOCK2(cs_main, pool.cs);
+    testing_setup->PopulateMempool(det_rand, 400, true);
+    auto entries{pool.entryAll()};
+    auto total_fee = 0;
+
+    bench.run([&]() NO_THREAD_SAFETY_ANALYSIS {
+        for (const CTxMemPoolEntry& entry : entries) {
+            total_fee += entry.GetFee();
+            assert(entry.GetFee() == pool.mapTx.iterator_to(entry)->GetFee());
+        }
+    });
+}
+
+static void MempoolIterator(benchmark::Bench& bench)
+{
+    FastRandomContext det_rand{true};
+    auto testing_setup = MakeNoLogFileContext<TestChain100Setup>(ChainType::REGTEST, {"-checkmempool=1"});
+    CTxMemPool& pool = *testing_setup.get()->m_node.mempool;
+    LOCK2(cs_main, pool.cs);
+    testing_setup->PopulateMempool(det_rand, 400, true);
+    auto entries{pool.entryAll()};
+    std::vector<CTxMemPool::txiter> iters{};
+    iters.reserve(entries.size());
+    for (const CTxMemPoolEntry& entry : entries) {
+        iters.push_back(pool.mapTx.iterator_to(entry));
+    }
+    auto total_fee = 0;
+
+    bench.run([&]() NO_THREAD_SAFETY_ANALYSIS {
+        for (const auto& iter : iters) {
+            auto iter_2{iter};
+            total_fee += iter_2->GetFee(); // this should keep the optimizer away
+            assert(iter_2->GetFee() == iter->GetFee());
+        }
+    });
+}
+
+
 BENCHMARK(ComplexMemPool, benchmark::PriorityLevel::HIGH);
 BENCHMARK(MempoolCheck, benchmark::PriorityLevel::HIGH);
+BENCHMARK(MempoolIteratorCast, benchmark::PriorityLevel::HIGH);
+BENCHMARK(MempoolIterator, benchmark::PriorityLevel::HIGH);
