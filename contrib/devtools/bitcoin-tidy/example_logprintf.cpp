@@ -3,6 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <string>
+#include <iostream>
+#include <vector>
 
 // Test for bitcoin-unterminated-logprintf
 
@@ -105,4 +107,67 @@ void bad_func5()
     auto* walletptr = new CWallet();
     walletptr->WalletLogPrintf("hi");
     delete walletptr;
+}
+
+// Here come the evaluation order tests
+
+int g_testy = 0;
+
+int get_and_increment_global_value_1() {
+    g_testy += 1;
+    return g_testy;
+}
+
+int get_and_increment_global_value_2() {
+    g_testy = g_testy + 1;
+    return g_testy;
+}
+
+int get_static_value() {
+    static std::vector<int> nums = {0, 1, 2};
+    int ret = nums.back();
+    nums.pop_back();
+    return ret;
+}
+
+int easy_val() {
+    return 1;
+}
+
+int f(int a, int b, int c) {
+    return a - b * c;
+}
+
+int indirect_func() {
+    return get_static_value();
+}
+
+int bad_func_eval_1() {
+    int val = f(get_static_value(), get_static_value(), get_static_value());
+    return val;
+}
+
+int bad_func_eval_2() {
+    int val = f(get_and_increment_global_value_1(), get_and_increment_global_value_1(), get_and_increment_global_value_1());
+    return val;
+}
+
+int bad_func_eval_3() {
+    int val = f(get_and_increment_global_value_2(), get_and_increment_global_value_2(), get_and_increment_global_value_2());
+    return val;
+}
+
+int good_func_eval_1() {
+    int val = f(get_static_value(), 1, 2);
+    return val;
+}
+
+int good_func_eval_2() {
+    int val = f(get_static_value(), easy_val(), easy_val());
+    return val;
+}
+
+int bad_func_eval_4() {
+    int val = f(indirect_func(), indirect_func(), indirect_func());
+    return val;
 }
