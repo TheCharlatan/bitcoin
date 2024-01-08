@@ -1374,7 +1374,7 @@ util::Result<CreatedTransactionResult> FundTransaction(CWallet& wallet, const CM
         const CTxOut& txOut = tx.vout[idx];
         CTxDestination dest;
         ExtractDestination(txOut.scriptPubKey, dest);
-        CRecipient recipient = {dest, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1};
+        CRecipient recipient = {dest, txOut.nValue, setSubtractFeeFromOutputs.contains(idx)};
         vecSend.push_back(recipient);
     }
 

@@ -514,7 +514,7 @@ void AddrManImpl::MakeTried(AddrInfo& info, int nId)
     if (vvTried[nKBucket][nKBucketPos] != -1) {
         // find an item to evict
         int nIdEvict = vvTried[nKBucket][nKBucketPos];
-        assert(mapInfo.count(nIdEvict) == 1);
+        assert(mapInfo.contains(nIdEvict));
         AddrInfo& infoOld = mapInfo[nIdEvict];
 
         // Remove the to-be-evicted item from the tried set.
@@ -909,7 +909,7 @@ void AddrManImpl::ResolveCollisions_()
         bool erase_collision = false;
 
         // If id_new not found in mapInfo remove it from m_tried_collisions
-        if (mapInfo.count(id_new) != 1) {
+        if (!mapInfo.count(id_new)) {
             erase_collision = true;
         } else {
             AddrInfo& info_new = mapInfo[id_new];
@@ -975,7 +975,7 @@ std::pair<CAddress, NodeSeconds> AddrManImpl::SelectTriedCollision_()
     int id_new = *it;
 
     // If id_new not found in mapInfo remove it from m_tried_collisions
-    if (mapInfo.count(id_new) != 1) {
+    if (!mapInfo.contains(id_new)) {
         m_tried_collisions.erase(it);
         return {};
     }

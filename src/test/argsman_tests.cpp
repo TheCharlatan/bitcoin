@@ -458,18 +458,18 @@ BOOST_AUTO_TEST_CASE(util_ReadConfigStream)
     BOOST_CHECK(test_args.m_settings.ro_config["sec1"].size() == 3);
     BOOST_CHECK(test_args.m_settings.ro_config["sec2"].size() == 2);
 
-    BOOST_CHECK(test_args.m_settings.ro_config[""].count("a"));
-    BOOST_CHECK(test_args.m_settings.ro_config[""].count("b"));
-    BOOST_CHECK(test_args.m_settings.ro_config[""].count("ccc"));
-    BOOST_CHECK(test_args.m_settings.ro_config[""].count("d"));
-    BOOST_CHECK(test_args.m_settings.ro_config[""].count("fff"));
-    BOOST_CHECK(test_args.m_settings.ro_config[""].count("ggg"));
-    BOOST_CHECK(test_args.m_settings.ro_config[""].count("h"));
-    BOOST_CHECK(test_args.m_settings.ro_config[""].count("i"));
-    BOOST_CHECK(test_args.m_settings.ro_config["sec1"].count("ccc"));
-    BOOST_CHECK(test_args.m_settings.ro_config["sec1"].count("h"));
-    BOOST_CHECK(test_args.m_settings.ro_config["sec2"].count("ccc"));
-    BOOST_CHECK(test_args.m_settings.ro_config["sec2"].count("iii"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].contains("a"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].contains("b"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].contains("ccc"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].contains("d"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].contains("fff"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].contains("ggg"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].contains("h"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].contains("i"));
+    BOOST_CHECK(test_args.m_settings.ro_config["sec1"].contains("ccc"));
+    BOOST_CHECK(test_args.m_settings.ro_config["sec1"].contains("h"));
+    BOOST_CHECK(test_args.m_settings.ro_config["sec2"].contains("ccc"));
+    BOOST_CHECK(test_args.m_settings.ro_config["sec2"].contains("iii"));
 
     BOOST_CHECK(test_args.IsArgSet("-a"));
     BOOST_CHECK(test_args.IsArgSet("-b"));

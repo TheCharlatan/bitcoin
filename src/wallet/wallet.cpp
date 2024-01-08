@@ -254,7 +254,7 @@ void UnloadWallet(std::shared_ptr<CWallet>&& wallet)
     wallet.reset();
     {
         WAIT_LOCK(g_wallet_release_mutex, lock);
-        while (g_unloading_wallet_set.count(name) == 1) {
+        while (g_unloading_wallet_set.contains(name)) {
             g_wallet_release_cv.wait(lock);
         }
     }
