@@ -5,10 +5,7 @@
 #ifndef BITCOIN_NODE_CONTEXT_H
 #define BITCOIN_NODE_CONTEXT_H
 
-#include <kernel/context.h>
-
 #include <atomic>
-#include <cassert>
 #include <cstdlib>
 #include <functional>
 #include <memory>
@@ -23,6 +20,7 @@ class CConnman;
 class CScheduler;
 class CTxMemPool;
 class ChainstateManager;
+class ECC_Context;
 class NetGroupManager;
 class PeerManager;
 namespace interfaces {
@@ -31,6 +29,12 @@ class ChainClient;
 class Init;
 class WalletLoader;
 } // namespace interfaces
+namespace kernel {
+struct Context;
+}
+namespace util {
+class SignalInterrupt;
+}
 
 namespace node {
 class KernelNotifications;
@@ -48,6 +52,7 @@ class KernelNotifications;
 struct NodeContext {
     //! libbitcoin_kernel context
     std::unique_ptr<kernel::Context> kernel;
+    std::unique_ptr<ECC_Context> ecc_context;
     //! Init interface for initializing current process and connecting to other processes.
     interfaces::Init* init{nullptr};
     //! Interrupt object used to track whether node shutdown was requested.
