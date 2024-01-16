@@ -185,14 +185,14 @@ protected:
      * has been received and connected to the headers tree, though not validated yet.
      */
     virtual void NewPoWValidBlock(const CBlockIndex *pindex, const std::shared_ptr<const CBlock>& block) {};
-    friend class CMainSignals;
+    friend class ValidationSignals;
     friend class ValidationInterfaceTest;
 };
 
-class MainSignalsImpl;
-class CMainSignals {
+class ValidationSignalsImpl;
+class ValidationSignals {
 private:
-    std::unique_ptr<MainSignalsImpl> m_internals;
+    std::unique_ptr<ValidationSignalsImpl> m_internals;
 
     friend void ::RegisterSharedValidationInterface(std::shared_ptr<CValidationInterface>);
     friend void ::UnregisterValidationInterface(CValidationInterface*);
@@ -221,6 +221,6 @@ public:
     void NewPoWValidBlock(const CBlockIndex *, const std::shared_ptr<const CBlock>&);
 };
 
-CMainSignals& GetMainSignals();
+ValidationSignals& GetValidationSignals();
 
 #endif // BITCOIN_VALIDATIONINTERFACE_H

@@ -332,7 +332,7 @@ void Shutdown(NodeContext& node)
 
     // After there are no more peers/RPC left to give us new data which may generate
     // CValidationInterface callbacks, flush them...
-    GetMainSignals().FlushBackgroundCallbacks();
+    GetValidationSignals().FlushBackgroundCallbacks();
 
     // Stop and delete all indexes only after flushing background callbacks.
     if (g_txindex) {
@@ -374,7 +374,7 @@ void Shutdown(NodeContext& node)
 
     node.chain_clients.clear();
     UnregisterAllValidationInterfaces();
-    GetMainSignals().UnregisterBackgroundSignalScheduler();
+    GetValidationSignals().UnregisterBackgroundSignalScheduler();
     node.mempool.reset();
     node.fee_estimator.reset();
     node.chainman.reset();
@@ -1169,7 +1169,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
     }, std::chrono::minutes{5});
 
-    GetMainSignals().RegisterBackgroundSignalScheduler(*node.scheduler);
+    GetValidationSignals().RegisterBackgroundSignalScheduler(*node.scheduler);
 
     // Create client interfaces for wallets that are supposed to be loaded
     // according to -wallet and -disablewallet options. This only constructs

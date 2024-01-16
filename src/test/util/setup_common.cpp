@@ -172,7 +172,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
     // from blocking due to queue overrun.
     m_node.scheduler = std::make_unique<CScheduler>();
     m_node.scheduler->m_service_thread = std::thread(util::TraceThread, "scheduler", [&] { m_node.scheduler->serviceQueue(); });
-    GetMainSignals().RegisterBackgroundSignalScheduler(*m_node.scheduler);
+    GetValidationSignals().RegisterBackgroundSignalScheduler(*m_node.scheduler);
 
     m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>(FeeestPath(*m_node.args), DEFAULT_ACCEPT_STALE_FEE_ESTIMATES);
     m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
@@ -204,8 +204,8 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
 ChainTestingSetup::~ChainTestingSetup()
 {
     if (m_node.scheduler) m_node.scheduler->stop();
-    GetMainSignals().FlushBackgroundCallbacks();
-    GetMainSignals().UnregisterBackgroundSignalScheduler();
+    GetValidationSignals().FlushBackgroundCallbacks();
+    GetValidationSignals().UnregisterBackgroundSignalScheduler();
     m_node.connman.reset();
     m_node.banman.reset();
     m_node.addrman.reset();
