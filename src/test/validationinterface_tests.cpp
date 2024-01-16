@@ -28,7 +28,7 @@ BOOST_AUTO_TEST_CASE(unregister_validation_interface_race)
         const CBlock block_dummy;
         BlockValidationState state_dummy;
         while (generate) {
-            GetMainSignals().BlockChecked(block_dummy, state_dummy);
+            GetValidationSignals().BlockChecked(block_dummy, state_dummy);
         }
     }};
 
@@ -68,7 +68,7 @@ public:
     {
         CBlock block;
         BlockValidationState state;
-        GetMainSignals().BlockChecked(block, state);
+        GetValidationSignals().BlockChecked(block, state);
     }
     std::function<void()> m_on_call;
     std::function<void()> m_on_destroy;

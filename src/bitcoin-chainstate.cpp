@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
     // Gather some entropy once per minute.
     scheduler.scheduleEvery(RandAddPeriodic, std::chrono::minutes{1});
 
-    GetMainSignals().RegisterBackgroundSignalScheduler(scheduler);
+    GetValidationSignals().RegisterBackgroundSignalScheduler(scheduler);
 
     class KernelNotifications : public kernel::Notifications
     {
@@ -291,7 +291,7 @@ epilogue:
     scheduler.stop();
     if (chainman.m_thread_load.joinable()) chainman.m_thread_load.join();
 
-    GetMainSignals().FlushBackgroundCallbacks();
+    GetValidationSignals().FlushBackgroundCallbacks();
     {
         LOCK(cs_main);
         for (Chainstate* chainstate : chainman.GetAll()) {
@@ -301,5 +301,5 @@ epilogue:
             }
         }
     }
-    GetMainSignals().UnregisterBackgroundSignalScheduler();
+    GetValidationSignals().UnregisterBackgroundSignalScheduler();
 }
