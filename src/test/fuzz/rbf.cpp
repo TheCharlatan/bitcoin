@@ -38,7 +38,7 @@ FUZZ_TARGET(rbf, .init = initialize_rbf)
         return;
     }
 
-    CTxMemPool pool{MemPoolOptionsForTest(g_setup->m_node)};
+    CTxMemPool pool{*g_setup->m_node.validation_signals, MemPoolOptionsForTest(g_setup->m_node)};
 
     LIMITED_WHILE(fuzzed_data_provider.ConsumeBool(), 10000)
     {

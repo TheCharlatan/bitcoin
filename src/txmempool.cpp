@@ -394,8 +394,9 @@ void CTxMemPoolEntry::UpdateAncestorState(int32_t modifySize, CAmount modifyFee,
     assert(int(nSigOpCostWithAncestors) >= 0);
 }
 
-CTxMemPool::CTxMemPool(const Options& opts)
+CTxMemPool::CTxMemPool(ValidationSignals& signals, const Options& opts)
     : m_check_ratio{opts.check_ratio},
+      m_signals{signals},
       m_max_size_bytes{opts.max_size_bytes},
       m_expiry{opts.expiry},
       m_incremental_relay_feerate{opts.incremental_relay_feerate},
@@ -492,7 +493,7 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         // for any reason except being included in a block. Clients interested
         // in transactions included in blocks can subscribe to the BlockConnected
         // notification.
-        GetMainSignals().TransactionRemovedFromMempool(it->GetSharedTx(), reason, mempool_sequence);
+        m_signals.TransactionRemovedFromMempool(it->GetSharedTx(), reason, mempool_sequence);
     }
     TRACE5(mempool, removed,
         it->GetTx().GetHash().data(),
@@ -643,7 +644,7 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
         removeConflicts(*tx);
         ClearPrioritisation(tx->GetHash());
     }
-    GetMainSignals().MempoolTransactionsRemovedForBlock(txs_removed_for_block, nBlockHeight);
+    m_signals.MempoolTransactionsRemovedForBlock(txs_removed_for_block, nBlockHeight);
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = true;
 }

@@ -17,6 +17,7 @@ enum class OutputType;
 namespace interfaces {
 class Chain;
 } // namespace interfaces
+class ValidationSignals;
 
 namespace wallet {
 class CWallet;
