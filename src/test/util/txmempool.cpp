@@ -22,7 +22,7 @@ CTxMemPool::Options MemPoolOptionsForTest(const NodeContext& node)
         // Default to always checking mempool regardless of
         // chainparams.DefaultConsistencyChecks for tests
         .check_ratio = 1,
-        .signals = &GetMainSignals(),
+        .signals = node.validation_signals.get(),
     };
     const auto result{ApplyArgsManOptions(*node.args, ::Params(), mempool_opts)};
     Assert(result);
