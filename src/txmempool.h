@@ -40,6 +40,7 @@
 #include <vector>
 
 class CChain;
+class ValidationSignals;
 
 /** Fake height value used in Coin to signify they are only in the memory pool (since 0.8) */
 static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
@@ -432,6 +433,8 @@ public:
     indirectmap<COutPoint, const CTransaction*> mapNextTx GUARDED_BY(cs);
     std::map<uint256, CAmount> mapDeltas GUARDED_BY(cs);
 
+    ValidationSignals& m_signals;
+
     using Options = kernel::MemPoolOptions;
 
     const int64_t m_max_size_bytes;
@@ -452,7 +455,7 @@ public:
      * accepting transactions becomes O(N^2) where N is the number of transactions
      * in the pool.
      */
-    explicit CTxMemPool(const Options& opts);
+    explicit CTxMemPool(ValidationSignals& signals, const Options& opts);
 
     /**
      * If sanity-checking is turned on, check makes sure the pool is
