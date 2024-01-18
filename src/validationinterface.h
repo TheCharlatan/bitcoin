@@ -22,22 +22,11 @@ class BlockValidationState;
 class CBlock;
 class CBlockIndex;
 struct CBlockLocator;
-class CValidationInterface;
 class CScheduler;
 enum class MemPoolRemovalReason;
 struct RemovedMempoolTransactionInfo;
 struct NewMempoolTransactionInfo;
 class ValidationSignalsImpl;
-
-void RegisterValidationInterface(CValidationInterface* callbacks);
-void UnregisterValidationInterface(CValidationInterface* callbacks);
-void UnregisterAllValidationInterfaces();
-
-void RegisterSharedValidationInterface(std::shared_ptr<CValidationInterface> callbacks);
-void UnregisterSharedValidationInterface(std::shared_ptr<CValidationInterface> callbacks);
-
-void CallFunctionInValidationInterfaceQueue(std::function<void ()> func);
-void SyncWithValidationInterfaceQueue() LOCKS_EXCLUDED(cs_main);
 
 /**
  * Implement this to subscribe to events generated in validation and mempool
@@ -232,7 +221,5 @@ public:
     void BlockChecked(const CBlock&, const BlockValidationState&);
     void NewPoWValidBlock(const CBlockIndex *, const std::shared_ptr<const CBlock>&);
 };
-
-ValidationSignals& GetMainSignals();
 
 #endif // BITCOIN_VALIDATIONINTERFACE_H
