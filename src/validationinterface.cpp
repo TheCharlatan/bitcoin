@@ -45,9 +45,9 @@ public:
     // We are not allowed to assume the scheduler only runs in one thread,
     // but must ensure all callbacks happen in-order, so we end up creating
     // our own queue here :(
-    SingleThreadedSchedulerClient m_schedulerClient;
+    SerialTaskRunner m_task_runner;
 
-    explicit ValidationSignalsImpl(CScheduler& scheduler LIFETIMEBOUND) : m_schedulerClient(scheduler) {}
+    explicit ValidationSignalsImpl(CScheduler& scheduler LIFETIMEBOUND) : m_task_runner(scheduler) {}
 
     void Register(std::shared_ptr<CValidationInterface> callbacks) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
     {
@@ -101,12 +101,12 @@ ValidationSignals::~ValidationSignals() {}
 
 void ValidationSignals::FlushBackgroundCallbacks()
 {
-    m_internals->m_schedulerClient.EmptyQueue();
+    m_internals->m_task_runner.flush();
 }
 
 size_t ValidationSignals::CallbacksPending()
 {
-    return m_internals->m_schedulerClient.CallbacksPending();
+    return m_internals->m_task_runner.size();
 }
 
 void ValidationSignals::RegisterSharedValidationInterface(std::shared_ptr<CValidationInterface> callbacks)
@@ -140,7 +140,7 @@ void ValidationSignals::UnregisterAllValidationInterfaces()
 
 void ValidationSignals::CallFunctionInValidationInterfaceQueue(std::function<void()> func)
 {
-    m_internals->m_schedulerClient.AddToProcessQueue(std::move(func));
+    m_internals->m_task_runner.insert(std::move(func));
 }
 
 void ValidationSignals::SyncWithValidationInterfaceQueue()
@@ -162,7 +162,7 @@ void ValidationSignals::SyncWithValidationInterfaceQueue()
     do {                                                       \
         auto local_name = (name);                              \
         LOG_EVENT("Enqueuing " fmt, local_name, __VA_ARGS__);  \
-        m_internals->m_schedulerClient.AddToProcessQueue([=] { \
+        m_internals->m_task_runner.insert([=] { \
             LOG_EVENT(fmt, local_name, __VA_ARGS__);           \
             event();                                           \
         });                                                    \
