@@ -172,7 +172,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
     // We have to run a scheduler thread to prevent ActivateBestChain
     // from blocking due to queue overrun.
     m_node.scheduler->m_service_thread = std::thread(util::TraceThread, "scheduler", [&] { m_node.scheduler->serviceQueue(); });
-    m_node.validation_signals = std::make_unique<CMainSignals>(*m_node.scheduler);
+    m_node.validation_signals = std::make_unique<ValidationSignals>(*m_node.scheduler);
 
     m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>(FeeestPath(*m_node.args), DEFAULT_ACCEPT_STALE_FEE_ESTIMATES);
     m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
