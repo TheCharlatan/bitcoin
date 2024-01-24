@@ -385,6 +385,7 @@ struct SnapshotTestSetup : TestChain100Setup {
                 .datadir = chainman.m_options.datadir,
                 .adjusted_time_callback = GetAdjustedTime,
                 .notifications = *m_node.notifications,
+                .signals = &GetMainSignals(),
             };
             const BlockManager::Options blockman_opts{
                 .chainparams = chainman_opts.chainparams,
