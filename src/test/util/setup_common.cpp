@@ -187,6 +187,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
         .adjusted_time_callback = GetAdjustedTime,
         .check_block_index = true,
         .notifications = *m_node.notifications,
+        .signals = &GetMainSignals(),
         .worker_threads_num = 2,
     };
     const BlockManager::Options blockman_opts{
