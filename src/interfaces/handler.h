@@ -23,9 +23,6 @@ class Handler
 {
 public:
     virtual ~Handler() {}
-
-    //! Disconnect the handler.
-    virtual void disconnect() = 0;
 };
 
 //! Return handler wrapping a boost signal connection.

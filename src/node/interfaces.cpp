@@ -465,8 +465,7 @@ public:
     {
         m_signals.RegisterSharedValidationInterface(m_proxy);
     }
-    ~NotificationsHandlerImpl() override { disconnect(); }
-    void disconnect() override
+    ~NotificationsHandlerImpl() override 
     {
         if (m_proxy) {
             m_signals.UnregisterSharedValidationInterface(m_proxy);
@@ -502,15 +501,13 @@ public:
         ::tableRPC.appendCommand(m_command.name, &m_command);
     }
 
-    void disconnect() final
+    ~RpcHandlerImpl() override
     {
         if (m_wrapped_command) {
             m_wrapped_command = nullptr;
             ::tableRPC.removeCommand(m_command.name, &m_command);
         }
     }
-
-    ~RpcHandlerImpl() override { disconnect(); }
 
     CRPCCommand m_command;
     const CRPCCommand* m_wrapped_command;

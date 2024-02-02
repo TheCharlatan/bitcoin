@@ -268,13 +268,13 @@ void ClientModel::subscribeToCoreSignals()
 
 void ClientModel::unsubscribeFromCoreSignals()
 {
-    m_handler_show_progress->disconnect();
-    m_handler_notify_num_connections_changed->disconnect();
-    m_handler_notify_network_active_changed->disconnect();
-    m_handler_notify_alert_changed->disconnect();
-    m_handler_banned_list_changed->disconnect();
-    m_handler_notify_block_tip->disconnect();
-    m_handler_notify_header_tip->disconnect();
+    m_handler_show_progress.reset();
+    m_handler_notify_num_connections_changed.reset();
+    m_handler_notify_network_active_changed.reset();
+    m_handler_notify_alert_changed.reset();
+    m_handler_banned_list_changed.reset();
+    m_handler_notify_block_tip.reset();
+    m_handler_notify_header_tip.reset();
 }
 
 bool ClientModel::getProxyInfo(std::string& ip_port) const

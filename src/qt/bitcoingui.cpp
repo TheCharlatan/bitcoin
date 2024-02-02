@@ -1565,8 +1565,8 @@ void BitcoinGUI::subscribeToCoreSignals()
 void BitcoinGUI::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from client
-    m_handler_message_box->disconnect();
-    m_handler_question->disconnect();
+    m_handler_message_box.reset();
+    m_handler_question.reset();
 }
 
 bool BitcoinGUI::isPrivacyModeActivated() const

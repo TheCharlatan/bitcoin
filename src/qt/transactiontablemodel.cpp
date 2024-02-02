@@ -749,6 +749,6 @@ void TransactionTableModel::subscribeToCoreSignals()
 void TransactionTableModel::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from wallet
-    m_handler_transaction_changed->disconnect();
-    m_handler_show_progress->disconnect();
+    m_handler_transaction_changed.reset();
+    m_handler_show_progress.reset();
 }

@@ -436,13 +436,13 @@ void WalletModel::subscribeToCoreSignals()
 void WalletModel::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from wallet
-    m_handler_unload->disconnect();
-    m_handler_status_changed->disconnect();
-    m_handler_address_book_changed->disconnect();
-    m_handler_transaction_changed->disconnect();
-    m_handler_show_progress->disconnect();
-    m_handler_watch_only_changed->disconnect();
-    m_handler_can_get_addrs_changed->disconnect();
+    m_handler_unload.reset();
+    m_handler_status_changed.reset();
+    m_handler_address_book_changed.reset();
+    m_handler_transaction_changed.reset();
+    m_handler_show_progress.reset();
+    m_handler_watch_only_changed.reset();
+    m_handler_can_get_addrs_changed.reset();
 }
 
 // WalletModel::UnlockContext implementation

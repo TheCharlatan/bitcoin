@@ -201,11 +201,8 @@ void SplashScreen::handleLoadWallet()
 void SplashScreen::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from client
-    m_handler_init_message->disconnect();
-    m_handler_show_progress->disconnect();
-    for (const auto& handler : m_connected_wallet_handlers) {
-        handler->disconnect();
-    }
+    m_handler_init_message.reset();
+    m_handler_show_progress.reset();
     m_connected_wallet_handlers.clear();
     m_connected_wallets.clear();
 }
