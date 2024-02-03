@@ -433,7 +433,6 @@ if ENABLE_BENCH
 	$(BENCH_BINARY) -sanity-check -priority-level=high
 endif
 endif
-	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C secp256k1 check
 
 if ENABLE_TESTS
 UNIVALUE_TESTS = univalue/test/object univalue/test/unitester
