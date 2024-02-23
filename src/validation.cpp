@@ -2966,10 +2966,12 @@ public:
  *
  * The block is added to connectTrace if connection succeeds.
  */
-bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool) // NOLINT(bitcoin-fatal-error)
+util::Result<bool, kernel::FatalError> Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool)
 {
     AssertLockHeld(cs_main);
     if (m_mempool) AssertLockHeld(m_mempool->cs);
+
+    util::Result<bool, kernel::FatalError> result{true};
 
     assert(pindexNew->pprev == m_chain.Tip());
     // Read block from disk.
@@ -2978,7 +2980,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     if (!pblock) {
         std::shared_ptr<CBlock> pblockNew = std::make_shared<CBlock>();
         if (!m_blockman.ReadBlockFromDisk(*pblockNew, *pindexNew)) {
-            return FatalError(m_chainman.GetNotifications(), state, "Failed to read block");
+            return ValidationFatalError(state, "Failed to read block", kernel::FatalError::ReadBlockFailed);
         }
         pthisBlock = pblockNew;
     } else {
@@ -3057,14 +3059,14 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     if (this != &m_chainman.ActiveChainstate()) {
         // This call may set `m_disabled`, which is referenced immediately afterwards in
         // ActivateBestChain, so that we stop connecting blocks past the snapshot base.
-        // FIXME: Add proper abort handling.
-        if (auto err = m_chainman.MaybeCompleteSnapshotValidation(); !err) { // NOLINT(bitcoin-fatal-error)
-            LogPrintf("Chainstate snapshot validation failed.");
-        }
+        // Do not return early on fatal errors here, since completing snapshot
+        // validation is something that can be re-attempted and we can still
+        // attempt to finish validating the block.
+        result.MoveMessages(m_chainman.MaybeCompleteSnapshotValidation());
     }
 
     connectTrace.BlockConnected(pindexNew, std::move(pthisBlock));
-    return true;
+    return result;
 }
 
 /**
@@ -3194,7 +3196,9 @@ util::Result<bool, kernel::FatalError> Chainstate::ActivateBestChainStep(BlockVa
 
         // Connect new blocks.
         for (CBlockIndex* pindexConnect : reverse_iterate(vpindexToConnect)) {
-            if (!ConnectTip(state, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace, disconnectpool)) {
+            const auto res{ConnectTip(state, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace, disconnectpool)};
+            result.MoveMessages(res);
+            if (!res || !res.value()) {
                 if (state.IsInvalid()) {
                     // The block violates a consensus rule.
                     if (state.GetResult() != BlockValidationResult::BLOCK_MUTATED) {
@@ -3209,6 +3213,7 @@ util::Result<bool, kernel::FatalError> Chainstate::ActivateBestChainStep(BlockVa
                     // Make the mempool consistent with the current tip, just in case
                     // any observers try to use it before shutdown.
                     MaybeUpdateMempoolForReorg(disconnectpool, false);
+                    if (!res) return res;
                     result.Set(false);
                     return result;
                 }
