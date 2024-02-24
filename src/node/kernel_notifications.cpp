@@ -84,17 +84,6 @@ void KernelNotifications::warning(const bilingual_str& warning)
     DoWarning(warning);
 }
 
-void KernelNotifications::flushError(const std::string& debug_message)
-{
-    AbortNode(&m_shutdown, m_exit_status, debug_message);
-}
-
-void KernelNotifications::fatalError(const std::string& debug_message, const bilingual_str& user_message)
-{
-    node::AbortNode(m_shutdown_on_fatal_error ? &m_shutdown : nullptr,
-                    m_exit_status, debug_message, user_message);
-}
-
 void ReadNotificationArgs(const ArgsManager& args, KernelNotifications& notifications)
 {
     if (auto value{args.GetIntArg("-stopatheight")}) notifications.m_stop_at_height = *value;
