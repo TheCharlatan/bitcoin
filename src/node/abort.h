@@ -45,6 +45,20 @@ template <typename T>
     }
 }
 
+#define UNWRAP_OR_RETURN_FATAL(VALUE, RESULT, SHUTDOWN, EXIT_STATUS) \
+    const auto res{HandleFatalError(RESULT, SHUTDOWN, EXIT_STATUS)}; \
+    if (!res) { \
+        return; \
+    } \
+    VALUE{res.value()};
+
+#define UNWRAP_OR_RETURN_TYPED_FATAL(VALUE, RESULT, SHUTDOWN, EXIT_STATUS, RETURN_VALUE) \
+    const auto res{HandleFatalError(RESULT, SHUTDOWN, EXIT_STATUS)}; \
+    if (!res) { \
+        return RETURN_VALUE; \
+    } \
+    VALUE{res.value()};
+
 } // namespace node
 
 #endif // BITCOIN_NODE_ABORT_H
