@@ -4,17 +4,17 @@ project(bitcoin-tidy VERSION 1.0.0 DESCRIPTION "clang-tidy checks for Bitcoin Co
 
 include(GNUInstallDirs)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS False)
 
 # TODO: Figure out how to avoid the terminfo check
-find_package(LLVM REQUIRED CONFIG)
+find_package(LLVM ${LLVM_VERSION_MAJOR} REQUIRED CONFIG)
 find_program(CLANG_TIDY_EXE NAMES "clang-tidy-${LLVM_VERSION_MAJOR}" "clang-tidy" HINTS ${LLVM_TOOLS_BINARY_DIR})
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Found clang-tidy: ${CLANG_TIDY_EXE}")
 
-add_library(bitcoin-tidy MODULE bitcoin-tidy.cpp logprintf.cpp)
+add_library(bitcoin-tidy MODULE bitcoin-tidy.cpp logprintf.cpp fatal_error.cpp)
 target_include_directories(bitcoin-tidy SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
 
 # Disable RTTI and exceptions as necessary
@@ -47,8 +47,9 @@ else()
 endif()
 
 # Create a dummy library that runs clang-tidy tests as a side-effect of building
-add_library(bitcoin-tidy-tests OBJECT EXCLUDE_FROM_ALL example_logprintf.cpp)
+add_library(bitcoin-tidy-tests OBJECT EXCLUDE_FROM_ALL example_logprintf.cpp example_fatal_error.cpp)
 add_dependencies(bitcoin-tidy-tests bitcoin-tidy)
+target_include_directories(bitcoin-tidy-tests PRIVATE "${PROJECT_SOURCE_DIR}/../../../src")
 
 set_target_properties(bitcoin-tidy-tests PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
 
