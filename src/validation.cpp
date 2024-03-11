@@ -2616,6 +2616,7 @@ util::Result<bool, kernel::FatalError> Chainstate::FlushStateToDisk(
     assert(this->CanFlushToDisk());
     std::set<int> setFilesToPrune;
     bool full_flush_completed = false;
+    util::Result<bool, kernel::FatalError> result{true};
 
     const size_t coins_count = CoinsTip().GetCacheSize();
     const size_t coins_mem_usage = CoinsTip().DynamicMemoryUsage();
@@ -2696,9 +2697,11 @@ util::Result<bool, kernel::FatalError> Chainstate::FlushStateToDisk(
                 LOG_TIME_MILLIS_WITH_CATEGORY("write block and undo data to disk", BCLog::BENCH);
 
                 // First make sure all block and undo data is flushed to disk.
-                // TODO: Handle return error, or add detailed comment why it is
+                // TODO (fatal error): Handle return error, or add detailed comment why it is
                 // safe to not return an error upon failure.
-                if (!m_blockman.FlushChainstateBlockFile(m_chain.Height())) {
+                auto res{m_blockman.FlushChainstateBlockFile(m_chain.Height())};
+                result.MoveMessages(res);
+                if (!res || !res.value()) {
                     LogPrintLevel(BCLog::VALIDATION, BCLog::Level::Warning, "%s: Failed to flush block file.\n", __func__);
                 }
             }
@@ -2753,7 +2756,7 @@ util::Result<bool, kernel::FatalError> Chainstate::FlushStateToDisk(
     } catch (const std::runtime_error& e) {
         return ValidationFatalError(state, std::string("Fatal error while flushing: ") + e.what(), kernel::FatalError::FlushStateToDiskFailed);
     }
-    return true;
+    return result;
 }
 
 util::Result<void, kernel::FatalError> Chainstate::ForceFlushStateToDisk()
