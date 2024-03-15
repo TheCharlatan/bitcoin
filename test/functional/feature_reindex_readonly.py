@@ -76,7 +76,7 @@ class BlockstoreReindexTest(BitcoinTestFramework):
             self.log.info("Attempt to restart and reindex the node with the unwritable block file")
             with self.nodes[0].assert_debug_log(expected_msgs=['FlushStateToDisk', 'failed to open file'], unexpected_msgs=[]):
                 self.nodes[0].assert_start_raises_init_error(extra_args=['-reindex', '-fastprune'],
-                    expected_msg="Error: A fatal internal error occurred, see debug.log for details")
+                    expected_msg="Error: A fatal internal error occurred, see debug.log for details: Flushing block file to disk failed. This is likely the result of an I/O error.")
             undo_immutable()
 
         filename.chmod(0o777)
