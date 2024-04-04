@@ -95,6 +95,42 @@ util::Result<NoCopyNoMove, NoCopyNoMove> NoCopyNoMoveFn(int i, bool success)
 
 enum FnError { ERR1, ERR2 };
 
+struct FnMessageError {
+    FnError err{ERR1};
+    bool empty() const { return false; }
+};
+
+struct FnMessageWarning {
+    FnError warn{ERR1};
+    bool empty() const { return false; }
+};
+
+struct FnMessage {
+    using ErrorType = FnMessageError;
+    using WarningType = FnMessageWarning;
+    std::vector<ErrorType> errors{};
+    std::vector<WarningType> warnings{};
+
+    static void AddError(FnMessage& messages, ErrorType error)
+    {
+        messages.errors.emplace_back(std::move(error));
+    }
+    static void AddWarning(FnMessage& messages, WarningType warning)
+    {
+        messages.warnings.emplace_back(std::move(warning));
+    }
+    static bool HasMessages(const FnMessage& messages)
+    {
+        return messages.errors.size() || messages.warnings.size();
+    }
+};
+
+util::Result<int, FnError, FnMessage> MessageFailFunction()
+{
+    util::Result<int, FnError, FnMessage> result{util::Error{FnMessageError{}}, ERR1};
+    return result;
+}
+
 util::Result<int, FnError> IntFailFn(int i, bool success)
 {
     if (success) return {util::Warning{Untranslated(strprintf("int %i warn.", i))}, i};
@@ -201,6 +237,7 @@ BOOST_AUTO_TEST_CASE(check_returned)
     ExpectFail(TruthyFalsyFn(0, false), Untranslated("failure value 0."), 0);
     ExpectSuccess(TruthyFalsyFn(1, true), {}, 1);
     ExpectFail(TruthyFalsyFn(1, false), Untranslated("failure value 1."), 1);
+    BOOST_CHECK_EQUAL(Assert(MessageFailFunction().GetMessages())->errors[0].err, FnMessageError{}.err);
 }
 
 BOOST_AUTO_TEST_CASE(check_update)

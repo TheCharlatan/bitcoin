@@ -17,10 +17,44 @@
 #include <vector>
 
 namespace util {
-//! Default MessagesType, simple list of errors and warnings.
+
+template <typename T>
+concept MessagesTrait = requires(T t, typename T::ErrorType error, typename T::WarningType warning) {
+    {
+        error.empty()
+    } -> std::same_as<bool>;
+    {
+        warning.empty()
+    } -> std::same_as<bool>;
+    {
+        T::AddError(t, std::move(error))
+    } -> std::same_as<void>;
+    {
+        T::AddWarning(t, std::move(warning))
+    } -> std::same_as<void>;
+    {
+        T::HasMessages(t)
+    } -> std::same_as<bool>;
+};
+
+//! MessagesTraits specialization for Messages struct.
 struct Messages {
-    std::vector<bilingual_str> errors{};
-    std::vector<bilingual_str> warnings{};
+    using ErrorType = bilingual_str;
+    using WarningType = bilingual_str;
+    std::vector<ErrorType> errors{};
+    std::vector<WarningType> warnings{};
+    static void AddError(Messages& messages, ErrorType error)
+    {
+        messages.errors.emplace_back(std::move(error));
+    }
+    static void AddWarning(Messages& messages, WarningType warning)
+    {
+        messages.warnings.emplace_back(std::move(warning));
+    }
+    static bool HasMessages(const Messages& messages)
+    {
+        return messages.errors.size() || messages.warnings.size();
+    }
 };
 
 //! The Result<SuccessType, FailureType, MessagesType> class provides an
@@ -64,15 +98,18 @@ struct Messages {
 //!
 //! Usage examples can be found in \example ../test/result_tests.cpp.
 template <typename SuccessType = void, typename FailureType = void, typename MessagesType = Messages>
+requires MessagesTrait<MessagesType>
 class Result;
 
-//! Wrapper object to pass an error string to the Result constructor.
+//! Wrapper object to pass an error to the Result constructor.
+template <typename T = bilingual_str>
 struct Error {
-    bilingual_str message;
+    T message;
 };
-//! Wrapper object to pass a warning string to the Result constructor.
+//! Wrapper object to pass a warning to the Result constructor.
+template <typename T = bilingual_str>
 struct Warning {
-    bilingual_str message;
+    T message;
 };
 
 //! Wrapper object to pass an existing Result object to the Result constructor,
@@ -103,31 +140,10 @@ struct ResultTraits {
     }
 };
 
-//! Extension point for specializing behavior of MessagesType
-template<typename MessagesType>
-struct MessagesTraits;
-
 //! ResultTraits specialization for Messages struct.
 template<>
 struct ResultTraits<Messages> {
     static void MergeInto(Messages& dst, Messages& src);
-};
-
-//! MessagesTraits specialization for Messages struct.
-template<>
-struct MessagesTraits<Messages> {
-    static void AddError(Messages& messages, bilingual_str error)
-    {
-        messages.errors.emplace_back(std::move(error));
-    }
-    static void AddWarning(Messages& messages, bilingual_str warning)
-    {
-        messages.warnings.emplace_back(std::move(warning));
-    }
-    static bool HasMessages(const Messages& messages)
-    {
-        return messages.errors.size() || messages.warnings.size();
-    }
 };
 
 namespace detail {
@@ -144,6 +160,7 @@ struct Monostate{};
 //! Container for FailureType and MessagesType, providing public operator
 //! bool(), GetFailure(), GetMessages(), and EnsureMessages() methods.
 template <typename FailureType, typename MessagesType>
+requires MessagesTrait<MessagesType>
 class FailDataHolder
 {
 protected:
@@ -173,6 +190,7 @@ public:
 //! Container for SuccessType, providing public accessor methods similar to
 //! std::optional methods to access the success value.
 template <typename SuccessType, typename FailureType, typename MessagesType>
+requires MessagesTrait<MessagesType>
 class SuccessHolder : public FailDataHolder<FailureType, MessagesType>
 {
 protected:
@@ -207,6 +225,7 @@ public:
 
 //! Specialization of SuccessHolder when SuccessType is void.
 template <typename FailureType, typename MessagesType>
+requires MessagesTrait<MessagesType>
 class SuccessHolder<void, FailureType, MessagesType> : public FailDataHolder<FailureType, MessagesType>
 {
 };
@@ -215,6 +234,7 @@ class SuccessHolder<void, FailureType, MessagesType> : public FailDataHolder<Fai
 
 // Result type class, documented at the top of this file.
 template <typename SuccessType_, typename FailureType_, typename MessagesType_>
+requires MessagesTrait<MessagesType_>
 class Result : public detail::SuccessHolder<SuccessType_, FailureType_, MessagesType_>
 {
 public:
@@ -261,17 +281,18 @@ public:
     template <typename Result>
     Result& operator=(Result&&) = delete;
 
-    void AddError(bilingual_str error)
+    void AddError(MessagesType::ErrorType error)
     {
-        if (!error.empty()) MessagesTraits<MessagesType>::AddError(this->EnsureFailData().messages, std::move(error));
+        if (!error.empty()) MessagesType::AddError(this->EnsureFailData().messages, std::move(error));
     }
-    void AddWarning(bilingual_str warning)
+    void AddWarning(MessagesType::WarningType warning)
     {
-        if (!warning.empty()) MessagesTraits<MessagesType>::AddWarning(this->EnsureFailData().messages, std::move(warning));
+        if (!warning.empty()) MessagesType::AddWarning(this->EnsureFailData().messages, std::move(warning));
     }
 
 protected:
-    template <typename, typename, typename>
+    template <typename, typename, typename M>
+    requires MessagesTrait<M>
     friend class Result;
 
     //! Helper function to construct a new success or failure value using the
@@ -292,7 +313,7 @@ protected:
 
     //! Construct() overload peeling off a util::Error constructor argument.
     template <bool Failure, typename Result, typename... Args>
-    static void Construct(Result& result, util::Error error, Args&&... args)
+    static void Construct(Result& result, util::Error<typename MessagesType::ErrorType> error, Args&&... args)
     {
         result.AddError(std::move(error.message));
         Construct</*Failure=*/true>(result, std::forward<Args>(args)...);
@@ -300,7 +321,7 @@ protected:
 
     //! Construct() overload peeling off a util::Warning constructor argument.
     template <bool Failure, typename Result, typename... Args>
-    static void Construct(Result& result, util::Warning warning, Args&&... args)
+    static void Construct(Result& result, util::Warning<typename MessagesType::WarningType> warning, Args&&... args)
     {
         result.AddWarning(std::move(warning.message));
         Construct<Failure>(result, std::forward<Args>(args)...);
@@ -402,7 +423,7 @@ requires (std::decay_t<SrcResult>::is_result)
 decltype(auto) operator>>(SrcResult&& src LIFETIMEBOUND, DstResult&& dst)
 {
     using SrcType = std::decay_t<SrcResult>;
-    if (src.GetMessages() && MessagesTraits<typename SrcType::MessagesType>::HasMessages(*src.GetMessages())) {
+    if (src.GetMessages() && SrcType::MessagesType::HasMessages(*src.GetMessages())) {
         ResultTraits<typename SrcType::MessagesType>::MergeInto(dst.EnsureMessages(), *src.GetMessages());
     }
     return static_cast<SrcType&&>(src);
