@@ -76,8 +76,6 @@ static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 /** Size of header written by WriteBlockToDisk before a serialized CBlock */
 static constexpr size_t BLOCK_SERIALIZATION_HEADER_SIZE = std::tuple_size_v<MessageStartChars> + sizeof(unsigned int);
 
-extern std::atomic_bool fReindex;
-
 // Because validation code takes pointers to the map's CBlockIndex objects, if
 // we ever switch to another associative container, we need to either use a
 // container that has stable addressing (true of all std associative
@@ -254,10 +252,12 @@ public:
     explicit BlockManager(const util::SignalInterrupt& interrupt, Options opts)
         : m_prune_mode{opts.prune_target > 0},
           m_opts{std::move(opts)},
-          m_interrupt{interrupt} {};
+          m_interrupt{interrupt},
+          m_reindex{m_opts.reindex} {};
 
     const util::SignalInterrupt& m_interrupt;
     std::atomic<bool> m_importing{false};
+    std::atomic_bool m_reindex;
 
     BlockMap m_block_index GUARDED_BY(cs_main);
 
@@ -322,7 +322,7 @@ public:
     [[nodiscard]] uint64_t GetPruneTarget() const { return m_opts.prune_target; }
     static constexpr auto PRUNE_TARGET_MANUAL{std::numeric_limits<uint64_t>::max()};
 
-    [[nodiscard]] bool LoadingBlocks() const { return m_importing || fReindex; }
+    [[nodiscard]] bool LoadingBlocks() const { return m_importing || m_reindex; }
 
     /** Calculate the amount of disk space the block & undo files currently use */
     uint64_t CalculateCurrentUsage();
