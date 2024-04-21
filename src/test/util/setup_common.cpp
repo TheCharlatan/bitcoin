@@ -229,7 +229,9 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
     m_node.validation_signals = std::make_unique<ValidationSignals>(std::make_unique<SerialTaskRunner>(*m_node.scheduler));
 
     m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>(FeeestPath(*m_node.args), DEFAULT_ACCEPT_STALE_FEE_ESTIMATES);
-    m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
+    util::Error error{};
+    m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node), error);
+    Assert(error.message.empty());
 
     m_cache_sizes = CalculateCacheSizes(m_args);
 
