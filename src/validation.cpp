@@ -4271,15 +4271,14 @@ void ChainstateManager::ReportHeadersPresync(const arith_uint256& work, int64_t 
 }
 
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
-bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock, bool min_pow_checked)
+bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock, bool min_pow_checked)
 {
     const CBlock& block = *pblock;
 
     if (fNewBlock) *fNewBlock = false;
     AssertLockHeld(cs_main);
 
-    CBlockIndex *pindexDummy = nullptr;
-    CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
+    CBlockIndex *pindex = nullptr;
 
     bool accepted_header{AcceptBlockHeader(block, state, &pindex, min_pow_checked)};
     CheckBlockIndex();
@@ -4342,11 +4341,11 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
     // Write block to history file
     if (fNewBlock) *fNewBlock = true;
     try {
-        FlatFilePos blockPos{m_blockman.SaveBlockToDisk(block, pindex->nHeight, dbp)};
-        if (blockPos.IsNull()) {
-            state.Error(strprintf("%s: Failed to find position to write new block to disk", __func__));
-            return false;
-        }
+        // FlatFilePos blockPos{m_blockman.SaveBlockToDisk(block, pindex->nHeight, dbp)};
+        // if (blockPos.IsNull()) {
+            // state.Error(strprintf("%s: Failed to find position to write new block to disk", __func__));
+            // return false;
+        // }
         ReceivedBlockTransactions(block, pindex, blockPos);
     } catch (const std::runtime_error& e) {
         return FatalError(GetNotifications(), state, strprintf(_("System error while saving block to disk: %s"), e.what()));
@@ -4371,7 +4370,6 @@ bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& blo
     AssertLockNotHeld(cs_main);
 
     {
-        CBlockIndex *pindex = nullptr;
         if (new_block) *new_block = false;
         BlockValidationState state;
 
@@ -4387,7 +4385,7 @@ bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& blo
         bool ret = CheckBlock(*block, state, GetConsensus());
         if (ret) {
             // Store to disk
-            ret = AcceptBlock(block, state, &pindex, force_processing, nullptr, new_block, min_pow_checked);
+            ret = AcceptBlock(block, state, force_processing, nullptr, new_block, min_pow_checked);
         }
         if (!ret) {
             if (m_options.signals) {
@@ -4940,7 +4938,7 @@ void ChainstateManager::LoadExternalBlockFile(
                         nRewind = blkdat.GetPos();
 
                         BlockValidationState state;
-                        if (AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, true)) {
+                        if (AcceptBlock(pblock, state, true, dbp, nullptr, true)) {
                             nLoaded++;
                         }
                         if (state.IsError()) {
@@ -5007,7 +5005,7 @@ void ChainstateManager::LoadExternalBlockFile(
                                     head.ToString());
                             LOCK(cs_main);
                             BlockValidationState dummy;
-                            if (AcceptBlock(pblockrecursive, dummy, nullptr, true, &it->second, nullptr, true)) {
+                            if (AcceptBlock(pblockrecursive, dummy, true, &it->second, nullptr, true)) {
                                 nLoaded++;
                                 queue.push_back(pblockrecursive->GetHash());
                             }

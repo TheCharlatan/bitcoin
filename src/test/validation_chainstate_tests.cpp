@@ -113,7 +113,6 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
 
     // Append the first block to the background chain.
     BlockValidationState state;
-    CBlockIndex* pindex = nullptr;
     const CChainParams& chainparams = Params();
     bool newblock = false;
 
@@ -124,7 +123,7 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
         bool checked = CheckBlock(*pblockone, state, chainparams.GetConsensus());
         BOOST_CHECK(checked);
         bool accepted = chainman.AcceptBlock(
-            pblockone, state, &pindex, true, nullptr, &newblock, true);
+            pblockone, state, true, nullptr, &newblock, true);
         BOOST_CHECK(accepted);
     }
 
