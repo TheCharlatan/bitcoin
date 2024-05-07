@@ -239,4 +239,18 @@ void ECC_Stop();
 /** Check that required EC support is available at runtime. */
 bool ECC_InitSanityCheck();
 
+/**
+ * RAII wrapper for ECC_Start() and ECC_End(), initializing global ECC state.
+ * Only one instance may be initialized at a time.
+ *
+ * In the future global ECC state could be removed, and this class could contain
+ * state and be passed as an argument to ECC key functions.
+ */
+class ECC_Context
+{
+public:
+    ECC_Context();
+    ~ECC_Context();
+};
+
 #endif // BITCOIN_KEY_H
