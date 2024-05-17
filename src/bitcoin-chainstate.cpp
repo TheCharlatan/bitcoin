@@ -66,7 +66,6 @@ int main(int argc, char* argv[])
     // performing the check with the signature cache.
     kernel::ValidationCacheSizes validation_cache_sizes{};
     Assert(InitSignatureCache(validation_cache_sizes.signature_cache_bytes));
-    Assert(InitScriptExecutionCache(validation_cache_sizes.script_execution_cache_bytes));
 
     ValidationSignals validation_signals{std::make_unique<util::ImmediateTaskRunner>()};
 
@@ -116,7 +115,9 @@ int main(int argc, char* argv[])
         .notifications = chainman_opts.notifications,
     };
     util::SignalInterrupt interrupt;
-    ChainstateManager chainman{interrupt, chainman_opts, blockman_opts};
+    bilingual_str err;
+    ChainstateManager chainman{interrupt, chainman_opts, blockman_opts, err};
+    Assert(err.empty());
 
     node::CacheSizes cache_sizes;
     cache_sizes.block_tree_db = 2 << 20;

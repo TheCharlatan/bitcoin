@@ -189,7 +189,6 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
     ValidationCacheSizes validation_cache_sizes{};
     ApplyArgsManOptions(*m_node.args, validation_cache_sizes);
     Assert(InitSignatureCache(validation_cache_sizes.signature_cache_bytes));
-    Assert(InitScriptExecutionCache(validation_cache_sizes.script_execution_cache_bytes));
 
     m_node.chain = interfaces::MakeChain(m_node);
     static bool noui_connected = false;
@@ -246,7 +245,9 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
         .blocks_dir = m_args.GetBlocksDirPath(),
         .notifications = chainman_opts.notifications,
     };
-    m_node.chainman = std::make_unique<ChainstateManager>(*Assert(m_node.shutdown), chainman_opts, blockman_opts);
+    bilingual_str error;
+    m_node.chainman = std::make_unique<ChainstateManager>(*Assert(m_node.shutdown), chainman_opts, blockman_opts, error);
+    Assert(error.empty());
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<BlockTreeDB>(DBParams{
         .path = m_args.GetDataDirNet() / "blocks" / "index",
         .cache_bytes = static_cast<size_t>(m_cache_sizes.block_tree_db),

@@ -1147,9 +1147,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     ValidationCacheSizes validation_cache_sizes{};
     ApplyArgsManOptions(args, validation_cache_sizes);
-    if (!InitSignatureCache(validation_cache_sizes.signature_cache_bytes)
-        || !InitScriptExecutionCache(validation_cache_sizes.script_execution_cache_bytes))
-    {
+    if (!InitSignatureCache(validation_cache_sizes.signature_cache_bytes)) {
         return InitError(strprintf(_("Unable to allocate memory for -maxsigcachesize: '%s' MiB"), args.GetIntArg("-maxsigcachesize", DEFAULT_MAX_SIG_CACHE_BYTES >> 20)));
     }
 
@@ -1534,7 +1532,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     for (bool fLoaded = false; !fLoaded && !ShutdownRequested(node);) {
         node.mempool = std::make_unique<CTxMemPool>(mempool_opts);
 
-        node.chainman = std::make_unique<ChainstateManager>(*Assert(node.shutdown), chainman_opts, blockman_opts);
+        bilingual_str err{};
+        node.chainman = std::make_unique<ChainstateManager>(*Assert(node.shutdown), chainman_opts, blockman_opts, err);
+        if (!err.empty()) {
+            return InitError(err);
+        }
         ChainstateManager& chainman = *node.chainman;
 
         // This is defined and set here instead of inline in validation.h to avoid a hard
