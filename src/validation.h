@@ -10,9 +10,10 @@
 #include <attributes.h>
 #include <chain.h>
 #include <checkqueue.h>
-#include <kernel/chain.h>
 #include <consensus/amount.h>
+#include <cuckoocache.h>
 #include <deploymentstatus.h>
+#include <kernel/chain.h>
 #include <kernel/chainparams.h>
 #include <kernel/chainstatemanager_opts.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
@@ -87,6 +88,8 @@ extern GlobalMutex g_best_block_mutex;
 extern std::condition_variable g_best_block_cv;
 /** Used to notify getblocktemplate RPC of new tips. */
 extern uint256 g_best_block;
+
+using ScriptCache = CuckooCache::cache<uint256, SignatureCacheHasher>;
 
 /** Documentation for argument 'checklevel'. */
 extern const std::vector<std::string> CHECKLEVEL_DOC;
@@ -360,8 +363,13 @@ static_assert(std::is_nothrow_move_assignable_v<CScriptCheck>);
 static_assert(std::is_nothrow_move_constructible_v<CScriptCheck>);
 static_assert(std::is_nothrow_destructible_v<CScriptCheck>);
 
-/** Initializes the script-execution cache */
-[[nodiscard]] bool InitScriptExecutionCache(size_t max_size_bytes);
+/**
+ * Convenience struct for initializing and passing the script execution cache.
+ */
+struct ValidationCache {
+    ScriptCache m_script_execution_cache;
+    ValidationCache(size_t script_execution_cache_bytes);
+};
 
 /** Functions for validating blocks and updating the block tree */
 
@@ -796,7 +804,6 @@ private:
     friend ChainstateManager;
 };
 
-
 enum class SnapshotCompletionResult {
     SUCCESS,
     SKIPPED,
@@ -963,6 +970,8 @@ public:
     //! A single BlockManager instance is shared across each constructed
     //! chainstate to avoid duplicating block metadata.
     node::BlockManager m_blockman;
+
+    ValidationCache m_validation_cache;
 
     /**
      * Whether initial block download has ended and IsInitialBlockDownload
