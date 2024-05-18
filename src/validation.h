@@ -370,6 +370,8 @@ class ValidationCache
 {
 public:
     ScriptCache m_script_execution_cache;
+    CSHA256 m_script_execution_cache_hasher;
+
     ValidationCache(size_t script_execution_cache_bytes);
 
     ValidationCache(const ValidationCache&) = delete;
