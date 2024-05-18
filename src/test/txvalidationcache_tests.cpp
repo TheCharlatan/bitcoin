@@ -21,7 +21,7 @@ struct Dersig100Setup : public TestChain100Setup {
 
     Dersig100Setup()
         : TestChain100Setup{ChainType::REGTEST, {"-testactivationheight=dersig@102"}},
-          m_validation_cache{DEFAULT_MAX_SIG_CACHE_BYTES / 2}
+          m_validation_cache{DEFAULT_MAX_SIG_CACHE_BYTES / 2, DEFAULT_MAX_SIG_CACHE_BYTES / 2}
     {
     }
 };
