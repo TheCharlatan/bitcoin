@@ -366,6 +366,10 @@ static_assert(std::is_nothrow_destructible_v<CScriptCheck>);
  */
 class ValidationCache
 {
+private:
+    //! Pre-initialized hasher to avoid having to recreate it for every hash calculation.
+    CSHA256 m_script_execution_cache_hasher;
+
 public:
     CuckooCache::cache<uint256, SignatureCacheHasher> m_script_execution_cache;
 
@@ -373,6 +377,8 @@ public:
 
     ValidationCache(const ValidationCache&) = delete;
     ValidationCache& operator=(const ValidationCache&) = delete;
+
+    CSHA256 ScriptExecutionCacheHasher() const { return m_script_execution_cache_hasher; }
 };
 
 /** Functions for validating blocks and updating the block tree */
