@@ -22,6 +22,7 @@
 #include <policy/packages.h>
 #include <policy/policy.h>
 #include <script/script_error.h>
+#include <script/sigcache.h>
 #include <sync.h>
 #include <txdb.h>
 #include <txmempool.h> // For CTxMemPool::cs
@@ -343,10 +344,11 @@ private:
     bool cacheStore;
     ScriptError error{SCRIPT_ERR_UNKNOWN_ERROR};
     PrecomputedTransactionData *txdata;
+    CSignatureCache* m_signature_cache;
 
 public:
-    CScriptCheck(const CTxOut& outIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
-        m_tx_out(outIn), ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), txdata(txdataIn) { }
+    CScriptCheck(const CTxOut& outIn, const CTransaction& txToIn, CSignatureCache& signature_cache, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
+        m_tx_out(outIn), ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), txdata(txdataIn), m_signature_cache(&signature_cache) { }
 
     CScriptCheck(const CScriptCheck&) = delete;
     CScriptCheck& operator=(const CScriptCheck&) = delete;
@@ -364,20 +366,27 @@ static_assert(std::is_nothrow_move_constructible_v<CScriptCheck>);
 static_assert(std::is_nothrow_destructible_v<CScriptCheck>);
 
 /**
- * Convenience class for initializing and passing the script execution cache.
+ * Convenience class for initializing and passing the script execution cache
+ * and signature cache.
  */
 class ValidationCache
 {
-public:
-    ScriptCache m_script_execution_cache;
+private:
+    //! Pre-initialized hasher for to avoid having to recreate it for every hash calculation.
     CSHA256 m_script_execution_cache_hasher;
 
-    ValidationCache(size_t script_execution_cache_bytes);
+public:
+    ScriptCache m_script_execution_cache;
+    CSignatureCache m_signature_cache;
+
+    ValidationCache(size_t script_execution_cache_bytes, size_t signature_cache_bytes);
 
     ValidationCache(const ValidationCache&) = delete;
     ValidationCache(ValidationCache&&) = delete;
     ValidationCache& operator=(const ValidationCache&) = delete;
     ValidationCache& operator=(ValidationCache&&) = delete;
+
+    CSHA256 ScriptExecutionCacheHasher() { return m_script_execution_cache_hasher; }
 };
 
 /** Functions for validating blocks and updating the block tree */
