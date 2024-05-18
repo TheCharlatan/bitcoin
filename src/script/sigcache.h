@@ -15,9 +15,7 @@
 #include <util/hasher.h>
 
 #include <cstddef>
-#include <cstdint>
 #include <shared_mutex>
-#include <utility>
 #include <vector>
 
 class CTransaction;
@@ -46,7 +44,10 @@ private:
     std::shared_mutex cs_sigcache;
 
 public:
-    SignatureCache();
+    SignatureCache(size_t max_size_bytes);
+
+    SignatureCache(const SignatureCache&) = delete;
+    SignatureCache& operator=(const SignatureCache&) = delete;
 
     void ComputeEntryECDSA(uint256& entry, const uint256 &hash, const std::vector<unsigned char>& vchSig, const CPubKey& pubkey) const;
 
@@ -55,22 +56,19 @@ public:
     bool Get(const uint256& entry, const bool erase);
 
     void Set(const uint256& entry);
-
-    std::pair<uint32_t, size_t> setup_bytes(size_t n);
 };
 
 class CachingTransactionSignatureChecker : public TransactionSignatureChecker
 {
 private:
     bool store;
+    SignatureCache& m_signature_cache;
 
 public:
-    CachingTransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn, const CAmount& amountIn, bool storeIn, PrecomputedTransactionData& txdataIn) : TransactionSignatureChecker(txToIn, nInIn, amountIn, txdataIn, MissingDataBehavior::ASSERT_FAIL), store(storeIn) {}
+    CachingTransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn, const CAmount& amountIn, bool storeIn, SignatureCache& signature_cache, PrecomputedTransactionData& txdataIn) : TransactionSignatureChecker(txToIn, nInIn, amountIn, txdataIn, MissingDataBehavior::ASSERT_FAIL), store(storeIn), m_signature_cache(signature_cache)  {}
 
     bool VerifyECDSASignature(const std::vector<unsigned char>& vchSig, const CPubKey& vchPubKey, const uint256& sighash) const override;
     bool VerifySchnorrSignature(Span<const unsigned char> sig, const XOnlyPubKey& pubkey, const uint256& sighash) const override;
 };
-
-[[nodiscard]] bool InitSignatureCache(size_t max_size_bytes);
 
 #endif // BITCOIN_SCRIPT_SIGCACHE_H
