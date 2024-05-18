@@ -9,7 +9,6 @@
 
 #include <kernel/checks.h>
 #include <kernel/mempool_persist.h>
-#include <kernel/validation_cache_sizes.h>
 
 #include <addrman.h>
 #include <banman.h>
@@ -53,7 +52,6 @@
 #include <node/mempool_persist_args.h>
 #include <node/miner.h>
 #include <node/peerman_args.h>
-#include <node/validation_cache_args.h>
 #include <policy/feerate.h>
 #include <policy/fees.h>
 #include <policy/fees_args.h>
@@ -117,7 +115,6 @@
 
 using kernel::DumpMempool;
 using kernel::LoadMempool;
-using kernel::ValidationCacheSizes;
 
 using node::ApplyArgsManOptions;
 using node::BlockManager;
@@ -1144,10 +1141,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                   "also be data loss if bitcoin is started while in a temporary directory.\n",
                   args.GetArg("-datadir", ""), fs::PathToString(fs::current_path()));
     }
-
-    ValidationCacheSizes validation_cache_sizes{};
-    ApplyArgsManOptions(args, validation_cache_sizes);
-    (void)InitSignatureCache(validation_cache_sizes.signature_cache_bytes);
 
     assert(!node.scheduler);
     node.scheduler = std::make_unique<CScheduler>();

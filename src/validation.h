@@ -22,6 +22,7 @@
 #include <policy/packages.h>
 #include <policy/policy.h>
 #include <script/script_error.h>
+#include <script/sigcache.h>
 #include <sync.h>
 #include <txdb.h>
 #include <txmempool.h> // For CTxMemPool::cs
@@ -343,10 +344,11 @@ private:
     bool cacheStore;
     ScriptError error{SCRIPT_ERR_UNKNOWN_ERROR};
     PrecomputedTransactionData *txdata;
+    CSignatureCache* m_signature_cache;
 
 public:
-    CScriptCheck(const CTxOut& outIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
-        m_tx_out(outIn), ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), txdata(txdataIn) { }
+    CScriptCheck(const CTxOut& outIn, const CTransaction& txToIn, CSignatureCache& signature_cache, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
+        m_tx_out(outIn), ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), txdata(txdataIn), m_signature_cache(&signature_cache) { }
 
     CScriptCheck(const CScriptCheck&) = delete;
     CScriptCheck& operator=(const CScriptCheck&) = delete;
@@ -364,12 +366,14 @@ static_assert(std::is_nothrow_move_constructible_v<CScriptCheck>);
 static_assert(std::is_nothrow_destructible_v<CScriptCheck>);
 
 /**
- * Convenience struct for initializing and passing the script execution cache.
+ * Convenience struct for initializing and passing the script execution cache
+ * and signature cache.
  */
 struct ValidationCache {
     ScriptCache m_script_execution_cache;
-    ValidationCache(size_t script_execution_cache_bytes);
     CSHA256 m_script_execution_cache_hasher;
+    CSignatureCache m_signature_cache;
+    ValidationCache(size_t script_execution_cache_bytes, size_t signature_cache_bytes);
 };
 
 /** Functions for validating blocks and updating the block tree */
