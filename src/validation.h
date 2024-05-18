@@ -369,6 +369,7 @@ static_assert(std::is_nothrow_destructible_v<CScriptCheck>);
 struct ValidationCache {
     ScriptCache m_script_execution_cache;
     ValidationCache(size_t script_execution_cache_bytes);
+    CSHA256 m_script_execution_cache_hasher;
 };
 
 /** Functions for validating blocks and updating the block tree */
