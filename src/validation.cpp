@@ -1932,17 +1932,15 @@ bool CScriptCheck::operator()() {
     return VerifyScript(scriptSig, m_tx_out.scriptPubKey, witness, nFlags, CachingTransactionSignatureChecker(ptxTo, nIn, m_tx_out.nValue, cacheStore, *txdata), &error);
 }
 
-static CSHA256 g_scriptExecutionCacheHasher;
-
-bool InitScriptExecutionCache(size_t max_size_bytes, ScriptCache& script_execution_cache)
+bool InitScriptExecutionCache(size_t max_size_bytes, ScriptCache& script_execution_cache, CSHA256& script_execution_cache_hasher)
 {
     // Setup the salted hasher
     uint256 nonce = GetRandHash();
     // We want the nonce to be 64 bytes long to force the hasher to process
     // this chunk, which makes later hash computations more efficient. We
     // just write our 32-byte entropy twice to fill the 64 bytes.
-    g_scriptExecutionCacheHasher.Write(nonce.begin(), 32);
-    g_scriptExecutionCacheHasher.Write(nonce.begin(), 32);
+    script_execution_cache_hasher.Write(nonce.begin(), 32);
+    script_execution_cache_hasher.Write(nonce.begin(), 32);
 
     auto setup_results = script_execution_cache.setup_bytes(max_size_bytes);
     if (!setup_results) return false;
@@ -1990,7 +1988,7 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState& state,
     // properly commits to the scriptPubKey in the inputs view of that
     // transaction).
     uint256 hashCacheEntry;
-    CSHA256 hasher = g_scriptExecutionCacheHasher;
+    CSHA256 hasher = validation_cache.m_script_execution_cache_hasher;
     hasher.Write(UCharCast(tx.GetWitnessHash().begin()), 32).Write((unsigned char*)&flags, sizeof(flags)).Finalize(hashCacheEntry.begin());
     AssertLockHeld(cs_main); //TODO: Remove this requirement by making CuckooCache not require external locks
     if (validation_cache.m_script_execution_cache.contains(hashCacheEntry, !cacheFullScriptStore)) {
@@ -6052,7 +6050,7 @@ ChainstateManager::ChainstateManager(const util::SignalInterrupt& interrupt, Opt
       m_options{Flatten(std::move(options))},
       m_blockman{interrupt, std::move(blockman_options)}
 {
-    if (!InitScriptExecutionCache(m_options.script_execution_cache_bytes, m_validation_cache.m_script_execution_cache)) {
+    if (!InitScriptExecutionCache(m_options.script_execution_cache_bytes, m_validation_cache.m_script_execution_cache, m_validation_cache.m_script_execution_cache_hasher)) {
         error = strprintf(_("Unable to allocate memory for -maxsigcachesize: '%s' MiB"), m_options.script_execution_cache_bytes);
     }
 }

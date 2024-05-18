@@ -364,7 +364,7 @@ static_assert(std::is_nothrow_move_constructible_v<CScriptCheck>);
 static_assert(std::is_nothrow_destructible_v<CScriptCheck>);
 
 /** Initializes the script-execution cache */
-[[nodiscard]] bool InitScriptExecutionCache(size_t max_size_bytes, ScriptCache& script_execution_cache);
+[[nodiscard]] bool InitScriptExecutionCache(size_t max_size_bytes, ScriptCache& script_execution_cache, CSHA256& script_execution_cache_hasher);
 
 /** Functions for validating blocks and updating the block tree */
 
@@ -801,6 +801,7 @@ private:
 
 struct ValidationCache {
     ScriptCache m_script_execution_cache;
+    CSHA256 m_script_execution_cache_hasher;
 };
 
 enum class SnapshotCompletionResult {
