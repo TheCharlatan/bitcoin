@@ -62,19 +62,11 @@ std::optional<std::pair<uint32_t, size_t>> CSignatureCache::setup_bytes(size_t n
     return setValid.setup_bytes(n);
 }
 
-/* In previous versions of this code, signatureCache was a local static variable
- * in CachingTransactionSignatureChecker::VerifySignature.  We initialize
- * signatureCache outside of VerifySignature to avoid the atomic operation per
- * call overhead associated with local static variables even though
- * signatureCache could be made local to VerifySignature.
-*/
-static CSignatureCache signatureCache;
-
 // To be called once in AppInitMain/BasicTestingSetup to initialize the
 // signatureCache.
-bool InitSignatureCache(size_t max_size_bytes)
+bool InitSignatureCache(size_t max_size_bytes, CSignatureCache& signature_cache)
 {
-    auto setup_results = signatureCache.setup_bytes(max_size_bytes);
+    auto setup_results = signature_cache.setup_bytes(max_size_bytes);
     if (!setup_results) return false;
 
     const auto [num_elems, approx_size_bytes] = *setup_results;
@@ -86,22 +78,22 @@ bool InitSignatureCache(size_t max_size_bytes)
 bool CachingTransactionSignatureChecker::VerifyECDSASignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash) const
 {
     uint256 entry;
-    signatureCache.ComputeEntryECDSA(entry, sighash, vchSig, pubkey);
-    if (signatureCache.Get(entry, !store))
+    m_signature_cache.ComputeEntryECDSA(entry, sighash, vchSig, pubkey);
+    if (m_signature_cache.Get(entry, !store))
         return true;
     if (!TransactionSignatureChecker::VerifyECDSASignature(vchSig, pubkey, sighash))
         return false;
     if (store)
-        signatureCache.Set(entry);
+        m_signature_cache.Set(entry);
     return true;
 }
 
 bool CachingTransactionSignatureChecker::VerifySchnorrSignature(Span<const unsigned char> sig, const XOnlyPubKey& pubkey, const uint256& sighash) const
 {
     uint256 entry;
-    signatureCache.ComputeEntrySchnorr(entry, sighash, sig, pubkey);
-    if (signatureCache.Get(entry, !store)) return true;
+    m_signature_cache.ComputeEntrySchnorr(entry, sighash, sig, pubkey);
+    if (m_signature_cache.Get(entry, !store)) return true;
     if (!TransactionSignatureChecker::VerifySchnorrSignature(sig, pubkey, sighash)) return false;
-    if (store) signatureCache.Set(entry);
+    if (store) m_signature_cache.Set(entry);
     return true;
 }
