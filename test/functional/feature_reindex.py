@@ -73,6 +73,28 @@ class ReindexTest(BitcoinTestFramework):
         # All blocks should be accepted and processed.
         assert_equal(self.nodes[0].getblockcount(), 12)
 
+    def continue_reindex_after_shutdown(self):
+        node = self.nodes[0]
+        self.generate(node, 1500)
+        self.log.info("Wait until block filter index is synced..")
+        with node.busy_wait_for_debug_log([b'basic block filter index is enabled at height']):
+            self.restart_node(0, ['-blockfilterindex'])
+
+        # Restart node with reindex and stop reindex as soon as it starts reindexing
+        self.log.info("Restarting node while reindexing..")
+        with node.busy_wait_for_debug_log([b'initload thread start'], timeout=3):
+            node.stop_node()
+            node.start(['-blockfilterindex', '-reindex'])
+            node.wait_for_rpc_connection(False)
+        node.stop_node()
+
+        # Start node without the reindex flag and verify it does not wipe the indexes data again
+        db_path = node.datadir_path / 'regtest'/ 'indexes' / 'blockfilter' / 'basic' / 'db'
+        with node.assert_debug_log(expected_msgs=[f'Opening LevelDB in {db_path}'], unexpected_msgs=[f'Wiping LevelDB in {db_path}']):
+            node.start(['-blockfilterindex'])
+            node.wait_for_rpc_connection(False)
+        node.stop_node()
+
     def run_test(self):
         self.reindex(False)
         self.reindex(True)
@@ -80,6 +102,7 @@ class ReindexTest(BitcoinTestFramework):
         self.reindex(True)
 
         self.out_of_order()
+        self.continue_reindex_after_shutdown()
 
 
 if __name__ == '__main__':
