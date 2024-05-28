@@ -8,9 +8,29 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
+#include <random>
 #include <string>
 #include <vector>
+
+std::string random_string(uint32_t length)
+{
+    const std::string chars = "0123456789"
+                              "abcdefghijklmnopqrstuvwxyz"
+                              "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    static std::random_device rd;
+    static std::default_random_engine dre{rd()};
+    static std::uniform_int_distribution<> distribution(0, chars.size() - 1);
+
+    std::string random;
+    random.reserve(length);
+    for (uint32_t i = 0; i < length; i++) {
+        random += chars[distribution(dre)];
+    }
+    return random;
+}
 
 std::vector<unsigned char> hex_string_to_char_vec(const std::string& hex)
 {
@@ -176,19 +196,50 @@ void default_context_test()
     assert_error_ok(error);
 }
 
-void context_test()
+Context create_context(TestKernelNotifications& notifications, kernel_Error& error, kernel_ChainType chain_type)
 {
-    kernel_Error error;
-    error.code = kernel_ErrorCode::kernel_ERROR_OK;
-    TestKernelNotifications notifications{};
     ContextOptions options{};
-    ChainParams params{kernel_ChainType::kernel_CHAIN_TYPE_MAINNET};
+    ChainParams params{chain_type};
     options.SetChainParams(params, error);
     assert_error_ok(error);
     options.SetNotificationCallbacks(notifications, error);
     assert_error_ok(error);
 
-    Context context{options, error};
+    return Context{options, error};
+}
+
+void chainman_test()
+{
+    kernel_Error error{};
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    assert_error_ok(error);
+
+    const auto rand_str{random_string(16)};
+    auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
+    std::filesystem::create_directories(path_root);
+
+    // Check that creating invalid options gives us an error
+    {
+        kernel_Error opts_error{};
+        ChainstateManagerOptions opts{context, "////\\\\", opts_error};
+        assert_is_error(opts_error, kernel_ERROR_INTERNAL);
+    }
+
+    {
+        kernel_Error opts_error{};
+        BlockManagerOptions opts{context, "////\\\\", opts_error};
+        assert_is_error(opts_error, kernel_ERROR_INTERNAL);
+    }
+
+    ChainstateManagerOptions chainman_opts{context, path_root, error};
+    assert_error_ok(error);
+    BlockManagerOptions blockman_opts{context, path_root / "blocks", error};
+    assert_error_ok(error);
+
+    ChainMan chainman{context, chainman_opts, blockman_opts, error};
     assert_error_ok(error);
 }
 
@@ -230,7 +281,7 @@ int main()
 
     default_context_test();
 
-    context_test();
+    chainman_test();
 
     std::cout << "Libbitcoinkernel test completed.\n";
     return 0;
