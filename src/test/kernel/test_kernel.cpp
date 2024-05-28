@@ -8,11 +8,31 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <span>
 #include <string>
 #include <vector>
+
+std::string random_string(uint32_t length)
+{
+    const std::string chars = "0123456789"
+                              "abcdefghijklmnopqrstuvwxyz"
+                              "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    static std::random_device rd;
+    static std::default_random_engine dre{rd()};
+    static std::uniform_int_distribution<> distribution(0, chars.size() - 1);
+
+    std::string random;
+    random.reserve(length);
+    for (uint32_t i = 0; i < length; i++) {
+        random += chars[distribution(dre)];
+    }
+    return random;
+}
 
 std::vector<unsigned char> hex_string_to_char_vec(const std::string& hex)
 {
@@ -36,6 +56,19 @@ public:
     }
 };
 
+struct TestDirectory {
+    std::filesystem::path m_directory;
+    TestDirectory(std::string directory_name)
+        : m_directory{std::filesystem::temp_directory_path() / (directory_name + random_string(16))}
+    {
+        std::filesystem::create_directories(m_directory);
+    }
+
+    ~TestDirectory()
+    {
+        std::filesystem::remove_all(m_directory);
+    }
+};
 
 class TestKernelNotifications : public KernelNotifications<TestKernelNotifications>
 {
@@ -247,6 +280,44 @@ void context_test()
     }
 }
 
+Context create_context(TestKernelNotifications& notifications, kernel_ChainType chain_type)
+{
+    ContextOptions options{};
+    ChainParams params{chain_type};
+    options.SetChainParams(params);
+    options.SetNotifications(notifications);
+    auto context{Context{options}};
+    assert(context.m_context);
+    return context;
+}
+
+void chainman_test()
+{
+    auto test_directory{TestDirectory{"chainman_test_bitcoin_kernel"}};
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+
+    // Check that creating invalid options gives us an error
+    {
+        ChainstateManagerOptions opts{context, "////\\\\"};
+        assert(!opts);
+    }
+
+    {
+        BlockManagerOptions opts{context, "////\\\\"};
+        assert(!opts);
+    }
+
+    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory};
+    assert(chainman_opts);
+    BlockManagerOptions blockman_opts{context, test_directory.m_directory / "blocks"};
+    assert(blockman_opts);
+
+    ChainMan chainman{context, chainman_opts, blockman_opts};
+    assert(chainman);
+}
+
 int main()
 {
     transaction_test();
@@ -263,6 +334,8 @@ int main()
     Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
 
     context_test();
+
+    chainman_test();
 
     std::cout << "Libbitcoinkernel test completed." << std::endl;
     return 0;

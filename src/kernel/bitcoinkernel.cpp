@@ -11,12 +11,15 @@
 #include <kernel/notifications_interface.h>
 #include <kernel/warning.h>
 #include <logging.h>
+#include <node/blockstorage.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
 #include <serialize.h>
 #include <streams.h>
+#include <sync.h>
 #include <tinyformat.h>
+#include <util/fs.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
 #include <util/translation.h>
@@ -263,6 +266,30 @@ Context* cast_context(kernel_Context* context)
 {
     assert(context);
     return reinterpret_cast<Context*>(context);
+}
+
+const Context* cast_const_context(const kernel_Context* context)
+{
+    assert(context);
+    return reinterpret_cast<const Context*>(context);
+}
+
+ChainstateManager::Options* cast_chainstate_manager_options(kernel_ChainstateManagerOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<ChainstateManager::Options*>(options);
+}
+
+node::BlockManager::Options* cast_block_manager_options(kernel_BlockManagerOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<node::BlockManager::Options*>(options);
+}
+
+ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman)
+{
+    assert(chainman);
+    return reinterpret_cast<ChainstateManager*>(chainman);
 }
 
 } // namespace
@@ -532,4 +559,90 @@ void kernel_context_destroy(kernel_Context* context)
     if (context) {
         delete cast_context(context);
     }
+}
+
+kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir)
+{
+    try {
+        fs::path abs_data_dir{fs::absolute(fs::PathFromString(data_dir))};
+        fs::create_directories(abs_data_dir);
+        auto context{cast_const_context(context_)};
+        return reinterpret_cast<kernel_ChainstateManagerOptions*>(new ChainstateManager::Options{
+            .chainparams = *context->m_chainparams,
+            .datadir = abs_data_dir,
+            .notifications = *context->m_notifications});
+    } catch (const std::exception& e) {
+        LogError("Failed to create chainstate manager options: %s\n", e.what());
+        return nullptr;
+    }
+}
+
+void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* options)
+{
+    if (options) {
+        delete cast_chainstate_manager_options(options);
+    }
+}
+
+kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Context* context_, const char* blocks_dir)
+{
+    try {
+        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString(blocks_dir))};
+        fs::create_directories(abs_blocks_dir);
+        auto context{cast_const_context(context_)};
+        if (!context) {
+            return nullptr;
+        }
+        return reinterpret_cast<kernel_BlockManagerOptions*>(new node::BlockManager::Options{
+            .chainparams = *context->m_chainparams,
+            .blocks_dir = abs_blocks_dir,
+            .notifications = *context->m_notifications});
+    } catch (const std::exception& e) {
+        LogError("Failed to create block manager options; %s\n", e.what());
+        return nullptr;
+    }
+}
+
+void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* options)
+{
+    if (options) {
+        delete cast_block_manager_options(options);
+    }
+}
+
+kernel_ChainstateManager* kernel_chainstate_manager_create(
+    kernel_ChainstateManagerOptions* chainman_opts_,
+    kernel_BlockManagerOptions* blockman_opts_,
+    const kernel_Context* context_)
+{
+    auto chainman_opts{cast_chainstate_manager_options(chainman_opts_)};
+    auto blockman_opts{cast_block_manager_options(blockman_opts_)};
+    auto context{cast_const_context(context_)};
+
+    try {
+        return reinterpret_cast<kernel_ChainstateManager*>(new ChainstateManager{*context->m_interrupt, *chainman_opts, *blockman_opts});
+    } catch (const std::exception& e) {
+        LogError("Failed to create chainstate manager: %s\n", e.what());
+        return nullptr;
+    }
+}
+
+void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainman_, const kernel_Context* context_)
+{
+    if (!chainman_) return;
+
+    auto chainman{cast_chainstate_manager(chainman_)};
+
+    {
+        LOCK(cs_main);
+        for (Chainstate* chainstate : chainman->GetAll()) {
+            if (chainstate->CanFlushToDisk()) {
+                chainstate->ForceFlushStateToDisk();
+                chainstate->ResetCoinsViews();
+            }
+        }
+    }
+
+    delete chainman;
+    return;
 }
