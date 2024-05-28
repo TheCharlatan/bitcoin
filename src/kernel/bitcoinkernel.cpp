@@ -7,12 +7,14 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <consensus/amount.h>
+#include <kernel/caches.h>
 #include <kernel/chainparams.h>
 #include <kernel/checks.h>
 #include <kernel/context.h>
 #include <kernel/notifications_interface.h>
 #include <kernel/warning.h>
 #include <logging.h>
+#include <node/blockstorage.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
@@ -20,6 +22,7 @@
 #include <streams.h>
 #include <sync.h>
 #include <tinyformat.h>
+#include <util/fs.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
 #include <util/translation.h>
@@ -286,7 +289,35 @@ public:
     }
 };
 
-} // namespace
+//! Helper struct to wrap the ChainstateManager-related Options
+struct ChainstateManagerOptions {
+    mutable Mutex m_mutex;
+    ChainstateManager::Options m_chainman_options GUARDED_BY(m_mutex);
+    node::BlockManager::Options m_blockman_options GUARDED_BY(m_mutex);
+    std::shared_ptr<const Context> m_context;
+
+    ChainstateManagerOptions(const std::shared_ptr<const Context>& context, const fs::path& data_dir, const fs::path& blocks_dir)
+        : m_chainman_options{ChainstateManager::Options{
+              .chainparams = *context->m_chainparams,
+              .datadir = data_dir,
+              .notifications = *context->m_notifications}},
+          m_blockman_options{node::BlockManager::Options{
+              .chainparams = *context->m_chainparams,
+              .blocks_dir = blocks_dir,
+              .notifications = *context->m_notifications,
+              .block_tree_db_params = DBParams{
+                  .path = data_dir / "blocks" / "index",
+                  .cache_bytes = kernel::CacheSizes{DEFAULT_KERNEL_CACHE}.block_tree_db,
+              }}},
+          m_context{context}
+    {
+    }
+};
+
+struct ChainMan {
+    std::unique_ptr<ChainstateManager> m_chainman;
+    std::shared_ptr<const Context> m_context;
+};
 
 struct LoggingConnection {
     std::unique_ptr<std::list<std::function<void(const std::string&)>>::iterator> m_connection;
@@ -301,6 +332,8 @@ struct LoggingConnection {
     }
 };
 
+} // namespace
+
 struct btck_Transaction : Handle<btck_Transaction, std::shared_ptr<const CTransaction>> {};
 struct btck_TransactionOutput : Handle<btck_TransactionOutput, CTxOut> {};
 struct btck_ScriptPubkey : Handle<btck_ScriptPubkey, CScript> {};
@@ -308,6 +341,8 @@ struct btck_LoggingConnection : Handle<btck_LoggingConnection, LoggingConnection
 struct btck_ContextOptions : Handle<btck_ContextOptions, ContextOptions> {};
 struct btck_Context : Handle<btck_Context, std::shared_ptr<const Context>> {};
 struct btck_ChainParameters : Handle<btck_ChainParameters, std::unique_ptr<const CChainParams>> {};
+struct btck_ChainstateManagerOptions : Handle<btck_ChainstateManagerOptions, ChainstateManagerOptions> {};
+struct btck_ChainstateManager : Handle<btck_ChainstateManager, ChainMan> {};
 
 btck_Transaction* btck_transaction_create(const void* raw_transaction, size_t raw_transaction_len)
 {
@@ -624,4 +659,59 @@ void btck_block_tree_entry_destroy(btck_BlockTreeEntry* block_tree_entry)
     if (!block_tree_entry) return;
     delete block_tree_entry;
     block_tree_entry = nullptr;
+}
+
+btck_ChainstateManagerOptions* btck_chainstate_manager_options_create(const btck_Context* context, const char* data_dir, size_t data_dir_len, const char* blocks_dir, size_t blocks_dir_len)
+{
+    try {
+        fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
+        fs::create_directories(abs_data_dir);
+        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString({blocks_dir, blocks_dir_len}))};
+        fs::create_directories(abs_blocks_dir);
+        auto chainman_opts{std::make_unique<ChainstateManagerOptions>(btck_Context::get(context), abs_data_dir, abs_blocks_dir)};
+        return btck_ChainstateManagerOptions::ref(chainman_opts.release());
+    } catch (const std::exception& e) {
+        LogError("Failed to create chainstate manager options: %s", e.what());
+        return nullptr;
+    }
+}
+
+void btck_chainstate_manager_options_destroy(btck_ChainstateManagerOptions* options)
+{
+    if (!options) return;
+    delete options;
+    options = nullptr;
+}
+
+btck_ChainstateManager* btck_chainstate_manager_create(
+    const btck_ChainstateManagerOptions* chainman_opts)
+{
+    try {
+        auto& opts{btck_ChainstateManagerOptions::get(chainman_opts)};
+        LOCK(opts.m_mutex);
+        auto& context{opts.m_context};
+        auto chainman{std::make_unique<ChainstateManager>(*context->m_interrupt, opts.m_chainman_options, opts.m_blockman_options)};
+        return btck_ChainstateManager::ref(new ChainMan{std::move(chainman), context});
+    } catch (const std::exception& e) {
+        LogError("Failed to create chainstate manager: %s", e.what());
+        return nullptr;
+    }
+}
+
+void btck_chainstate_manager_destroy(btck_ChainstateManager* chainman)
+{
+    if (!chainman) return;
+
+    {
+        LOCK(btck_ChainstateManager::get(chainman).m_chainman->GetMutex());
+        for (Chainstate* chainstate : btck_ChainstateManager::get(chainman).m_chainman->GetAll()) {
+            if (chainstate->CanFlushToDisk()) {
+                chainstate->ForceFlushStateToDisk();
+                chainstate->ResetCoinsViews();
+            }
+        }
+    }
+
+    delete chainman;
+    chainman = nullptr;
 }
