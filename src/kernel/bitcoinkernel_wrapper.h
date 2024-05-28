@@ -10,6 +10,7 @@
 #include <memory>
 #include <span>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -352,6 +353,47 @@ public:
     Context()
         : m_context{check(btck_context_create(ContextOptions{}.m_options.get()))}
     {
+    }
+};
+
+class ChainstateManagerOptions
+{
+private:
+    struct Deleter {
+        void operator()(btck_ChainstateManagerOptions* ptr) const noexcept
+        {
+            btck_chainstate_manager_options_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<btck_ChainstateManagerOptions, Deleter> m_options;
+
+public:
+    ChainstateManagerOptions(const Context& context, const std::string& data_dir, const std::string& blocks_dir)
+        : m_options{check(btck_chainstate_manager_options_create(context.m_context.get(), data_dir.c_str(), data_dir.length(), blocks_dir.c_str(), blocks_dir.length()))}
+    {
+    }
+
+    friend class ChainMan;
+};
+
+class ChainMan
+{
+private:
+    btck_ChainstateManager* m_chainman;
+
+public:
+    ChainMan(const Context& context, const ChainstateManagerOptions& chainman_opts)
+        : m_chainman{check(btck_chainstate_manager_create(chainman_opts.m_options.get()))}
+    {
+    }
+
+    ChainMan(const ChainMan&) = delete;
+    ChainMan& operator=(const ChainMan&) = delete;
+
+    ~ChainMan()
+    {
+        btck_chainstate_manager_destroy(m_chainman);
     }
 };
 
