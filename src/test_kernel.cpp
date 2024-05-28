@@ -8,8 +8,10 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -18,6 +20,23 @@ struct ByteArray {
     size_t size;
 };
 
+std::string random_string(uint32_t length)
+{
+    const std::string chars = "0123456789"
+                              "abcdefghijklmnopqrstuvwxyz"
+                              "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    static std::random_device rd;
+    static std::default_random_engine dre{rd()};
+    static std::uniform_int_distribution<> distribution(0, chars.size() - 1);
+
+    std::string random;
+    random.reserve(length);
+    for (uint32_t i = 0; i < length; i++) {
+        random += chars[distribution(dre)];
+    }
+    return random;
+}
 
 ByteArray hex_string_to_byte_array(const std::string& hex)
 {
@@ -235,7 +254,7 @@ public:
 
 class Context
 {
-private:
+public:
     kernel_Context* m_context;
 
 public:
@@ -266,19 +285,106 @@ void default_context_test()
     assert_error_ok(error);
 }
 
-void context_test()
+class ChainstateManagerOptions
 {
-    kernel_Error error;
-    error.code = kernel_ErrorCode::kernel_ERROR_OK;
-    KernelNotifications notifications{};
+private:
+    kernel_ChainstateManagerOptions* m_options;
+
+public:
+    ChainstateManagerOptions(Context& context, const std::string& data_dir, kernel_Error& error)
+        : m_options{kernel_chainstate_manager_options_create(context.m_context, data_dir.c_str(), &error)}
+    {
+    }
+
+    ChainstateManagerOptions(const ChainstateManagerOptions&) = delete;
+    ChainstateManagerOptions& operator=(const ChainstateManagerOptions&) = delete;
+
+    ~ChainstateManagerOptions()
+    {
+        kernel_chainstate_manager_options_destroy(m_options);
+    }
+
+    friend class ChainMan;
+};
+
+class BlockManagerOptions
+{
+private:
+    kernel_BlockManagerOptions* m_options;
+
+public:
+    BlockManagerOptions(Context& context, const std::string& data_dir, kernel_Error& error)
+    {
+        m_options = kernel_block_manager_options_create(context.m_context, data_dir.c_str(), &error);
+        assert(m_options);
+    }
+
+    BlockManagerOptions(const BlockManagerOptions&) = delete;
+    BlockManagerOptions& operator=(const BlockManagerOptions&) = delete;
+
+    ~BlockManagerOptions()
+    {
+        kernel_block_manager_options_destroy(m_options);
+    }
+
+    friend class ChainMan;
+};
+
+class ChainMan
+{
+private:
+    kernel_ChainstateManager* m_chainman;
+    Context& m_context;
+
+public:
+    ChainMan(Context& context, ChainstateManagerOptions& chainman_opts, BlockManagerOptions& blockman_opts, kernel_Error& error)
+        : m_chainman{kernel_chainstate_manager_create(chainman_opts.m_options, blockman_opts.m_options, context.m_context, &error)},
+          m_context{context}
+    {
+    }
+
+    ChainMan(const ChainMan&) = delete;
+    ChainMan& operator=(const ChainMan&) = delete;
+
+    ~ChainMan()
+    {
+        kernel_Error error;
+        kernel_chainstate_manager_destroy(m_chainman, m_context.m_context, &error);
+        assert_error_ok(error);
+    }
+};
+
+Context create_context(KernelNotifications& notifications, kernel_Error& error, kernel_ChainType chain_type)
+{
     ContextOptions options{};
-    ChainParams params{kernel_ChainType::kernel_CHAIN_TYPE_MAINNET};
+    ChainParams params{chain_type};
     options.SetChainParams(params, error);
     assert_error_ok(error);
     options.SetNotificationCallbacks(notifications, error);
     assert_error_ok(error);
 
-    Context context{options, error};
+    return Context{options, error};
+}
+
+void chainman_test()
+{
+    kernel_Error error{};
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    KernelNotifications notifications{};
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    assert_error_ok(error);
+
+    const auto rand_str{random_string(16)};
+    auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
+    std::filesystem::create_directories(path_root);
+
+    ChainstateManagerOptions chainman_opts{context, path_root, error};
+    assert_error_ok(error);
+    BlockManagerOptions blockman_opts{context, path_root / "blocks", error};
+    assert_error_ok(error);
+
+    ChainMan chainman{context, chainman_opts, blockman_opts, error};
     assert_error_ok(error);
 }
 
@@ -297,7 +403,7 @@ int main()
 
     default_context_test();
 
-    context_test();
+    chainman_test();
 
     std::cout << "Libbitcoinkernel test completed.\n";
     return 0;

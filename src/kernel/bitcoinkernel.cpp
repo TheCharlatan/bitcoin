@@ -10,11 +10,14 @@
 #include <kernel/context.h>
 #include <kernel/notifications_interface.h>
 #include <logging.h>
+#include <node/blockstorage.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
 #include <serialize.h>
 #include <span.h>
+#include <sync.h>
+#include <util/fs.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
 #include <util/translation.h>
@@ -29,6 +32,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -325,7 +329,7 @@ class Context
 public:
     std::unique_ptr<kernel::Context> m_context;
 
-    std::unique_ptr<const kernel::Notifications> m_notifications;
+    std::unique_ptr<KernelNotifications> m_notifications;
 
     std::unique_ptr<util::SignalInterrupt> m_interrupt;
 
@@ -362,6 +366,42 @@ ContextOptions* cast_context_options(kernel_ContextOptions* context_opts, kernel
         set_error_invalid_pointer(error, "Invalid kernel_ContextOptions pointer.");
     }
     return reinterpret_cast<ContextOptions*>(context_opts);
+}
+
+const Context* cast_const_context(const kernel_Context* context, kernel_Error* error)
+{
+    if (!context) {
+        set_error_invalid_pointer(error, "Invalid kernel_Context pointer.");
+        return nullptr;
+    }
+    return reinterpret_cast<const Context*>(context);
+}
+
+ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman, kernel_Error* error)
+{
+    if (!chainman) {
+        set_error_invalid_pointer(error, "Invalid kernel_ChainstateManager pointer.");
+        return nullptr;
+    }
+    return reinterpret_cast<ChainstateManager*>(chainman);
+}
+
+ChainstateManager::Options* cast_chainman_opts(kernel_ChainstateManagerOptions* chainman_opts, kernel_Error* error)
+{
+    if (!chainman_opts) {
+        set_error_invalid_pointer(error, "Invalid kernel_ChainstateManagerOptions pointer.");
+        return nullptr;
+    }
+    return reinterpret_cast<ChainstateManager::Options*>(chainman_opts);
+}
+
+node::BlockManager::Options* cast_blockman_opts(kernel_BlockManagerOptions* blockman_opts, kernel_Error* error)
+{
+    if (!blockman_opts) {
+        set_error_invalid_pointer(error, "Invalid kernel_BlockManagerOptions pointer.");
+        return nullptr;
+    }
+    return reinterpret_cast<node::BlockManager::Options*>(blockman_opts);
 }
 
 } // namespace
@@ -539,4 +579,94 @@ kernel_Context* kernel_context_create(const kernel_ContextOptions* options, kern
 void kernel_context_destroy(kernel_Context* context_)
 {
     delete reinterpret_cast<Context*>(context_);
+}
+
+kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, kernel_Error* error)
+{
+    fs::path abs_data_dir{fs::absolute(fs::PathFromString(data_dir))};
+    fs::create_directories(abs_data_dir);
+    auto context{cast_const_context(context_, error)};
+    if (!context) {
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_ChainstateManagerOptions*>(new ChainstateManager::Options{
+        .chainparams = *context->m_chainparams,
+        .datadir = abs_data_dir,
+        .notifications = *context->m_notifications});
+}
+
+void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* chainman_opts_)
+{
+    delete reinterpret_cast<ChainstateManager::Options*>(chainman_opts_);
+}
+
+kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Context* context_, const char* blocks_dir, kernel_Error* error)
+{
+    fs::path abs_blocks_dir{fs::absolute(fs::PathFromString(blocks_dir))};
+    fs::create_directories(abs_blocks_dir);
+    auto context{cast_const_context(context_, error)};
+    if (!context) {
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_BlockManagerOptions*>(new node::BlockManager::Options{
+        .chainparams = *context->m_chainparams,
+        .blocks_dir = abs_blocks_dir,
+        .notifications = *context->m_notifications});
+}
+
+void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* blockman_opts_)
+{
+    delete reinterpret_cast<node::BlockManager::Options*>(blockman_opts_);
+}
+
+kernel_ChainstateManager* kernel_chainstate_manager_create(
+    kernel_ChainstateManagerOptions* chainstate_manager_opts,
+    kernel_BlockManagerOptions* block_manager_opts,
+    const kernel_Context* context_,
+    kernel_Error* error)
+{
+    auto chainman_opts{cast_chainman_opts(chainstate_manager_opts, error)};
+    if (!chainman_opts) {
+        return nullptr;
+    }
+    auto blockman_opts{cast_blockman_opts(block_manager_opts, error)};
+    if (!blockman_opts) {
+        return nullptr;
+    }
+    auto context{cast_const_context(context_, error)};
+    if (!context) {
+        return nullptr;
+    }
+
+    return reinterpret_cast<kernel_ChainstateManager*>(new ChainstateManager{*context->m_interrupt, *chainman_opts, *blockman_opts});
+}
+
+void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainman_, const kernel_Context* context_, kernel_Error* error)
+{
+    auto chainman{cast_chainstate_manager(chainman_, error)};
+    if (!chainman) {
+        return;
+    }
+    auto context{cast_const_context(context_, error)};
+    if (!context) {
+        return;
+    }
+
+    if (chainman->m_thread_load.joinable()) chainman->m_thread_load.join();
+
+    // Without this precise shutdown sequence, there will be a lot of nullptr
+    // dereferencing and UB.
+    {
+        LOCK(cs_main);
+        for (Chainstate* chainstate : chainman->GetAll()) {
+            if (chainstate->CanFlushToDisk()) {
+                chainstate->ForceFlushStateToDisk();
+                chainstate->ResetCoinsViews();
+            }
+        }
+    }
+
+    delete chainman;
+    set_error_ok(error);
+    return;
 }

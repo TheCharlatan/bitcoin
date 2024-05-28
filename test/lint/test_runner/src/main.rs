@@ -81,6 +81,7 @@ fn lint_std_filesystem() -> LintResult {
             "--",
             "./src/",
             ":(exclude)src/util/fs.h",
+            ":(exclude)src/test_kernel.cpp",
         ])
         .status()
         .expect("command error")

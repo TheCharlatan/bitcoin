@@ -104,6 +104,35 @@ typedef struct kernel_Context kernel_Context;
  */
 typedef struct kernel_BlockIndex kernel_BlockIndex;
 
+/**
+ * Opaque data structure for holding options for creating a new chainstate
+ * manager.
+ *
+ * The chainstate manager options are used to set some parameters for the
+ * chainstate manager. For now it just holds default options.
+ */
+typedef struct kernel_ChainstateManagerOptions kernel_ChainstateManagerOptions;
+
+/**
+ * Opaque data structure for holding options for creating a new chainstate
+ * manager.
+ *
+ * The chainstate manager has an internal block manager that takes its own set
+ * of parameters. It is initialized with default options.
+ */
+typedef struct kernel_BlockManagerOptions kernel_BlockManagerOptions;
+
+/**
+ * Opaque data structure for holding a chainstate manager.
+ *
+ * The chainstate manager is the central object for doing validation tasks as
+ * well as retrieving data from the chain. Internally it is a complex data
+ * structure with many members.
+ *
+ * Its functionality will be more and more exposed in the future.
+ */
+typedef struct kernel_ChainstateManager kernel_ChainstateManager;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -423,6 +452,64 @@ kernel_Context* kernel_context_create(const kernel_ContextOptions* context_optio
  * Destroy the context.
  */
 void kernel_context_destroy(kernel_Context* context);
+
+/**
+ * @brief Create options for the chainstate manager.
+ *
+ * @param[in] context        Non-null, the created options will associate with this kernel context
+ *                           for the duration of their lifetime. The same context needs to be used
+ *                           when instantiating the chainstate manager.
+ * @param[in] data_directory Non-null, directory containing the chainstate data.
+ * @param[out] error         Nullable, will contain an error/success code for the operation.
+ * @return                   The allocated chainstate manager options, or null on error.
+ */
+kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context, const char* data_directory, kernel_Error* error);
+
+/**
+ * Destroy the chainstate manager options.
+ */
+void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* chainstate_manager_options);
+
+/**
+ * @brief Create options for the block manager. The block manager is used
+ * internally by the chainstate manager for block storage and indexing.
+ *
+ * @param[in] context          Non-null, the created options will associate with this kernel context
+ *                             for the duration of their lifetime. The same context needs to be used
+ *                             when instantiating the chainstate manager.
+ * @param[in] blocks_directory Non-null, directory containing the block data.
+ * @param[out] error           Nullable, will contain an error/success code for the operation.
+ * @return                     The allocated block manager options, or null on error.
+ */
+kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Context* context, const char* blocks_directory, kernel_Error* error);
+
+/**
+ * Destroy the block manager options.
+ */
+void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* block_manager_options);
+
+/**
+ * @brief Create a chainstate manager. This is the main object for many
+ * validation tasks as well as for retrieving data from the chain.
+ *
+ * @param[in] chainstate_manager_options Non-null, created by kernel_chainstate_manager_options_create.
+ * @param[in] block_manager_options      Non-null, created by kernel_block_manager_options_create.
+ * @param[in] context                    Non-null, the created chainstate manager will associate with this
+ *                                       kernel context for the duration of its lifetime. The same context
+ *                                       needs to be used for later interactions with the chainstate manager.
+ * @param[out] error                     Nullable, will contain an error/success code for the operation.
+ * @return                               The allocated chainstate manager, or null on error.
+ */
+kernel_ChainstateManager* kernel_chainstate_manager_create(
+    kernel_ChainstateManagerOptions* chainstate_manager_options,
+    kernel_BlockManagerOptions* block_manager_options,
+    const kernel_Context* context,
+    kernel_Error* error);
+
+/**
+ * Destroy the chainstate manager.
+ */
+void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainstate_manager, const kernel_Context* context, kernel_Error* error);
 
 #ifdef __cplusplus
 } // extern "C"
