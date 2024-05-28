@@ -145,8 +145,8 @@ typedef struct btck_ContextOptions btck_ContextOptions;
  *
  * The kernel context is used to initialize internal state and hold the chain
  * parameters and callbacks for handling error and validation events. Once other
- * validation objects are instantiated from it, the context needs to be kept in
- * memory for the duration of their lifetimes.
+ * validation objects are instantiated from it, the context is kept in memory
+ * for the duration of their lifetimes.
  *
  * A constructed context can be safely used from multiple threads.
  */
@@ -160,6 +160,26 @@ typedef struct btck_Context btck_Context;
  * was retrieved from.
  */
 typedef struct btck_BlockIndex btck_BlockIndex;
+
+/**
+ * Opaque data structure for holding options for creating a new chainstate
+ * manager.
+ *
+ * The chainstate manager options are used to set some parameters for the
+ * chainstate manager. For now it just holds default options.
+ */
+typedef struct btck_ChainstateManagerOptions btck_ChainstateManagerOptions;
+
+/**
+ * Opaque data structure for holding a chainstate manager.
+ *
+ * The chainstate manager is the central object for doing validation tasks as
+ * well as retrieving data from the chain. Internally it is a complex data
+ * structure with diverse functionality.
+ *
+ * Its functionality will be more and more exposed in the future.
+ */
+typedef struct btck_ChainstateManager btck_ChainstateManager;
 
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
@@ -617,7 +637,7 @@ BITCOINKERNEL_API void btck_context_options_destroy(btck_ContextOptions* context
  * kernel notification callbacks.
  *
  * @param[in] context_options Nullable, created by @ref btck_context_options_create.
- * @return                    The allocated kernel context, or null on error.
+ * @return                    The allocated context, or null on error.
  */
 BITCOINKERNEL_API btck_Context* BITCOINKERNEL_WARN_UNUSED_RESULT btck_context_create(
     const btck_ContextOptions* context_options);
@@ -626,6 +646,60 @@ BITCOINKERNEL_API btck_Context* BITCOINKERNEL_WARN_UNUSED_RESULT btck_context_cr
  * Destroy the context.
  */
 BITCOINKERNEL_API void btck_context_destroy(btck_Context* context);
+
+///@}
+
+/** @name ChainstateManagerOptions
+ * Functions for working with chainstate manager options.
+ */
+///@{
+
+/**
+ * @brief Create options for the chainstate manager.
+ *
+ * @param[in] context          Non-null, the created options and through it the chainstate maanger will
+                               associate with this kernel context for the duration of their lifetimes.
+ * @param[in] data_directory   Non-null, path string of the directory containing the chainstate data.
+ *                             If the directory does not exist yet, it will be created.
+ * @param[in] blocks_directory Non-null, path string of the directory containing the block data. If
+ *                             the directory does not exist yet, it will be created.
+ * @return                     The allocated chainstate manager options, or null on error.
+ */
+BITCOINKERNEL_API btck_ChainstateManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT btck_chainstate_manager_options_create(
+    const btck_Context* context,
+    const char* data_directory,
+    size_t data_directory_len,
+    const char* blocks_directory,
+    size_t blocks_directory_len
+) BITCOINKERNEL_ARG_NONNULL(1, 2);
+
+/**
+ * Destroy the chainstate manager options.
+ */
+BITCOINKERNEL_API void btck_chainstate_manager_options_destroy(btck_ChainstateManagerOptions* chainstate_manager_options);
+
+///@}
+
+/** @name ChainstateManager
+ * Functions for chainstate management.
+ */
+///@{
+
+/**
+ * @brief Create a chainstate manager. This is the main object for many
+ * validation tasks as well as for retrieving data from the chain. *
+ *
+ * @param[in] chainstate_manager_options Non-null, created by @ref btck_chainstate_manager_options_create.
+ * @return                               The allocated chainstate manager, or null on error.
+ */
+BITCOINKERNEL_API btck_ChainstateManager* BITCOINKERNEL_WARN_UNUSED_RESULT btck_chainstate_manager_create(
+    const btck_ChainstateManagerOptions* chainstate_manager_options
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * Destroy the chainstate manager.
+ */
+BITCOINKERNEL_API void btck_chainstate_manager_destroy(btck_ChainstateManager* chainstate_manager);
 
 ///@}
 
