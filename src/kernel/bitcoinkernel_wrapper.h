@@ -1,0 +1,201 @@
+// Copyright (c) 2024-present The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#ifndef BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
+#define BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
+
+#include <kernel/bitcoinkernel.h>
+
+#include <memory>
+#include <span>
+#include <stdexcept>
+#include <vector>
+
+class Transaction;
+class TransactionOutput;
+
+template <typename T>
+T check(T ptr)
+{
+    if (ptr == nullptr) {
+        throw std::runtime_error("failed to instantiate btck object");
+    }
+    return ptr;
+}
+
+template <typename T>
+class RefWrapper
+{
+private:
+    T m_ref_data;
+public:
+    RefWrapper(T&& data) : m_ref_data{std::move(data)} {}
+
+    // Copying this data type might be dangerous, so prohibit it.
+    RefWrapper(const RefWrapper&) = delete;
+    RefWrapper& operator=(const RefWrapper& other) = delete;
+
+    T& Get()
+    {
+        return m_ref_data;
+    }
+};
+
+class ScriptPubkey
+{
+private:
+    struct Deleter {
+        void operator()(btck_ScriptPubkey* ptr) const noexcept
+        {
+            btck_script_pubkey_destroy(ptr);
+        }
+    };
+
+public:
+    std::unique_ptr<btck_ScriptPubkey, Deleter> m_script_pubkey;
+
+    ScriptPubkey(std::span<const unsigned char> script_pubkey)
+        : m_script_pubkey{check(btck_script_pubkey_create(script_pubkey.data(), script_pubkey.size()))}
+    {
+    }
+
+    int Verify(int64_t amount,
+               const Transaction& tx_to,
+               const std::span<const TransactionOutput> spent_outputs,
+               unsigned int input_index,
+               unsigned int flags,
+               btck_ScriptVerifyStatus& status) const;
+
+    // Copy constructor and assignment
+    ScriptPubkey(const ScriptPubkey& other)
+        : m_script_pubkey{check(btck_script_pubkey_copy(other.m_script_pubkey.get()))}
+    {
+    }
+    ScriptPubkey& operator=(const ScriptPubkey& other)
+    {
+        if (this != &other) {
+            m_script_pubkey.reset(check(btck_script_pubkey_copy(other.m_script_pubkey.get())));
+        }
+        return *this;
+    }
+
+    ScriptPubkey(btck_ScriptPubkey* script_pubkey)
+        : m_script_pubkey{check(script_pubkey)}
+    {
+    }
+};
+
+class TransactionOutput
+{
+private:
+    struct Deleter {
+        void operator()(btck_TransactionOutput* ptr) const noexcept
+        {
+            btck_transaction_output_destroy(ptr);
+        }
+    };
+
+public:
+    std::unique_ptr<btck_TransactionOutput, Deleter> m_transaction_output;
+
+    TransactionOutput(const ScriptPubkey& script_pubkey, int64_t amount)
+        : m_transaction_output{check(btck_transaction_output_create(script_pubkey.m_script_pubkey.get(), amount))}
+    {
+    }
+
+    // Copy constructor and assignment
+    TransactionOutput(const TransactionOutput& other)
+        : m_transaction_output{check(btck_transaction_output_copy(other.m_transaction_output.get()))} { }
+    TransactionOutput& operator=(const TransactionOutput& other)
+    {
+        if (this != &other) {
+            m_transaction_output.reset(check(btck_transaction_output_copy(other.m_transaction_output.get())));
+        }
+        return *this;
+    }
+
+    TransactionOutput(btck_TransactionOutput* transaction_output)
+        : m_transaction_output{check(transaction_output)}
+    {
+    }
+
+    uint64_t GetAmount()
+    {
+        return btck_transaction_output_get_amount(m_transaction_output.get());
+    }
+
+    RefWrapper<ScriptPubkey> GetScriptPubkey()
+    {
+        return ScriptPubkey{btck_transaction_output_get_script_pubkey(m_transaction_output.get())};
+    }
+};
+
+class Transaction
+{
+private:
+    struct Deleter {
+        void operator()(btck_Transaction* ptr) const noexcept
+        {
+            btck_transaction_destroy(ptr);
+        }
+    };
+
+public:
+    std::unique_ptr<btck_Transaction, Deleter> m_transaction;
+
+    Transaction(std::span<const unsigned char> raw_transaction)
+        : m_transaction{check(btck_transaction_create(raw_transaction.data(), raw_transaction.size()))}
+    {
+    }
+
+    // Copy constructor and assignment
+    Transaction(const Transaction& other)
+        : m_transaction{check(btck_transaction_copy(other.m_transaction.get()))} { }
+    Transaction& operator=(const Transaction& other)
+    {
+        if (this != &other) {
+            m_transaction.reset(check(btck_transaction_copy(other.m_transaction.get())));
+        }
+        return *this;
+    }
+
+    uint64_t CountOutputs()
+    {
+        return btck_transaction_count_outputs(m_transaction.get());
+    }
+
+    RefWrapper<TransactionOutput> GetOutput(uint64_t index)
+    {
+        return TransactionOutput{btck_transaction_get_output_at(m_transaction.get(), index)};
+    }
+};
+
+int ScriptPubkey::Verify(int64_t amount,
+                  const Transaction& tx_to,
+                  const std::span<const TransactionOutput> spent_outputs,
+                  unsigned int input_index,
+                  unsigned int flags,
+                  btck_ScriptVerifyStatus& status) const
+{
+    const btck_TransactionOutput** spent_outputs_ptr = nullptr;
+    std::vector<const btck_TransactionOutput*> raw_spent_outputs;
+    if (spent_outputs.size() > 0) {
+        raw_spent_outputs.reserve(spent_outputs.size());
+
+        for (const auto& output : spent_outputs) {
+            raw_spent_outputs.push_back(output.m_transaction_output.get());
+        }
+        spent_outputs_ptr = raw_spent_outputs.data();
+    }
+    return btck_script_pubkey_verify(
+        m_script_pubkey.get(),
+        amount,
+        tx_to.m_transaction.get(),
+        spent_outputs_ptr, spent_outputs.size(),
+        input_index,
+        flags,
+        &status);
+}
+
+#endif // BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
