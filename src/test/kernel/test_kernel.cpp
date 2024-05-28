@@ -11,11 +11,32 @@
 #include <charconv>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
+
+std::string random_string(uint32_t length)
+{
+    const std::string chars = "0123456789"
+                              "abcdefghijklmnopqrstuvwxyz"
+                              "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    static std::random_device rd;
+    static std::default_random_engine dre{rd()};
+    static std::uniform_int_distribution<> distribution(0, chars.size() - 1);
+
+    std::string random;
+    random.reserve(length);
+    for (uint32_t i = 0; i < length; i++) {
+        random += chars[distribution(dre)];
+    }
+    return random;
+}
 
 std::vector<unsigned char> hex_string_to_char_vec(std::string_view hex)
 {
@@ -41,6 +62,19 @@ public:
     }
 };
 
+struct TestDirectory {
+    std::filesystem::path m_directory;
+    TestDirectory(std::string directory_name)
+        : m_directory{std::filesystem::temp_directory_path() / (directory_name + random_string(16))}
+    {
+        std::filesystem::create_directories(m_directory);
+    }
+
+    ~TestDirectory()
+    {
+        std::filesystem::remove_all(m_directory);
+    }
+};
 
 class TestKernelNotifications : public KernelNotifications<TestKernelNotifications>
 {
@@ -247,3 +281,55 @@ BOOST_AUTO_TEST_CASE(kernel_context_tests)
         BOOST_CHECK(context);
     }
 }
+
+Context create_context(TestKernelNotifications& notifications, kernel_ChainType chain_type)
+{
+    ContextOptions options{};
+    ChainParams params{chain_type};
+    options.SetChainParams(params);
+    options.SetNotifications(notifications);
+    auto context{Context{options}};
+    BOOST_REQUIRE(context.m_context);
+    return context;
+}
+
+BOOST_AUTO_TEST_CASE(kernel_chainman_tests)
+{
+    kernel_LoggingOptions logging_options = {
+        .log_timestamps = true,
+        .log_time_micros = true,
+        .log_threadnames = false,
+        .log_sourcelocations = false,
+        .always_print_category_levels = true,
+    };
+    Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
+    auto test_directory{TestDirectory{"chainman_test_bitcoin_kernel"}};
+
+    { // test with default context
+        Context context{};
+        BOOST_REQUIRE(context);
+        ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+        BOOST_REQUIRE(chainman_opts);
+        ChainMan chainman{context, chainman_opts};
+        BOOST_CHECK(chainman);
+    }
+
+    { // test with default context options
+        ContextOptions options{};
+        Context context{options};
+        BOOST_REQUIRE(context);
+        ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+        BOOST_REQUIRE(chainman_opts);
+        ChainMan chainman{context, chainman_opts};
+        BOOST_CHECK(chainman);
+    }
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+
+    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+    BOOST_REQUIRE(chainman_opts);
+    ChainMan chainman{context, chainman_opts};
+    BOOST_CHECK(chainman);
+}
+
