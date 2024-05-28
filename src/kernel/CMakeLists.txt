@@ -107,6 +107,11 @@ set_target_properties(bitcoinkernel PROPERTIES
 add_custom_target(libbitcoinkernel)
 add_dependencies(libbitcoinkernel bitcoinkernel)
 
+get_target_property(bitcoinkernel_type bitcoinkernel TYPE)
+if(bitcoinkernel_type STREQUAL "STATIC_LIBRARY")
+  target_compile_definitions(bitcoinkernel PUBLIC BITCOINKERNEL_STATIC)
+endif()
+
 # When building the static library, install all static libraries the
 # bitcoinkernel depends on.
 if(NOT BUILD_SHARED_LIBS)
@@ -149,3 +154,5 @@ install(TARGETS bitcoinkernel
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT libbitcoinkernel
 )
+
+install(FILES bitcoinkernel.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT libbitcoinkernel)
