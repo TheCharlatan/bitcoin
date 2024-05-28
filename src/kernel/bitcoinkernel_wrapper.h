@@ -196,4 +196,68 @@ public:
     }
 };
 
+class ChainstateManagerOptions
+{
+private:
+    struct Deleter {
+        void operator()(kernel_ChainstateManagerOptions* ptr) const
+        {
+            kernel_chainstate_manager_options_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_ChainstateManagerOptions, Deleter> m_options;
+
+public:
+    ChainstateManagerOptions(Context& context, const std::string& data_dir, kernel_Error& error)
+        : m_options{kernel_chainstate_manager_options_create(context.m_context.get(), data_dir.c_str(), &error)}
+    {
+    }
+
+    friend class ChainMan;
+};
+
+class BlockManagerOptions
+{
+private:
+    struct Deleter {
+        void operator()(kernel_BlockManagerOptions* ptr) const
+        {
+            kernel_block_manager_options_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_BlockManagerOptions, Deleter> m_options;
+
+public:
+    BlockManagerOptions(Context& context, const std::string& data_dir, kernel_Error& error)
+        : m_options{kernel_block_manager_options_create(context.m_context.get(), data_dir.c_str(), &error)}
+    {
+    }
+
+    friend class ChainMan;
+};
+
+class ChainMan
+{
+private:
+    kernel_ChainstateManager* m_chainman;
+    Context& m_context;
+
+public:
+    ChainMan(Context& context, ChainstateManagerOptions& chainman_opts, BlockManagerOptions& blockman_opts, kernel_Error& error)
+        : m_chainman{kernel_chainstate_manager_create(chainman_opts.m_options.get(), blockman_opts.m_options.get(), context.m_context.get(), &error)},
+          m_context{context}
+    {
+    }
+
+    ChainMan(const ChainMan&) = delete;
+    ChainMan& operator=(const ChainMan&) = delete;
+
+    ~ChainMan()
+    {
+        kernel_chainstate_manager_destroy(m_chainman, m_context.m_context.get());
+    }
+};
+
 #endif // BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
