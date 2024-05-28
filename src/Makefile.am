@@ -16,6 +16,7 @@ AM_LIBTOOLFLAGS = --preserve-dup-deps
 PTHREAD_FLAGS = $(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
 EXTRA_LIBRARIES =
 
+include_HEADERS =
 lib_LTLIBRARIES =
 noinst_LTLIBRARIES =
 
@@ -110,6 +111,7 @@ endif
 
 if BUILD_BITCOIN_CHAINSTATE
   bin_PROGRAMS += bitcoin-chainstate
+  bin_PROGRAMS += test-kernel
 endif
 
 .PHONY: FORCE check-symbols check-security
@@ -889,6 +891,13 @@ bitcoin_util_LDADD = \
   $(LIBSECP256K1)
 #
 
+# test-kernel binary #
+test_kernel_SOURCES = test_kernel.cpp
+test_kernel_CPPFLAGS = $(AM_CPPFLAGS)
+test_kernel_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+test_kernel_LDFLAGS = $(RELDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)
+test_kernel_LDADD = $(LIBBITCOINKERNEL)
+
 # bitcoin-chainstate binary #
 bitcoin_chainstate_SOURCES = bitcoin-chainstate.cpp
 bitcoin_chainstate_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
@@ -905,6 +914,7 @@ bitcoin_chainstate_LDADD += $(LIBSECP256K1)
 # bitcoinkernel library #
 if BUILD_BITCOIN_KERNEL_LIB
 lib_LTLIBRARIES += $(LIBBITCOINKERNEL)
+include_HEADERS += kernel/bitcoinkernel.h
 
 libbitcoinkernel_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(PTHREAD_FLAGS)
 libbitcoinkernel_la_LIBADD = $(LIBBITCOIN_CRYPTO) $(LIBLEVELDB) $(LIBMEMENV) $(LIBSECP256K1)
