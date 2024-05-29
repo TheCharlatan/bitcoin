@@ -239,6 +239,27 @@ public:
     friend class ChainMan;
 };
 
+class ChainstateLoadOptions
+{
+private:
+    struct Deleter {
+        void operator()(kernel_ChainstateLoadOptions* ptr) const
+        {
+            kernel_chainstate_load_options_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_ChainstateLoadOptions, Deleter> m_options;
+
+public:
+    ChainstateLoadOptions()
+        : m_options{kernel_chainstate_load_options_create()}
+    {
+    }
+
+    friend class ChainMan;
+};
+
 class ChainMan
 {
 private:
@@ -254,6 +275,11 @@ public:
 
     ChainMan(const ChainMan&) = delete;
     ChainMan& operator=(const ChainMan&) = delete;
+
+    void LoadChainstate(ChainstateLoadOptions& chainstate_load_opts, kernel_Error& error)
+    {
+        kernel_chainstate_manager_load_chainstate(m_context.m_context.get(), chainstate_load_opts.m_options.get(), m_chainman, &error);
+    }
 
     ~ChainMan()
     {
