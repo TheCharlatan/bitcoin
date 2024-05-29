@@ -316,6 +316,8 @@ void chainman_test()
 
     ChainMan chainman{context, chainman_opts, blockman_opts};
     assert(chainman);
+    ChainstateLoadOptions chainstate_load_opts{};
+    assert(chainman.LoadChainstate(chainstate_load_opts));
 }
 
 int main()
