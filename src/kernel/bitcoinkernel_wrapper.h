@@ -102,4 +102,37 @@ int verify_script(const ScriptPubkey& script_pubkey,
         &status);
 }
 
+template <typename T>
+concept Log = requires(T a, const char* message) {
+    { a.LogMessage(message) } -> std::same_as<void>;
+};
+
+template <Log T>
+class Logger
+{
+private:
+    struct Deleter {
+        void operator()(kernel_LoggingConnection* ptr) const
+        {
+            kernel_logging_connection_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<T> m_log;
+    std::unique_ptr<kernel_LoggingConnection, Deleter> m_connection;
+
+public:
+    Logger(std::unique_ptr<T> log, const kernel_LoggingOptions& logging_options) noexcept
+        : m_log{std::move(log)},
+          m_connection{kernel_logging_connection_create(
+              [](void* user_data, const char* message) { static_cast<T*>(user_data)->LogMessage(message); },
+              m_log.get(),
+              logging_options)}
+    {
+    }
+
+    /** Check whether this Logger object is valid. */
+    explicit operator bool() const noexcept { return bool{m_connection}; }
+};
+
 #endif // BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
