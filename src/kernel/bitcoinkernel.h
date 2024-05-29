@@ -184,6 +184,14 @@ typedef struct kernel_BlockManagerOptions kernel_BlockManagerOptions;
  */
 typedef struct kernel_ChainstateManager kernel_ChainstateManager;
 
+/**
+ * Opaque data structure for holding parameters used for loading the chainstate
+ * of a chainstate manager.
+ *
+ * Is initialized with default parameters.
+ */
+typedef struct kernel_ChainstateLoadOptions kernel_ChainstateLoadOptions;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -647,6 +655,23 @@ void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* block_mana
 
 ///@}
 
+/** @name ChainstateLoadOptions
+ * Functions for working with chainstate load options.
+ */
+///@{
+
+/**
+ * Create options for loading the chainstate.
+ */
+kernel_ChainstateLoadOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_load_options_create();
+
+/**
+ * Destroy the chainstate load options
+ */
+void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_options);
+
+///@}
+
 /** @name ChainstateManager
  * Functions for chainstate management.
  */
@@ -668,6 +693,21 @@ kernel_ChainstateManager* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_man
     const kernel_Context* context,
     const kernel_ChainstateManagerOptions* chainstate_manager_options,
     const kernel_BlockManagerOptions* block_manager_options
+) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
+
+/**
+ * @brief This function must be called to initialize the chainstate manager
+ * before doing validation tasks or interacting with its indexes.
+ *
+ * @param[in] context                 Non-null.
+ * @param[in] chainstate_load_options Non-null, created by @ref kernel_chainstate_load_options_create.
+ * @param[in] chainstate_manager      Non-null, will load the chainstate(s) and initialize indexes.
+ * @return                            True on success, false on error.
+ */
+bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_load_chainstate(
+    const kernel_Context* context,
+    const kernel_ChainstateLoadOptions* chainstate_load_options,
+    kernel_ChainstateManager* chainstate_manager
 ) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
 
 /**
