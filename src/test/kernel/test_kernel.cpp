@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <span>
 #include <string>
 #include <vector>
@@ -44,6 +45,14 @@ void assert_error_ok(kernel_Error& error)
     }
 }
 
+class TestLog
+{
+public:
+    void LogMessage(const char* message)
+    {
+        std::cout << "kernel: " << message;
+    }
+};
 
 constexpr auto VERIFY_ALL_PRE_SEGWIT{kernel_SCRIPT_FLAGS_VERIFY_P2SH | kernel_SCRIPT_FLAGS_VERIFY_DERSIG |
                                      kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY | kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY |
@@ -168,9 +177,40 @@ void script_verify_test()
         /*is_taproot*/ true);
 }
 
+void logging_test()
+{
+    kernel_Error error;
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    kernel_LoggingOptions logging_options = {
+        .log_timestamps = true,
+        .log_time_micros = true,
+        .log_threadnames = false,
+        .log_sourcelocations = false,
+        .always_print_category_levels = true,
+    };
+
+    kernel_add_log_level_category(kernel_LogCategory::kernel_LOG_BENCH, kernel_LogLevel::kernel_LOG_TRACE);
+    kernel_disable_log_category(kernel_LogCategory::kernel_LOG_BENCH);
+    kernel_enable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION);
+    kernel_disable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION);
+
+    // Check that connecting, connecting another, and then disconnecting and connecting a logger again works.
+    {
+        Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options, error};
+        assert_error_ok(error);
+        Logger logger_2{std::make_unique<TestLog>(TestLog{}), logging_options, error};
+        assert_error_ok(error);
+    }
+    Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options, error};
+    assert_error_ok(error);
+}
+
 int main()
 {
     script_verify_test();
+    logging_test();
+
     std::cout << "Libbitcoinkernel test completed." << std::endl;
     return 0;
 }
