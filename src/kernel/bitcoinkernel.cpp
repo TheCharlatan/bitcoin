@@ -7,6 +7,7 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <consensus/amount.h>
+#include <consensus/validation.h>
 #include <kernel/caches.h>
 #include <kernel/chainparams.h>
 #include <kernel/checks.h>
@@ -16,6 +17,7 @@
 #include <kernel/warning.h>
 #include <logging.h>
 #include <node/blockstorage.h>
+#include <node/chainstate.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
@@ -38,6 +40,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -50,41 +53,6 @@ extern const std::function<std::string(const char*)> G_TRANSLATION_FUN{nullptr};
 static const kernel::Context btck_context_static{};
 
 namespace {
-
-bool is_valid_flag_combination(unsigned int flags)
-{
-    if (flags & SCRIPT_VERIFY_CLEANSTACK && ~flags & (SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS)) return false;
-    if (flags & SCRIPT_VERIFY_WITNESS && ~flags & SCRIPT_VERIFY_P2SH) return false;
-    return true;
-}
-
-class WriterStream
-{
-private:
-    btck_WriteBytes m_writer;
-    void* m_user_data;
-
-public:
-    WriterStream(btck_WriteBytes writer, void* user_data)
-        : m_writer{writer}, m_user_data{user_data} {}
-
-    //
-    // Stream subset
-    //
-    void write(std::span<const std::byte> src)
-    {
-        if (m_writer(std::data(src), src.size(), m_user_data) != 0) {
-            throw std::runtime_error("Failed to write serilization data");
-        }
-    }
-
-    template <typename T>
-    WriterStream& operator<<(const T& obj)
-    {
-        ::Serialize(*this, obj);
-        return *this;
-    }
-};
 
 template <typename C, typename CPP>
 struct Handle {
@@ -132,6 +100,41 @@ struct Handle {
 struct btck_BlockTreeEntry: Handle<btck_BlockTreeEntry, CBlockIndex> {};
 
 namespace {
+
+bool is_valid_flag_combination(unsigned int flags)
+{
+    if (flags & SCRIPT_VERIFY_CLEANSTACK && ~flags & (SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS)) return false;
+    if (flags & SCRIPT_VERIFY_WITNESS && ~flags & SCRIPT_VERIFY_P2SH) return false;
+    return true;
+}
+
+class WriterStream
+{
+private:
+    btck_WriteBytes m_writer;
+    void* m_user_data;
+
+public:
+    WriterStream(btck_WriteBytes writer, void* user_data)
+        : m_writer{writer}, m_user_data{user_data} {}
+
+    //
+    // Stream subset
+    //
+    void write(std::span<const std::byte> src)
+    {
+        if (m_writer(std::data(src), src.size(), m_user_data) != 0) {
+            throw std::runtime_error("Failed to write serilization data");
+        }
+    }
+
+    template <typename T>
+    WriterStream& operator<<(const T& obj)
+    {
+        ::Serialize(*this, obj);
+        return *this;
+    }
+};
 
 BCLog::Level get_bclog_level(btck_LogLevel level)
 {
@@ -373,6 +376,7 @@ struct ChainstateManagerOptions {
     ChainstateManager::Options m_chainman_options GUARDED_BY(m_mutex);
     node::BlockManager::Options m_blockman_options GUARDED_BY(m_mutex);
     std::shared_ptr<const Context> m_context;
+    node::ChainstateLoadOptions m_chainstate_load_options GUARDED_BY(m_mutex);
 
     ChainstateManagerOptions(const std::shared_ptr<const Context>& context, const fs::path& data_dir, const fs::path& blocks_dir)
         : m_chainman_options{ChainstateManager::Options{
@@ -387,7 +391,7 @@ struct ChainstateManagerOptions {
                   .path = data_dir / "blocks" / "index",
                   .cache_bytes = kernel::CacheSizes{DEFAULT_KERNEL_CACHE}.block_tree_db,
               }}},
-          m_context{context}
+          m_context{context}, m_chainstate_load_options{node::ChainstateLoadOptions{}}
     {
     }
 };
@@ -702,16 +706,44 @@ void btck_chainstate_manager_options_destroy(btck_ChainstateManagerOptions* opti
 btck_ChainstateManager* btck_chainstate_manager_create(
     const btck_ChainstateManagerOptions* chainman_opts)
 {
+    auto& opts{btck_ChainstateManagerOptions::get(chainman_opts)};
+    std::unique_ptr<ChainstateManager> chainman;
     try {
-        auto& opts{btck_ChainstateManagerOptions::get(chainman_opts)};
         LOCK(opts.m_mutex);
-        auto& context{opts.m_context};
-        auto chainman{std::make_unique<ChainstateManager>(*context->m_interrupt, opts.m_chainman_options, opts.m_blockman_options)};
-        return btck_ChainstateManager::create(std::move(chainman), context);
+        chainman = std::make_unique<ChainstateManager>(*opts.m_context->m_interrupt, opts.m_chainman_options, opts.m_blockman_options);
     } catch (const std::exception& e) {
         LogError("Failed to create chainstate manager: %s", e.what());
         return nullptr;
     }
+
+    try {
+        const auto chainstate_load_opts{WITH_LOCK(opts.m_mutex, return opts.m_chainstate_load_options)};
+
+        kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
+        auto [status, chainstate_err]{node::LoadChainstate(*chainman, cache_sizes, chainstate_load_opts)};
+        if (status != node::ChainstateLoadStatus::SUCCESS) {
+            LogError("Failed to load chain state from your data directory: %s", chainstate_err.original);
+            return nullptr;
+        }
+        std::tie(status, chainstate_err) = node::VerifyLoadedChainstate(*chainman, chainstate_load_opts);
+        if (status != node::ChainstateLoadStatus::SUCCESS) {
+            LogError("Failed to verify loaded chain state from your datadir: %s", chainstate_err.original);
+            return nullptr;
+        }
+
+        for (Chainstate* chainstate : WITH_LOCK(chainman->GetMutex(), return chainman->GetAll())) {
+            BlockValidationState state;
+            if (!chainstate->ActivateBestChain(state, nullptr)) {
+                LogError("Failed to connect best block: %s", state.ToString());
+                return nullptr;
+            }
+        }
+    } catch (const std::exception& e) {
+        LogError("Failed to load chainstate: %s", e.what());
+        return nullptr;
+    }
+
+    return btck_ChainstateManager::create(std::move(chainman), opts.m_context);
 }
 
 void btck_chainstate_manager_destroy(btck_ChainstateManager* chainman)
