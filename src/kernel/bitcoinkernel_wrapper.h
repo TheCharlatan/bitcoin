@@ -11,11 +11,34 @@
 #include <memory>
 #include <span>
 #include <stdexcept>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
 class Transaction;
 class TransactionOutput;
+
+enum class LogCategory : btck_LogCategory
+{
+    ALL = btck_LogCategory_ALL,
+    BENCH = btck_LogCategory_BENCH,
+    BLOCKSTORAGE = btck_LogCategory_BLOCKSTORAGE,
+    COINDB = btck_LogCategory_COINDB,
+    LEVELDB = btck_LogCategory_LEVELDB,
+    MEMPOOL = btck_LogCategory_MEMPOOL,
+    PRUNE = btck_LogCategory_PRUNE,
+    RAND = btck_LogCategory_RAND,
+    REINDEX = btck_LogCategory_REINDEX,
+    VALIDATION = btck_LogCategory_VALIDATION,
+    KERNEL = btck_LogCategory_KERNEL
+};
+
+enum class LogLevel : btck_LogLevel
+{
+    TRACE_LEVEL = btck_LogLevel_TRACE,
+    DEBUG_LEVEL = btck_LogLevel_DEBUG,
+    INFO_LEVEL = btck_LogLevel_INFO
+};
 
 enum class ScriptVerifyStatus : btck_ScriptVerifyStatus
 {
@@ -414,5 +437,47 @@ bool ScriptPubkey::Verify(int64_t amount,
         reinterpret_cast<btck_ScriptVerifyStatus*>(&status));
     return result == 1;
 }
+
+void logging_disable()
+{
+    btck_logging_disable();
+}
+
+void logging_set_level_category(LogCategory category, LogLevel level)
+{
+    btck_logging_set_level_category(static_cast<btck_LogCategory>(category), static_cast<btck_LogLevel>(level));
+}
+
+void logging_enable_category(LogCategory category)
+{
+    btck_logging_enable_category(static_cast<btck_LogCategory>(category));
+}
+
+void logging_disable_category(LogCategory category)
+{
+    btck_logging_disable_category(static_cast<btck_LogCategory>(category));
+}
+
+template <typename T>
+concept Log = requires(T a, std::string_view message) {
+    { a.LogMessage(message) } -> std::same_as<void>;
+};
+
+template <Log T>
+class Logger : Handle<btck_LoggingConnection, btck_logging_connection_destroy>
+{
+private:
+    std::unique_ptr<T> m_log;
+
+public:
+    Logger(std::unique_ptr<T> log, const btck_LoggingOptions& logging_options)
+        : Handle{check(btck_logging_connection_create(
+              [](void* user_data, const char* message, size_t message_len) { static_cast<T*>(user_data)->LogMessage({message, message_len}); },
+              log.get(),
+              logging_options))},
+          m_log{std::move(log)}
+    {
+    }
+};
 
 #endif // BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
