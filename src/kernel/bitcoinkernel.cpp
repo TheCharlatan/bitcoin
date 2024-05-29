@@ -7,6 +7,7 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <consensus/amount.h>
+#include <consensus/validation.h>
 #include <kernel/caches.h>
 #include <kernel/chainparams.h>
 #include <kernel/checks.h>
@@ -15,6 +16,7 @@
 #include <kernel/warning.h>
 #include <logging.h>
 #include <node/blockstorage.h>
+#include <node/chainstate.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
@@ -37,6 +39,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -268,6 +271,7 @@ struct ChainstateManagerOptions {
     ChainstateManager::Options m_chainman_options GUARDED_BY(m_mutex);
     node::BlockManager::Options m_blockman_options GUARDED_BY(m_mutex);
     std::shared_ptr<Context> m_context;
+    node::ChainstateLoadOptions m_chainstate_load_options GUARDED_BY(m_mutex);
 
     ChainstateManagerOptions(const std::shared_ptr<Context>& context, const fs::path& data_dir, const fs::path& blocks_dir)
         : m_chainman_options{ChainstateManager::Options{
@@ -282,7 +286,8 @@ struct ChainstateManagerOptions {
                   .path = data_dir / "blocks" / "index",
                   .cache_bytes = kernel::CacheSizes{DEFAULT_KERNEL_CACHE}.block_tree_db,
               }}},
-          m_context{context}
+          m_context{context},
+          m_chainstate_load_options{node::ChainstateLoadOptions{}}
     {
     }
 };
@@ -671,15 +676,44 @@ void btck_chainstate_manager_options_destroy(btck_ChainstateManagerOptions* opti
 btck_ChainstateManager* btck_chainstate_manager_create(
     const btck_ChainstateManagerOptions* chainman_opts)
 {
+    std::unique_ptr<ChainstateManager> chainman;
     try {
         LOCK(chainman_opts->m_opts->m_mutex);
         auto& context{chainman_opts->m_opts->m_context};
-        auto chainman{std::make_unique<ChainstateManager>(*context->m_interrupt, chainman_opts->m_opts->m_chainman_options, chainman_opts->m_opts->m_blockman_options)};
-        return new btck_ChainstateManager{std::move(chainman), context};
+        chainman = std::make_unique<ChainstateManager>(*context->m_interrupt, chainman_opts->m_opts->m_chainman_options, chainman_opts->m_opts->m_blockman_options);
     } catch (const std::exception& e) {
         LogError("Failed to create chainstate manager: %s", e.what());
         return nullptr;
     }
+
+    try {
+        const auto chainstate_load_opts{WITH_LOCK(chainman_opts->m_opts->m_mutex, return chainman_opts->m_opts->m_chainstate_load_options)};
+
+        kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
+        auto [status, chainstate_err]{node::LoadChainstate(*chainman, cache_sizes, chainstate_load_opts)};
+        if (status != node::ChainstateLoadStatus::SUCCESS) {
+            LogError("Failed to load chain state from your data directory: %s", chainstate_err.original);
+            return nullptr;
+        }
+        std::tie(status, chainstate_err) = node::VerifyLoadedChainstate(*chainman, chainstate_load_opts);
+        if (status != node::ChainstateLoadStatus::SUCCESS) {
+            LogError("Failed to verify loaded chain state from your datadir: %s", chainstate_err.original);
+            return nullptr;
+        }
+
+        for (Chainstate* chainstate : WITH_LOCK(chainman->GetMutex(), return chainman->GetAll())) {
+            BlockValidationState state;
+            if (!chainstate->ActivateBestChain(state, nullptr)) {
+                LogError("Failed to connect best block: %s", state.ToString());
+                return nullptr;
+            }
+        }
+    } catch (const std::exception& e) {
+        LogError("Failed to load chainstate: %s", e.what());
+        return nullptr;
+    }
+
+    return new btck_ChainstateManager{std::move(chainman), chainman_opts->m_opts->m_context};
 }
 
 void btck_chainstate_manager_destroy(btck_ChainstateManager* chainman)
