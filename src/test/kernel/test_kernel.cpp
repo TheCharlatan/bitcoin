@@ -12,7 +12,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <span>
+#include <string_view>
 #include <vector>
 
 std::vector<unsigned char> hex_string_to_char_vec(std::string_view hex)
@@ -29,6 +31,15 @@ std::vector<unsigned char> hex_string_to_char_vec(std::string_view hex)
     }
     return bytes;
 }
+
+class TestLog
+{
+public:
+    void LogMessage(std::string_view message)
+    {
+        std::cout << "kernel: " << message;
+    }
+};
 
 constexpr auto VERIFY_ALL_PRE_SEGWIT{kernel_SCRIPT_FLAGS_VERIFY_P2SH | kernel_SCRIPT_FLAGS_VERIFY_DERSIG |
                                      kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY | kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY |
@@ -153,4 +164,32 @@ BOOST_AUTO_TEST_CASE(kernel_script_verify_tests)
         /*amount*/ 88480,
         /*input_index*/ 0,
         /*is_taproot*/ true);
+}
+
+BOOST_AUTO_TEST_CASE(kernel_logging_tests)
+{
+    kernel_LoggingOptions logging_options = {
+        .log_timestamps = true,
+        .log_time_micros = true,
+        .log_threadnames = false,
+        .log_sourcelocations = false,
+        .always_print_category_levels = true,
+    };
+
+    kernel_logging_set_level_category(kernel_LogCategory::kernel_LOG_BENCH, kernel_LogLevel::kernel_LOG_TRACE);
+    kernel_logging_disable_category(kernel_LogCategory::kernel_LOG_BENCH);
+    kernel_logging_enable_category(kernel_LogCategory::kernel_LOG_VALIDATION);
+    kernel_logging_disable_category(kernel_LogCategory::kernel_LOG_VALIDATION);
+
+    // Check that connecting, connecting another, and then disconnecting and connecting a logger again works.
+    {
+        kernel_logging_set_level_category(kernel_LogCategory::kernel_LOG_KERNEL, kernel_LogLevel::kernel_LOG_TRACE);
+        kernel_logging_enable_category(kernel_LogCategory::kernel_LOG_KERNEL);
+        Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
+        BOOST_CHECK(logger);
+        Logger logger_2{std::make_unique<TestLog>(TestLog{}), logging_options};
+        BOOST_CHECK(logger_2);
+    }
+    Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
+    BOOST_CHECK(logger);
 }
