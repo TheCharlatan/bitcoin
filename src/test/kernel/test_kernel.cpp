@@ -344,6 +344,10 @@ void chainman_test()
 
     ChainMan chainman{context, chainman_opts, blockman_opts, error};
     assert_error_ok(error);
+
+    ChainstateLoadOptions chainstate_load_opts{};
+    chainman.LoadChainstate(chainstate_load_opts, error);
+    assert_error_ok(error);
 }
 
 int main()

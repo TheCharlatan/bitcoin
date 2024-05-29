@@ -168,6 +168,14 @@ typedef struct kernel_BlockManagerOptions kernel_BlockManagerOptions;
  */
 typedef struct kernel_ChainstateManager kernel_ChainstateManager;
 
+/**
+ * Opaque data structure for holding parameters used for loading the chainstate
+ * of a chainstate manager.
+ *
+ * Is initialized with default parameters.
+ */
+typedef struct kernel_ChainstateLoadOptions kernel_ChainstateLoadOptions;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -557,6 +565,32 @@ kernel_ChainstateManager* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_man
  * Destroy the chainstate manager.
  */
 void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainstate_manager, const kernel_Context* context);
+
+/**
+ * Create options for loading the chainstate.
+ */
+kernel_ChainstateLoadOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_load_options_create();
+
+/**
+ * Destroy the chainstate load options
+ */
+void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_options);
+
+/**
+ * @brief This function must be called to initialize the chainstate manager
+ * before doing validation tasks or interacting with its indexes.
+ *
+ * @param[in] context                 Non-null.
+ * @param[in] chainstate_load_options Non-null, created by kernel_chainstate_load_options_create.
+ * @param[in] chainstate_manager      Non-null, will load the chainstate(s) and initialize indexes.
+ * @param[out] error                  Nullable, will contain an error/success code for the operation.
+ */
+void kernel_chainstate_manager_load_chainstate(
+    const kernel_Context* context,
+    kernel_ChainstateLoadOptions* chainstate_load_options,
+    kernel_ChainstateManager* chainstate_manager,
+    kernel_Error* error
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
 
 #ifdef __cplusplus
 } // extern "C"
