@@ -10,6 +10,7 @@
 #include <memory>
 #include <span>
 #include <stdexcept>
+#include <string_view>
 #include <vector>
 
 class Transaction;
@@ -197,5 +198,35 @@ int ScriptPubkey::Verify(int64_t amount,
         flags,
         &status);
 }
+
+template <typename T>
+concept Log = requires(T a, std::string_view message) {
+    { a.LogMessage(message) } -> std::same_as<void>;
+};
+
+template <Log T>
+class Logger
+{
+private:
+    struct Deleter {
+        void operator()(btck_LoggingConnection* ptr) const noexcept
+        {
+            btck_logging_connection_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<T> m_log;
+    std::unique_ptr<btck_LoggingConnection, Deleter> m_connection;
+
+public:
+    Logger(std::unique_ptr<T> log, const btck_LoggingOptions& logging_options)
+        : m_log{std::move(log)},
+          m_connection{check(btck_logging_connection_create(
+              [](void* user_data, const char* message, size_t message_len) { static_cast<T*>(user_data)->LogMessage({message, message_len}); },
+              m_log.get(),
+              logging_options))}
+    {
+    }
+};
 
 #endif // BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
