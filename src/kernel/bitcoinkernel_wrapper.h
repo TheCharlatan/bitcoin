@@ -314,6 +314,27 @@ public:
     friend class ChainMan;
 };
 
+class ChainstateLoadOptions
+{
+private:
+    struct Deleter {
+        void operator()(kernel_ChainstateLoadOptions* ptr) const
+        {
+            kernel_chainstate_load_options_destroy(ptr);
+        }
+    };
+
+    const std::unique_ptr<kernel_ChainstateLoadOptions, Deleter> m_options;
+
+public:
+    ChainstateLoadOptions() noexcept
+        : m_options{kernel_chainstate_load_options_create()}
+    {
+    }
+
+    friend class ChainMan;
+};
+
 class ChainMan
 {
 private:
@@ -321,8 +342,12 @@ private:
     const Context& m_context;
 
 public:
-    ChainMan(const Context& context, const ChainstateManagerOptions& chainman_opts, const BlockManagerOptions& blockman_opts) noexcept
-        : m_chainman{kernel_chainstate_manager_create(context.m_context.get(), chainman_opts.m_options.get(), blockman_opts.m_options.get())},
+    ChainMan(const Context& context, const ChainstateManagerOptions& chainman_opts, const BlockManagerOptions& blockman_opts, ChainstateLoadOptions& chainstate_load_opts) noexcept
+        : m_chainman{kernel_chainstate_manager_create(
+                context.m_context.get(),
+                chainman_opts.m_options.get(),
+                blockman_opts.m_options.get(),
+                chainstate_load_opts.m_options.get())},
           m_context{context}
     {
     }
