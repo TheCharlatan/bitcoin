@@ -184,6 +184,14 @@ typedef struct kernel_BlockManagerOptions kernel_BlockManagerOptions;
  */
 typedef struct kernel_ChainstateManager kernel_ChainstateManager;
 
+/**
+ * Opaque data structure for holding parameters used for loading the chainstate
+ * of a chainstate manager.
+ *
+ * Is initialized with default parameters.
+ */
+typedef struct kernel_ChainstateLoadOptions kernel_ChainstateLoadOptions;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -647,6 +655,23 @@ void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* block_mana
 
 ///@}
 
+/** @name ChainstateLoadOptions
+ * Functions for working with chainstate load options.
+ */
+///@{
+
+/**
+ * Create options for loading the chainstate.
+ */
+kernel_ChainstateLoadOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_load_options_create();
+
+/**
+ * Destroy the chainstate load options
+ */
+void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_options);
+
+///@}
+
 /** @name ChainstateManager
  * Functions for chainstate management.
  */
@@ -654,8 +679,9 @@ void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* block_mana
 
 /**
  * @brief Create a chainstate manager. This is the main object for many
- * validation tasks as well as for retrieving data from the chain. It is only
- * valid for as long as the passed in context also remains in memory.
+ * validation tasks as well as for retrieving data from the chain and
+ * interacting with its chainstate and indexes. It is only valid for as long as
+ * the passed in context also remains in memory.
  *
  * @param[in] chainstate_manager_options Non-null, created by @ref kernel_chainstate_manager_options_create.
  * @param[in] block_manager_options      Non-null, created by @ref kernel_block_manager_options_create.
@@ -667,7 +693,8 @@ void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* block_mana
 kernel_ChainstateManager* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_create(
     const kernel_Context* context,
     const kernel_ChainstateManagerOptions* chainstate_manager_options,
-    const kernel_BlockManagerOptions* block_manager_options
+    const kernel_BlockManagerOptions* block_manager_options,
+    const kernel_ChainstateLoadOptions* chainstate_load_options
 ) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
 
 /**
