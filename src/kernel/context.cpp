@@ -10,7 +10,6 @@
 
 #include <string>
 
-
 namespace kernel {
 Context::Context()
 {

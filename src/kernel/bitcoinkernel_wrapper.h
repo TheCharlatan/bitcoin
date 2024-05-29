@@ -7,6 +7,8 @@
 
 #include <kernel/bitcoinkernel.h>
 
+#include <iostream>
+#include <memory>
 #include <vector>
 
 int verify_script(std::vector<unsigned char>& script_pubkey,
@@ -27,5 +29,47 @@ int verify_script(std::vector<unsigned char>& script_pubkey,
         flags,
         &error);
 }
+
+
+template<typename T>
+concept Log = requires(T a, const char* message) {
+    { a.LogMessage(message) } -> std::same_as<void>;
+};
+
+template<Log T>
+class Logger
+{
+private:
+    struct Deleter {
+        void operator()(kernel_LoggingConnection* ptr) const
+        {
+            kernel_logging_connection_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<T> m_log;
+    std::unique_ptr<kernel_LoggingConnection, Deleter> m_connection;
+
+public:
+    Logger(std::unique_ptr<T> log, kernel_LoggingOptions& logging_options, kernel_Error& error)
+        : m_log{std::move(log)},
+        m_connection{kernel_logging_connection_create(
+              [](void* user_data, const char* message) { static_cast<T*>(user_data)->LogMessage(message); },
+              m_log.get(),
+              logging_options,
+              &error)}
+    {
+    }
+
+    Logger() = delete;
+    Logger(Logger const&) = delete;
+    Logger& operator=(Logger const&) = delete;
+
+    static void EnableLogCategory(kernel_LogCategory category)
+    {
+        kernel_enable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION);
+    }
+
+};
 
 #endif // BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
