@@ -7,6 +7,7 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <consensus/amount.h>
+#include <consensus/validation.h>
 #include <kernel/caches.h>
 #include <kernel/chainparams.h>
 #include <kernel/checks.h>
@@ -15,6 +16,7 @@
 #include <kernel/warning.h>
 #include <logging.h>
 #include <node/blockstorage.h>
+#include <node/chainstate.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
@@ -37,6 +39,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -48,9 +51,34 @@ extern const std::function<std::string(const char*)> G_TRANSLATION_FUN{nullptr};
 
 static const kernel::Context btck_context_static{};
 
-struct btck_BlockTreeEntry {
-    CBlockIndex* m_block_index;
+namespace {
+
+template<typename C, typename CPP>
+struct Handle {
+    static C* ref(CPP* cpp_type) {
+        return reinterpret_cast<C*>(cpp_type);
+    }
+
+    static const C* ref(const CPP* cpp_type) {
+        return reinterpret_cast<const C*>(cpp_type);
+    }
+
+    static const CPP& get(const C* ptr) {
+        return *reinterpret_cast<const CPP*>(ptr);
+    }
+
+    static CPP& get(C* ptr) {
+        return *reinterpret_cast<CPP*>(ptr);
+    }
+
+    static void operator delete(void* ptr) {
+        delete reinterpret_cast<CPP*>(ptr);
+    }
 };
+
+} // namespace
+
+struct btck_BlockTreeEntry: Handle<btck_BlockTreeEntry, CBlockIndex> {};
 
 namespace {
 
@@ -86,29 +114,6 @@ public:
     {
         ::Serialize(*this, obj);
         return *this;
-    }
-};
-
-template<typename C, typename CPP>
-struct Handle {
-    static C* ref(CPP* cpp_type) {
-        return reinterpret_cast<C*>(cpp_type);
-    }
-
-    static const C* ref(const CPP* cpp_type) {
-        return reinterpret_cast<const C*>(cpp_type);
-    }
-
-    static const CPP& get(const C* ptr) {
-        return *reinterpret_cast<const CPP*>(ptr);
-    }
-
-    static CPP& get(C* ptr) {
-        return *reinterpret_cast<CPP*>(ptr);
-    }
-
-    static void operator delete(void* ptr) {
-        delete reinterpret_cast<CPP*>(ptr);
     }
 };
 
@@ -214,7 +219,7 @@ public:
 
     kernel::InterruptResult blockTip(SynchronizationState state, CBlockIndex& index, double verification_progress) override
     {
-        if (m_cbs.block_tip) m_cbs.block_tip(m_cbs.user_data, cast_state(state), new btck_BlockTreeEntry{&index}, verification_progress);
+        if (m_cbs.block_tip) m_cbs.block_tip(m_cbs.user_data, cast_state(state), btck_BlockTreeEntry::ref(&index), verification_progress);
         return {};
     }
     void headerTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
@@ -295,6 +300,7 @@ struct ChainstateManagerOptions {
     ChainstateManager::Options m_chainman_options GUARDED_BY(m_mutex);
     node::BlockManager::Options m_blockman_options GUARDED_BY(m_mutex);
     std::shared_ptr<const Context> m_context;
+    node::ChainstateLoadOptions m_chainstate_load_options GUARDED_BY(m_mutex);
 
     ChainstateManagerOptions(const std::shared_ptr<const Context>& context, const fs::path& data_dir, const fs::path& blocks_dir)
         : m_chainman_options{ChainstateManager::Options{
@@ -309,7 +315,8 @@ struct ChainstateManagerOptions {
                   .path = data_dir / "blocks" / "index",
                   .cache_bytes = kernel::CacheSizes{DEFAULT_KERNEL_CACHE}.block_tree_db,
               }}},
-          m_context{context}
+          m_context{context},
+          m_chainstate_load_options{node::ChainstateLoadOptions{}}
     {
     }
 };
@@ -601,7 +608,6 @@ void btck_chain_parameters_destroy(btck_ChainParameters* chain_parameters)
 {
     if (!chain_parameters) return;
     delete chain_parameters;
-    chain_parameters = nullptr;
 }
 
 btck_ContextOptions* btck_context_options_create()
@@ -627,7 +633,6 @@ void btck_context_options_destroy(btck_ContextOptions* options)
 {
     if (!options) return;
     delete options;
-    options = nullptr;
 }
 
 btck_Context* btck_context_create(const btck_ContextOptions* options)
@@ -651,14 +656,12 @@ void btck_context_destroy(btck_Context* context)
 {
     if (!context) return;
     delete context;
-    context = nullptr;
 }
 
 void btck_block_tree_entry_destroy(btck_BlockTreeEntry* block_tree_entry)
 {
     if (!block_tree_entry) return;
     delete block_tree_entry;
-    block_tree_entry = nullptr;
 }
 
 btck_ChainstateManagerOptions* btck_chainstate_manager_options_create(const btck_Context* context, const char* data_dir, size_t data_dir_len, const char* blocks_dir, size_t blocks_dir_len)
@@ -686,22 +689,50 @@ void btck_chainstate_manager_options_destroy(btck_ChainstateManagerOptions* opti
 {
     if (!options) return;
     delete options;
-    options = nullptr;
 }
 
 btck_ChainstateManager* btck_chainstate_manager_create(
     const btck_ChainstateManagerOptions* chainman_opts)
 {
+    auto& opts{btck_ChainstateManagerOptions::get(chainman_opts)};
+    std::unique_ptr<ChainstateManager> chainman;
     try {
-        auto& opts{btck_ChainstateManagerOptions::get(chainman_opts)};
         LOCK(opts.m_mutex);
         auto& context{opts.m_context};
-        auto chainman{std::make_unique<ChainstateManager>(*context->m_interrupt, opts.m_chainman_options, opts.m_blockman_options)};
-        return btck_ChainstateManager::ref(new ChainMan{std::move(chainman), context});
+        chainman = std::make_unique<ChainstateManager>(*context->m_interrupt, opts.m_chainman_options, opts.m_blockman_options);
     } catch (const std::exception& e) {
         LogError("Failed to create chainstate manager: %s", e.what());
         return nullptr;
     }
+
+    try {
+        const auto chainstate_load_opts{WITH_LOCK(opts.m_mutex, return opts.m_chainstate_load_options)};
+
+        kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
+        auto [status, chainstate_err]{node::LoadChainstate(*chainman, cache_sizes, chainstate_load_opts)};
+        if (status != node::ChainstateLoadStatus::SUCCESS) {
+            LogError("Failed to load chain state from your data directory: %s", chainstate_err.original);
+            return nullptr;
+        }
+        std::tie(status, chainstate_err) = node::VerifyLoadedChainstate(*chainman, chainstate_load_opts);
+        if (status != node::ChainstateLoadStatus::SUCCESS) {
+            LogError("Failed to verify loaded chain state from your datadir: %s", chainstate_err.original);
+            return nullptr;
+        }
+
+        for (Chainstate* chainstate : WITH_LOCK(chainman->GetMutex(), return chainman->GetAll())) {
+            BlockValidationState state;
+            if (!chainstate->ActivateBestChain(state, nullptr)) {
+                LogError("Failed to connect best block: %s", state.ToString());
+                return nullptr;
+            }
+        }
+    } catch (const std::exception& e) {
+        LogError("Failed to load chainstate: %s", e.what());
+        return nullptr;
+    }
+
+    return btck_ChainstateManager::ref(new ChainMan{std::move(chainman), opts.m_context});
 }
 
 void btck_chainstate_manager_destroy(btck_ChainstateManager* chainman)
@@ -719,5 +750,4 @@ void btck_chainstate_manager_destroy(btck_ChainstateManager* chainman)
     }
 
     delete chainman;
-    chainman = nullptr;
 }
