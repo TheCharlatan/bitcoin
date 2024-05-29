@@ -8,17 +8,21 @@
 
 #include <consensus/amount.h>
 #include <kernel/context.h>
+#include <logging.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
 #include <serialize.h>
 #include <streams.h>
+#include <tinyformat.h>
 #include <util/translation.h>
 
+#include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <exception>
 #include <functional>
+#include <list>
 #include <span>
 #include <string>
 #include <utility>
@@ -73,6 +77,62 @@ public:
     }
 };
 
+BCLog::Level get_bclog_level(const btck_LogLevel level)
+{
+    switch (level) {
+    case btck_LogLevel::btck_LOG_INFO: {
+        return BCLog::Level::Info;
+    }
+    case btck_LogLevel::btck_LOG_DEBUG: {
+        return BCLog::Level::Debug;
+    }
+    case btck_LogLevel::btck_LOG_TRACE: {
+        return BCLog::Level::Trace;
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+BCLog::LogFlags get_bclog_flag(const btck_LogCategory category)
+{
+    switch (category) {
+    case btck_LogCategory::btck_LOG_BENCH: {
+        return BCLog::LogFlags::BENCH;
+    }
+    case btck_LogCategory::btck_LOG_BLOCKSTORAGE: {
+        return BCLog::LogFlags::BLOCKSTORAGE;
+    }
+    case btck_LogCategory::btck_LOG_COINDB: {
+        return BCLog::LogFlags::COINDB;
+    }
+    case btck_LogCategory::btck_LOG_LEVELDB: {
+        return BCLog::LogFlags::LEVELDB;
+    }
+    case btck_LogCategory::btck_LOG_MEMPOOL: {
+        return BCLog::LogFlags::MEMPOOL;
+    }
+    case btck_LogCategory::btck_LOG_PRUNE: {
+        return BCLog::LogFlags::PRUNE;
+    }
+    case btck_LogCategory::btck_LOG_RAND: {
+        return BCLog::LogFlags::RAND;
+    }
+    case btck_LogCategory::btck_LOG_REINDEX: {
+        return BCLog::LogFlags::REINDEX;
+    }
+    case btck_LogCategory::btck_LOG_VALIDATION: {
+        return BCLog::LogFlags::VALIDATION;
+    }
+    case btck_LogCategory::btck_LOG_KERNEL: {
+        return BCLog::LogFlags::KERNEL;
+    }
+    case btck_LogCategory::btck_LOG_ALL: {
+        return BCLog::LogFlags::ALL;
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
 } // namespace
 
 struct btck_Transaction {
@@ -87,6 +147,10 @@ struct btck_TransactionOutput {
 struct btck_ScriptPubkey {
     const CScript* m_script;
     bool m_owned;
+};
+
+struct btck_LoggingConnection {
+    std::unique_ptr<std::list<std::function<void(const std::string&)>>::iterator> m_connection;
 };
 
 btck_Transaction* btck_transaction_create(const void* raw_transaction, size_t raw_transaction_len)
@@ -246,4 +310,76 @@ bool btck_script_pubkey_verify(const btck_ScriptPubkey* script_pubkey,
                         flags,
                         TransactionSignatureChecker(&tx, input_index, amount, txdata, MissingDataBehavior::FAIL),
                         nullptr);
+}
+
+void btck_logging_set_level_category(const btck_LogCategory category, const btck_LogLevel level)
+{
+    if (category == btck_LogCategory::btck_LOG_ALL) {
+        LogInstance().SetLogLevel(get_bclog_level(level));
+    }
+
+    LogInstance().AddCategoryLogLevel(get_bclog_flag(category), get_bclog_level(level));
+}
+
+void btck_logging_enable_category(const btck_LogCategory category)
+{
+    LogInstance().EnableCategory(get_bclog_flag(category));
+}
+
+void btck_logging_disable_category(const btck_LogCategory category)
+{
+    LogInstance().DisableCategory(get_bclog_flag(category));
+}
+
+void btck_logging_disable()
+{
+    LogInstance().DisableLogging();
+}
+
+btck_LoggingConnection* btck_logging_connection_create(btck_LogCallback callback,
+                                                           const void* user_data,
+                                                           const btck_LoggingOptions options)
+{
+    LogInstance().m_log_timestamps = options.log_timestamps;
+    LogInstance().m_log_time_micros = options.log_time_micros;
+    LogInstance().m_log_threadnames = options.log_threadnames;
+    LogInstance().m_log_sourcelocations = options.log_sourcelocations;
+    LogInstance().m_always_print_category_level = options.always_print_category_levels;
+
+    auto connection{LogInstance().PushBackCallback([callback, user_data](const std::string& str) { callback((void*)user_data, str.c_str(), str.length()); })};
+
+    try {
+        // Only start logging if we just added the connection.
+        if (LogInstance().NumConnections() == 1 && !LogInstance().StartLogging()) {
+            LogError("Logger start failed.");
+            LogInstance().DeleteCallback(connection);
+            return nullptr;
+        }
+    } catch (std::exception&) {
+        LogError("Logger start failed.");
+        LogInstance().DeleteCallback(connection);
+        return nullptr;
+    }
+
+    LogDebug(BCLog::KERNEL, "Logger connected.");
+
+    return new btck_LoggingConnection{std::make_unique<std::list<std::function<void(const std::string&)>>::iterator>(connection)};
+}
+
+void btck_logging_connection_destroy(btck_LoggingConnection* connection)
+{
+    if (!connection) {
+        return;
+    }
+
+    LogDebug(BCLog::KERNEL, "Logger disconnected.");
+    LogInstance().DeleteCallback(*connection->m_connection);
+    delete connection;
+
+    // Switch back to buffering by calling DisconnectTestLogger if the
+    // connection that was just removed was the last one.
+    if (!LogInstance().Enabled()) {
+        LogInstance().DisconnectTestLogger();
+    }
+    connection = nullptr;
 }
