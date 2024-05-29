@@ -141,6 +141,11 @@ typedef struct kernel_ChainstateManager kernel_ChainstateManager;
  */
 typedef struct kernel_ChainstateLoadOptions kernel_ChainstateLoadOptions;
 
+/**
+ * Opaque data structure for holding a block.
+ */
+typedef struct kernel_Block kernel_Block;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -543,6 +548,34 @@ void kernel_chainstate_manager_load_chainstate(
     kernel_ChainstateLoadOptions* chainstate_load_options,
     kernel_ChainstateManager* chainstate_manager,
     kernel_Error* error);
+
+/**
+ * @brief Process and validate the passed in block with the chainstate manager.
+ *
+ * @param[in] context            Non-null.
+ * @param[in] chainstate_manager Non-null.
+ * @param[in] block              Non-null, block to be validated.
+ * @param[out] error             Nullable, will contain an error/success code for the operation.
+ * @return                       True if processing the block was successful.
+ */
+bool kernel_chainstate_manager_process_block(const kernel_Context* context,
+                                             kernel_ChainstateManager* chainstate_manager,
+                                             kernel_Block* block,
+                                             kernel_Error* error);
+
+/**
+ * @brief Parse a string into a new block object.
+ *
+ * @param[in] block_hex_string Non-null, serialized block as a hexadecimal encoded string.
+ * @param[out] error           Nullable, will contain an error/success code for the operation.
+ * @return                     The allocated block, or null on error.
+ */
+kernel_Block* kernel_block_from_string(const char* block_hex_string, kernel_Error* error);
+
+/**
+ * Destroy the block.
+ */
+void kernel_block_destroy(kernel_Block* block);
 
 #ifdef __cplusplus
 } // extern "C"

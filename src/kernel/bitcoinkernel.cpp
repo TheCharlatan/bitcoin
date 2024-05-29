@@ -4,8 +4,10 @@
 
 #include <kernel/bitcoinkernel.h>
 
+#include <chain.h>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
+#include <core_io.h>
 #include <kernel/chainparams.h>
 #include <kernel/checks.h>
 #include <kernel/context.h>
@@ -14,12 +16,14 @@
 #include <node/blockstorage.h>
 #include <node/caches.h>
 #include <node/chainstate.h>
+#include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
 #include <serialize.h>
 #include <span.h>
 #include <sync.h>
+#include <uint256.h>
 #include <util/fs.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
@@ -408,6 +412,14 @@ node::BlockManager::Options* cast_blockman_opts(kernel_BlockManagerOptions* bloc
     return reinterpret_cast<node::BlockManager::Options*>(blockman_opts);
 }
 
+std::shared_ptr<CBlock>* cast_cblocksharedpointer(kernel_Block* block, kernel_Error* err)
+{
+    if (!block) {
+        set_error_invalid_pointer(err, "Invalid kernel_Block pointer.");
+    }
+    return reinterpret_cast<std::shared_ptr<CBlock>*>(block);
+}
+
 } // namespace
 
 void kernel_add_log_level_category(const kernel_LogCategory category_, const kernel_LogLevel level_)
@@ -727,4 +739,87 @@ void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainman_, cons
     delete chainman;
     set_error_ok(error);
     return;
+}
+
+kernel_Block* kernel_block_from_string(const char* block_hex_string, kernel_Error* error)
+{
+    std::string raw_block{block_hex_string};
+    if (raw_block.empty()) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "Empty block string passed in.");
+    }
+
+    auto block{new CBlock()};
+
+    if (!DecodeHexBlk(*block, raw_block)) {
+        delete block;
+        set_error(error, kernel_ERROR_INTERNAL, "Block decode failed.");
+        return nullptr;
+    }
+
+    return reinterpret_cast<kernel_Block*>(new std::shared_ptr<CBlock>(block));
+}
+
+void kernel_block_destroy(kernel_Block* block)
+{
+    delete reinterpret_cast<std::shared_ptr<CBlock>*>(block);
+}
+
+bool kernel_chainstate_manager_process_block(const kernel_Context* context_, kernel_ChainstateManager* chainman_, kernel_Block* block_, kernel_Error* error)
+{
+    auto context{cast_const_context(context_, error)};
+    if (!context) {
+        return false;
+    }
+
+    auto chainman{cast_chainstate_manager(chainman_, error)};
+    if (!chainman) {
+        return false;
+    }
+
+    auto blockptr{cast_cblocksharedpointer(block_, error)};
+    if (!blockptr) {
+        return false;
+    }
+
+    set_error_ok(error);
+
+    CBlock& block{**blockptr};
+
+    if (block.vtx.empty() || !block.vtx[0]->IsCoinBase()) {
+        set_error(error, kernel_ERROR_INTERNAL, "Block does not start with a coinbase.");
+        return false;
+    }
+
+    uint256 hash{block.GetHash()};
+    {
+        LOCK(cs_main);
+        const CBlockIndex* pindex{chainman->m_blockman.LookupBlockIndex(hash)};
+        if (pindex) {
+            if (pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
+                set_error(error, kernel_ERROR_INTERNAL, "Block is a duplicate.");
+                return false;
+            }
+            if (pindex->nStatus & BLOCK_FAILED_MASK) {
+                set_error(error, kernel_ERROR_INTERNAL, "Block is an invalid duplicate.");
+                return false;
+            }
+        }
+    }
+
+    {
+        LOCK(cs_main);
+        const CBlockIndex* pindex{chainman->m_blockman.LookupBlockIndex(block.hashPrevBlock)};
+        if (pindex) {
+            chainman->UpdateUncommittedBlockStructures(block, pindex);
+        }
+    }
+
+    bool new_block;
+    bool accepted{chainman->ProcessNewBlock(*blockptr, /*force_processing=*/true, /*min_pow_checked=*/true, /*new_block=*/&new_block)};
+
+    if (!new_block && accepted) {
+        set_error(error, kernel_ERROR_INTERNAL, "Block is a duplicate.");
+        return false;
+    }
+    return accepted;
 }
