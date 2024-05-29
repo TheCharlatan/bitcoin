@@ -12,7 +12,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <span>
+#include <string_view>
 #include <vector>
 
 std::vector<std::byte> hex_string_to_byte_vec(std::string_view hex)
@@ -45,6 +47,15 @@ void check_equal(std::span<const std::byte> _actual, std::span<const std::byte> 
         actual.begin(), actual.end(),
         expected.begin(), expected.end());
 }
+
+class TestLog
+{
+public:
+    void LogMessage(std::string_view message)
+    {
+        std::cout << "kernel: " << message;
+    }
+};
 
 void run_verify_test(
     const ScriptPubkey& spent_script_pubkey,
@@ -173,4 +184,29 @@ BOOST_AUTO_TEST_CASE(btck_script_verify_tests)
         /*amount*/ 88480,
         /*input_index*/ 0,
         /*is_taproot*/ true);
+}
+
+BOOST_AUTO_TEST_CASE(btck_logging_tests)
+{
+    btck_LoggingOptions logging_options = {
+        .log_timestamps = true,
+        .log_time_micros = true,
+        .log_threadnames = false,
+        .log_sourcelocations = false,
+        .always_print_category_levels = true,
+    };
+
+    btck_logging_set_level_category(btck_LogCategory::btck_LOG_BENCH, btck_LogLevel::btck_LOG_TRACE);
+    btck_logging_disable_category(btck_LogCategory::btck_LOG_BENCH);
+    btck_logging_enable_category(btck_LogCategory::btck_LOG_VALIDATION);
+    btck_logging_disable_category(btck_LogCategory::btck_LOG_VALIDATION);
+
+    // Check that connecting, connecting another, and then disconnecting and connecting a logger again works.
+    {
+        btck_logging_set_level_category(btck_LogCategory::btck_LOG_KERNEL, btck_LogLevel::btck_LOG_TRACE);
+        btck_logging_enable_category(btck_LogCategory::btck_LOG_KERNEL);
+        Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
+        Logger logger_2{std::make_unique<TestLog>(TestLog{}), logging_options};
+    }
+    Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
 }
