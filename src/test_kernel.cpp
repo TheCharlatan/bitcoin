@@ -84,8 +84,45 @@ void verify_test(std::string spent, std::string spending, int64_t amount, unsign
     assert_error_ok(error);
 }
 
+class Logger
+{
+private:
+    kernel_LoggingConnection* m_connection;
+
+public:
+    Logger(kernel_Error& error)
+    {
+        kernel_LoggingOptions logging_options = {
+            .log_timestamps = true,
+            .log_time_micros = false,
+            .log_threadnames = false,
+            .log_sourcelocations = false,
+            .always_print_category_levels = true,
+        };
+        kernel_enable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION);
+        auto logging_cb = [](void* user_data, const char* message) { reinterpret_cast<Logger*>(user_data)->LogMessage(message); };
+        m_connection = kernel_logging_connection_create(logging_cb, this, logging_options, &error);
+    }
+
+    void LogMessage(const char* message)
+    {
+        std::cout << "kernel: " << message;
+    }
+
+    ~Logger()
+    {
+        kernel_logging_connection_destroy(m_connection);
+    }
+};
+
 int main()
 {
+    kernel_Error error;
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    Logger logger{error};
+    assert_error_ok(error);
+
     verify_test(
         "76a9144bfbaf6afb76cc5771bc6404810d1cc041a6933988ac",
         "02000000013f7cebd65c27431a90bba7f796914fe8cc2ddfc3f2cbd6f7e5f2fc854534da95000000006b483045022100de1ac3bcdfb0332207c4a91f3832bd2c2915840165f876ab47c5f8996b971c3602201c6c053d750fadde599e6f5c4e1963df0f01fc0d97815e8157e3d59fe09ca30d012103699b464d1d8bc9e47d4fb1cdaa89a1c5783d68363c4dbc4b524ed3d857148617feffffff02836d3c01000000001976a914fc25d6d5c94003bf5b0c7b640a248e2c637fcfb088ac7ada8202000000001976a914fbed3d9b11183209a57999d54d59f67c019e756c88ac6acb0700",

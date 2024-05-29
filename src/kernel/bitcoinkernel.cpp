@@ -6,6 +6,7 @@
 
 #include <consensus/amount.h>
 #include <kernel/context.h>
+#include <logging.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
@@ -171,7 +172,121 @@ static int verify_script(const unsigned char* scriptPubKey, size_t scriptPubKeyL
     }
 }
 
+std::string kernel_log_level_to_string(const kernel_LogLevel level)
+{
+    switch (level) {
+    case kernel_LogLevel::kernel_LOG_INFO: {
+        return "info";
+    }
+    case kernel_LogLevel::kernel_LOG_DEBUG: {
+        return "debug";
+    }
+    case kernel_LogLevel::kernel_LOG_TRACE: {
+        return "trace";
+    }
+    }
+}
+
+std::string kernel_log_category_to_string(const kernel_LogCategory category)
+{
+    switch (category) {
+    case kernel_LogCategory::kernel_LOG_BENCH: {
+        return "bench";
+    }
+    case kernel_LogCategory::kernel_LOG_BLOCKSTORAGE: {
+        return "blockstorage";
+    }
+    case kernel_LogCategory::kernel_LOG_COINDB: {
+        return "coindb";
+    }
+    case kernel_LogCategory::kernel_LOG_LEVELDB: {
+        return "leveldb";
+    }
+    case kernel_LogCategory::kernel_LOG_LOCK: {
+        return "lock";
+    }
+    case kernel_LogCategory::kernel_LOG_MEMPOOL: {
+        return "mempool";
+    }
+    case kernel_LogCategory::kernel_LOG_PRUNE: {
+        return "prune";
+    }
+    case kernel_LogCategory::kernel_LOG_RAND: {
+        return "rand";
+    }
+    case kernel_LogCategory::kernel_LOG_REINDEX: {
+        return "reindex";
+    }
+    case kernel_LogCategory::kernel_LOG_VALIDATION: {
+        return "validation";
+    }
+    case kernel_LogCategory::kernel_LOG_NONE: {
+        return "none";
+    }
+    case kernel_LogCategory::kernel_LOG_ALL: {
+        return "all";
+    }
+    }
+}
+
 } // namespace
+
+void kernel_add_log_level_category(const kernel_LogCategory category_, const kernel_LogLevel level_)
+{
+    const auto level{kernel_log_level_to_string(level_)};
+    if (category_ == kernel_LogCategory::kernel_LOG_ALL) {
+        LogInstance().SetLogLevel(level);
+        return;
+    }
+
+    LogInstance().SetCategoryLogLevel(kernel_log_category_to_string(category_), level);
+}
+
+void kernel_enable_log_category(const kernel_LogCategory category)
+{
+    LogInstance().EnableCategory(kernel_log_category_to_string(category));
+}
+
+void kernel_disable_log_category(const kernel_LogCategory category)
+{
+    LogInstance().DisableCategory(kernel_log_category_to_string(category));
+}
+
+kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback callback,
+                                                           void* user_data,
+                                                           const kernel_LoggingOptions options,
+                                                           kernel_Error* error)
+{
+    if (!callback) {
+        set_error_invalid_pointer(error, "Invalid kernel_LogCallback callback.");
+        return nullptr;
+    }
+    LogInstance().m_log_timestamps = options.log_timestamps;
+    LogInstance().m_log_time_micros = options.log_time_micros;
+    LogInstance().m_log_threadnames = options.log_threadnames;
+    LogInstance().m_log_sourcelocations = options.log_sourcelocations;
+    LogInstance().m_always_print_category_level = options.always_print_category_levels;
+
+    auto connection{LogInstance().PushBackCallback([callback, user_data](const std::string& str) { callback(user_data, str.c_str()); })};
+    if (!LogInstance().StartLogging()) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_LOGGING_FAILED, "Logger start failed.");
+        return nullptr;
+    }
+    set_error_ok(error);
+
+    auto heap_connection{new std::list<std::function<void(const std::string&)>>::iterator(connection)};
+    return reinterpret_cast<kernel_LoggingConnection*>(heap_connection);
+}
+
+void kernel_logging_connection_destroy(kernel_LoggingConnection* connection_)
+{
+    auto connection{reinterpret_cast<std::list<std::function<void(const std::string&)>>::iterator*>(connection_)};
+    if (!connection) {
+        return;
+    }
+    LogInstance().DeleteCallback(*connection);
+    delete connection;
+}
 
 int kernel_verify_script_with_spent_outputs(const unsigned char* script_pubkey, size_t script_pubkey_len,
                                             const int64_t amount,
