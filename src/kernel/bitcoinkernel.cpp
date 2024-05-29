@@ -5,12 +5,15 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <consensus/amount.h>
+#include <consensus/validation.h>
 #include <kernel/chainparams.h>
 #include <kernel/checks.h>
 #include <kernel/context.h>
 #include <kernel/notifications_interface.h>
 #include <logging.h>
 #include <node/blockstorage.h>
+#include <node/caches.h>
+#include <node/chainstate.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
@@ -33,6 +36,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -639,6 +643,60 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
     }
 
     return reinterpret_cast<kernel_ChainstateManager*>(new ChainstateManager{*context->m_interrupt, *chainman_opts, *blockman_opts});
+}
+
+kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()
+{
+    return reinterpret_cast<kernel_ChainstateLoadOptions*>(new node::ChainstateLoadOptions);
+}
+
+void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_opts_)
+{
+    delete reinterpret_cast<node::ChainstateLoadOptions*>(chainstate_load_opts_);
+}
+
+void kernel_chainstate_manager_load_chainstate(const kernel_Context* context_,
+                                               kernel_ChainstateLoadOptions* chainstate_load_opts_,
+                                               kernel_ChainstateManager* chainman_,
+                                               kernel_Error* error)
+{
+    auto context{cast_const_context(context_, error)};
+    if (!context) {
+        return;
+    }
+
+    auto default_load_opts{node::ChainstateLoadOptions{}};
+    auto& chainstate_load_opts = default_load_opts;
+
+    if (chainstate_load_opts_) {
+        chainstate_load_opts = *reinterpret_cast<node::ChainstateLoadOptions*>(chainstate_load_opts_);
+    }
+
+    auto chainman{cast_chainstate_manager(chainman_, error)};
+    if (!chainman) {
+        return;
+    }
+
+    node::CacheSizes cache_sizes;
+    cache_sizes.block_tree_db = 2 << 20;
+    cache_sizes.coins_db = 2 << 22;
+    cache_sizes.coins = (450 << 20) - (2 << 20) - (2 << 22);
+    auto [status, chainstate_err]{node::LoadChainstate(*chainman, cache_sizes, chainstate_load_opts)};
+    if (status != node::ChainstateLoadStatus::SUCCESS) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "Failed to load chain state from your data directory. " + chainstate_err.original);
+        return;
+    }
+    std::tie(status, chainstate_err) = node::VerifyLoadedChainstate(*chainman, chainstate_load_opts);
+    if (status != node::ChainstateLoadStatus::SUCCESS) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "Failed to verify loaded chain state from your datadir. " + chainstate_err.original);
+    }
+
+    for (Chainstate* chainstate : WITH_LOCK(::cs_main, return chainman->GetAll())) {
+        BlockValidationState state;
+        if (!chainstate->ActivateBestChain(state, nullptr)) {
+            set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "Failed to connect best block. " + state.ToString());
+        }
+    }
 }
 
 void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainman_, const kernel_Context* context_, kernel_Error* error)

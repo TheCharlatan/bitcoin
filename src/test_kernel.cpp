@@ -330,6 +330,28 @@ public:
     friend class ChainMan;
 };
 
+class ChainstateLoadOptions
+{
+private:
+    kernel_ChainstateLoadOptions* m_options;
+
+public:
+    ChainstateLoadOptions()
+        : m_options{kernel_chainstate_load_options_create()}
+    {
+    }
+
+    ChainstateLoadOptions(const ChainstateLoadOptions&) = delete;
+    ChainstateLoadOptions& operator=(const ChainstateLoadOptions&) = delete;
+
+    ~ChainstateLoadOptions()
+    {
+        kernel_chainstate_load_options_destroy(m_options);
+    }
+
+    friend class ChainMan;
+};
+
 class ChainMan
 {
 private:
@@ -345,6 +367,11 @@ public:
 
     ChainMan(const ChainMan&) = delete;
     ChainMan& operator=(const ChainMan&) = delete;
+
+    void LoadChainstate(ChainstateLoadOptions& chainstate_load_opts, kernel_Error& error)
+    {
+        kernel_chainstate_manager_load_chainstate(m_context.m_context, chainstate_load_opts.m_options, m_chainman, &error);
+    }
 
     ~ChainMan()
     {
@@ -385,6 +412,10 @@ void chainman_test()
     assert_error_ok(error);
 
     ChainMan chainman{context, chainman_opts, blockman_opts, error};
+    assert_error_ok(error);
+
+    ChainstateLoadOptions chainstate_load_opts{};
+    chainman.LoadChainstate(chainstate_load_opts, error);
     assert_error_ok(error);
 }
 
