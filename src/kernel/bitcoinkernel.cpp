@@ -4,6 +4,8 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <consensus/amount.h>
+#include <consensus/validation.h>
+#include <kernel/caches.h>
 #include <kernel/chainparams.h>
 #include <kernel/checks.h>
 #include <kernel/context.h>
@@ -11,6 +13,7 @@
 #include <kernel/warning.h>
 #include <logging.h>
 #include <node/blockstorage.h>
+#include <node/chainstate.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
@@ -33,6 +36,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -293,6 +297,12 @@ ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman)
 {
     assert(chainman);
     return reinterpret_cast<ChainstateManager*>(chainman);
+}
+
+const node::ChainstateLoadOptions* cast_const_chainstate_load_options(const kernel_ChainstateLoadOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<const node::ChainstateLoadOptions*>(options);
 }
 
 } // namespace
@@ -606,21 +616,68 @@ void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* options)
     }
 }
 
+kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()
+{
+    return reinterpret_cast<kernel_ChainstateLoadOptions*>(new node::ChainstateLoadOptions);
+}
+
+void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_opts)
+{
+    if (chainstate_load_opts) {
+        delete cast_const_chainstate_load_options(chainstate_load_opts);
+    }
+}
+
 kernel_ChainstateManager* kernel_chainstate_manager_create(
     const kernel_Context* context_,
     const kernel_ChainstateManagerOptions* chainman_opts_,
-    const kernel_BlockManagerOptions* blockman_opts_)
+    const kernel_BlockManagerOptions* blockman_opts_,
+    const kernel_ChainstateLoadOptions* chainstate_load_opts_)
 {
     auto chainman_opts{cast_const_chainstate_manager_options(chainman_opts_)};
     auto blockman_opts{cast_const_block_manager_options(blockman_opts_)};
     auto context{cast_const_context(context_)};
 
+    ChainstateManager* chainman;
+
     try {
-        return reinterpret_cast<kernel_ChainstateManager*>(new ChainstateManager{*context->m_interrupt, *chainman_opts, *blockman_opts});
+        chainman = new ChainstateManager{*context->m_interrupt, *chainman_opts, *blockman_opts};
     } catch (const std::exception& e) {
         LogError("Failed to create chainstate manager: %s", e.what());
         return nullptr;
     }
+
+    try {
+        const auto& chainstate_load_opts{*cast_const_chainstate_load_options(chainstate_load_opts_)};
+
+        kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
+        auto [status, chainstate_err]{node::LoadChainstate(*chainman, cache_sizes, chainstate_load_opts)};
+        if (status != node::ChainstateLoadStatus::SUCCESS) {
+            LogError("Failed to load chain state from your data directory: %s", chainstate_err.original);
+            kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+            return nullptr;
+        }
+        std::tie(status, chainstate_err) = node::VerifyLoadedChainstate(*chainman, chainstate_load_opts);
+        if (status != node::ChainstateLoadStatus::SUCCESS) {
+            LogError("Failed to verify loaded chain state from your datadir: %s", chainstate_err.original);
+            kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+            return nullptr;
+        }
+
+        for (Chainstate* chainstate : WITH_LOCK(::cs_main, return chainman->GetAll())) {
+            BlockValidationState state;
+            if (!chainstate->ActivateBestChain(state, nullptr)) {
+                LogError("Failed to connect best block: %s", state.ToString());
+                kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+                return nullptr;
+            }
+        }
+    } catch (const std::exception& e) {
+        LogError("Failed to load chainstate: %s", e.what());
+        return nullptr;
+    }
+
+    return reinterpret_cast<kernel_ChainstateManager*>(chainman);
 }
 
 void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainman_, const kernel_Context* context_)
