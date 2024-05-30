@@ -31,8 +31,10 @@
 #include <util/fs.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
+#include <util/task_runner.h>
 #include <util/translation.h>
 #include <validation.h>
+#include <validationinterface.h>
 
 #include <cassert>
 #include <cstddef>
@@ -46,6 +48,8 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+
+using util::ImmediateTaskRunner;
 
 // Define G_TRANSLATION_FUN symbol in libbitcoinkernel library so users of the
 // library aren't required to export this symbol
@@ -100,6 +104,7 @@ struct Handle {
 
 struct btck_BlockTreeEntry: Handle<btck_BlockTreeEntry, CBlockIndex> {};
 struct btck_Block : Handle<btck_Block, std::shared_ptr<const CBlock>> {};
+struct btck_BlockValidationState : Handle<btck_BlockValidationState, BlockValidationState> {};
 
 namespace {
 
@@ -326,10 +331,38 @@ public:
     }
 };
 
+class KernelValidationInterface final : public CValidationInterface
+{
+public:
+    btck_ValidationInterfaceCallbacks m_cbs;
+
+    explicit KernelValidationInterface(const btck_ValidationInterfaceCallbacks vi_cbs) : m_cbs{vi_cbs} {}
+
+    ~KernelValidationInterface()
+    {
+        if (m_cbs.user_data && m_cbs.user_data_destroy) {
+            m_cbs.user_data_destroy(m_cbs.user_data);
+        }
+        m_cbs.user_data = nullptr;
+        m_cbs.user_data_destroy = nullptr;
+    }
+
+protected:
+    void BlockChecked(const std::shared_ptr<const CBlock>& block, const BlockValidationState& stateIn) override
+    {
+        if (m_cbs.block_checked) {
+            m_cbs.block_checked((void*)m_cbs.user_data,
+                                btck_Block::ref(new std::shared_ptr<const CBlock>{block}),
+                                btck_BlockValidationState::ref(&stateIn));
+        }
+    }
+};
+
 struct ContextOptions {
     mutable Mutex m_mutex;
     std::unique_ptr<const CChainParams> m_chainparams GUARDED_BY(m_mutex);
     std::shared_ptr<KernelNotifications> m_notifications GUARDED_BY(m_mutex);
+    std::shared_ptr<KernelValidationInterface> m_validation_interface GUARDED_BY(m_mutex);
 };
 
 class Context
@@ -341,11 +374,16 @@ public:
 
     std::unique_ptr<util::SignalInterrupt> m_interrupt;
 
+    std::unique_ptr<ValidationSignals> m_signals;
+
     std::unique_ptr<const CChainParams> m_chainparams;
+
+    std::shared_ptr<KernelValidationInterface> m_validation_interface;
 
     Context(const ContextOptions* options, bool& sane)
         : m_context{std::make_unique<kernel::Context>()},
-          m_interrupt{std::make_unique<util::SignalInterrupt>()}
+          m_interrupt{std::make_unique<util::SignalInterrupt>()},
+          m_signals{std::make_unique<ValidationSignals>(std::make_unique<ImmediateTaskRunner>())}
     {
         if (options) {
             LOCK(options->m_mutex);
@@ -353,8 +391,11 @@ public:
                 m_chainparams = std::make_unique<const CChainParams>(*options->m_chainparams);
             }
             if (options->m_notifications) {
-                // m_notifications = std::make_unique<KernelNotifications>(*options->m_notifications);
                 m_notifications = options->m_notifications;
+            }
+            if (options->m_validation_interface) {
+                m_validation_interface = options->m_validation_interface;
+                m_signals->RegisterSharedValidationInterface(m_validation_interface);
             }
         }
 
@@ -370,6 +411,11 @@ public:
             sane = false;
         }
     }
+
+    ~Context()
+    {
+        m_signals->UnregisterSharedValidationInterface(m_validation_interface);
+    }
 };
 
 //! Helper struct to wrap the ChainstateManager-related Options
@@ -384,7 +430,8 @@ struct ChainstateManagerOptions {
         : m_chainman_options{ChainstateManager::Options{
               .chainparams = *context->m_chainparams,
               .datadir = data_dir,
-              .notifications = *context->m_notifications}},
+              .notifications = *context->m_notifications,
+              .signals = context->m_signals.get()}},
           m_blockman_options{node::BlockManager::Options{
               .chainparams = *context->m_chainparams,
               .blocks_dir = blocks_dir,
@@ -651,6 +698,12 @@ void btck_context_options_set_notifications(btck_ContextOptions* options, btck_N
     // The KernelNotifications are copy-initialized, so the caller can free them again.
     LOCK(btck_ContextOptions::get(options).m_mutex);
     btck_ContextOptions::get(options).m_notifications = std::make_shared<KernelNotifications>(notifications);
+}
+
+void btck_context_options_set_validation_interface(btck_ContextOptions* options, btck_ValidationInterfaceCallbacks vi_cbs)
+{
+    LOCK(btck_ContextOptions::get(options).m_mutex);
+    btck_ContextOptions::get(options).m_validation_interface = std::make_shared<KernelValidationInterface>(vi_cbs);
 }
 
 void btck_context_options_destroy(btck_ContextOptions* options)
