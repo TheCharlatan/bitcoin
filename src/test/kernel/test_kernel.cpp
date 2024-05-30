@@ -107,6 +107,17 @@ public:
     }
 };
 
+class TestValidationInterface : public ValidationInterface<TestValidationInterface>
+{
+public:
+    TestValidationInterface() : ValidationInterface() {}
+
+    void BlockChecked(const UnownedBlock block, const BlockValidationState state) override
+    {
+        std::cout << "Block checked." << std::endl;
+    }
+};
+
 constexpr auto VERIFY_ALL_PRE_SEGWIT{kernel_SCRIPT_FLAGS_VERIFY_P2SH | kernel_SCRIPT_FLAGS_VERIFY_DERSIG |
                                      kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY | kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY |
                                      kernel_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY};
@@ -268,9 +279,9 @@ BOOST_AUTO_TEST_CASE(kernel_context_tests)
     }
 
     { // test with context options, but not options set
-      ContextOptions options{};
-      Context context{options};
-      BOOST_CHECK(context);
+        ContextOptions options{};
+        Context context{options};
+        BOOST_CHECK(context);
     }
 
     { // test with context options
@@ -284,14 +295,17 @@ BOOST_AUTO_TEST_CASE(kernel_context_tests)
     }
 }
 
-Context create_context(TestKernelNotifications& notifications, kernel_ChainType chain_type)
+Context create_context(TestKernelNotifications& notifications, kernel_ChainType chain_type, TestValidationInterface* validation_interface = nullptr)
 {
     ContextOptions options{};
     ChainParams params{chain_type};
     options.SetChainParams(params);
     options.SetNotifications(notifications);
+    if (validation_interface) {
+        options.SetValidationInterface(*validation_interface);
+    }
     auto context{Context{options}};
-    BOOST_REQUIRE(context.m_context);
+    BOOST_REQUIRE(context);
     return context;
 }
 
@@ -392,7 +406,10 @@ void chainman_reindex_chainstate_test(TestDirectory& test_directory)
 void chainman_mainnet_validation_test(TestDirectory& test_directory)
 {
     TestKernelNotifications notifications{};
-    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    TestValidationInterface validation_interface{};
+
+    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET, &validation_interface)};
+
     auto chainman{create_chainman(test_directory, false, false, false, false, context)};
 
     {
