@@ -688,6 +688,23 @@ bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_load_chainstate(
 ) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
 
 /**
+ * @brief May be called after kernel_chainstate_manager_load_chainstate to
+ * initialize the chainstate manager. Triggers the start of a reindex if the
+ * option was previously set for the chainstate and block manager. Can also
+ * import an array of existing block files selected by the user.
+ *
+ * @param[in] context              Non-null.
+ * @param[in] chainstate_manager   Non-null.
+ * @param[in] block_file_paths     Nullable, array of block files described by their full filesystem paths.
+ * @param[in] block_file_paths_len Length of the block_file_paths array.
+ * @return                         True if the import blocks call was completed successfully.
+ */
+bool kernel_import_blocks(const kernel_Context* context,
+                          kernel_ChainstateManager* chainstate_manager,
+                          const char** block_file_paths, size_t block_file_paths_len
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2);
+
+/**
  * @brief Process and validate the passed in block with the chainstate manager.
  * If processing failed, some information can be retrieved through the status
  * enumeration.
