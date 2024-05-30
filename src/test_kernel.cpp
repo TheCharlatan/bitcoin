@@ -377,6 +377,10 @@ void chainman_reindex_test(std::filesystem::path path_root)
     assert_error_ok(error);
     auto chainman{create_chainman(path_root, true, false, false, false, error, context)};
     assert_error_ok(error);
+
+    std::vector<std::string> import_files;
+    chainman->ImportBlocks(import_files, error);
+    assert_error_ok(error);
 }
 
 void chainman_reindex_chainstate_test(std::filesystem::path path_root)
@@ -388,6 +392,11 @@ void chainman_reindex_chainstate_test(std::filesystem::path path_root)
     auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
     assert_error_ok(error);
     auto chainman{create_chainman(path_root, false, true, false, false, error, context)};
+    assert_error_ok(error);
+
+    std::vector<std::string> import_files;
+    import_files.push_back(path_root / "blocks" / "blk00000.dat");
+    chainman->ImportBlocks(import_files, error);
     assert_error_ok(error);
 }
 

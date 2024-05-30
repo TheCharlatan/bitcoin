@@ -348,6 +348,17 @@ public:
         kernel_chainstate_manager_load_chainstate(m_context.m_context.get(), chainstate_load_opts.m_options.get(), m_chainman, &error);
     }
 
+    void ImportBlocks(std::vector<std::string> paths, kernel_Error& error)
+    {
+        std::vector<const char*> c_paths;
+        c_paths.reserve(paths.size());
+        for (const auto& path : paths) {
+            c_paths.push_back(path.c_str());
+        }
+
+        kernel_import_blocks(m_context.m_context.get(), m_chainman, c_paths.data(), c_paths.size(), &error);
+    }
+
     bool ProcessBlock(Block& block, kernel_Error& error)
     {
         return kernel_chainstate_manager_process_block(m_context.m_context.get(), m_chainman, block.m_block.get(), &error);
