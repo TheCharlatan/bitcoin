@@ -406,7 +406,18 @@ public:
         return kernel_chainstate_manager_load_chainstate(m_context.m_context.get(), chainstate_load_opts.m_options.get(), m_chainman);
     }
 
-    bool ProcessBlock(const Block& block, kernel_ProcessBlockStatus& status) const noexcept
+    bool ImportBlocks(const std::span<const std::string> paths) const noexcept
+    {
+        std::vector<const char*> c_paths;
+        c_paths.reserve(paths.size());
+        for (const auto& path : paths) {
+            c_paths.push_back(path.c_str());
+        }
+
+        return kernel_import_blocks(m_context.m_context.get(), m_chainman, c_paths.data(), c_paths.size());
+    }
+
+    bool ProcessBlock(Block& block, kernel_ProcessBlockStatus& status) const noexcept
     {
         return kernel_chainstate_manager_process_block(m_context.m_context.get(), m_chainman, block.m_block.get(), &status);
     }
