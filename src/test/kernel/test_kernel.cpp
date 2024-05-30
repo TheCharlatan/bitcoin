@@ -112,6 +112,17 @@ public:
     }
 };
 
+class TestValidationInterface : public ValidationInterface<TestValidationInterface>
+{
+public:
+    TestValidationInterface() : ValidationInterface() {}
+
+    void BlockChecked(const UnownedBlock block, const BlockValidationState state) override
+    {
+        std::cout << "Block checked." << std::endl;
+    }
+};
+
 void run_verify_test(
     const ScriptPubkey& spent_script_pubkey,
     const Transaction& spending_tx,
@@ -267,8 +278,8 @@ BOOST_AUTO_TEST_CASE(btck_context_tests)
     }
 
     { // test with context options, but not options set
-      ContextOptions options{};
-      Context context{options};
+        ContextOptions options{};
+        Context context{options};
     }
 
     { // test with context options
@@ -281,14 +292,16 @@ BOOST_AUTO_TEST_CASE(btck_context_tests)
     }
 }
 
-Context create_context(TestKernelNotifications& notifications, btck_ChainType chain_type)
+Context create_context(TestKernelNotifications& notifications, btck_ChainType chain_type, TestValidationInterface* validation_interface = nullptr)
 {
     ContextOptions options{};
     ChainParams params{chain_type};
     options.SetChainParams(params);
     options.SetNotifications(notifications);
+    if (validation_interface) {
+        options.SetValidationInterface(*validation_interface);
+    }
     auto context{Context{options}};
-    BOOST_REQUIRE(context.m_context);
     return context;
 }
 
@@ -379,7 +392,8 @@ void chainman_reindex_chainstate_test(TestDirectory& test_directory)
 void chainman_mainnet_validation_test(TestDirectory& test_directory)
 {
     TestKernelNotifications notifications{};
-    auto context{create_context(notifications, btck_ChainType::btck_CHAIN_TYPE_MAINNET)};
+    TestValidationInterface validation_interface{};
+    auto context{create_context(notifications, btck_ChainType::btck_CHAIN_TYPE_MAINNET, &validation_interface)};
     auto chainman{create_chainman(test_directory, false, false, false, false, context)};
 
     {
