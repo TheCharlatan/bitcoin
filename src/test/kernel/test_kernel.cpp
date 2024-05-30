@@ -129,6 +129,21 @@ public:
     }
 };
 
+class TestTaskRunner : public TaskRunner<TestTaskRunner>
+{
+};
+
+class TestValidationInterface : public ValidationInterface<TestValidationInterface>
+{
+public:
+    TestValidationInterface() : ValidationInterface() {}
+
+    void BlockChecked(const UnownedBlock block, const BlockValidationState state) override
+    {
+        std::cout << "Block checked." << std::endl;
+    }
+};
+
 constexpr auto VERIFY_ALL_PRE_SEGWIT{kernel_SCRIPT_FLAGS_VERIFY_P2SH | kernel_SCRIPT_FLAGS_VERIFY_DERSIG |
                                      kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY | kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY |
                                      kernel_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY};
@@ -304,7 +319,7 @@ void context_test()
     }
 }
 
-Context create_context(TestKernelNotifications& notifications, kernel_Error& error, kernel_ChainType chain_type)
+Context create_context(TestKernelNotifications& notifications, kernel_Error& error, kernel_ChainType chain_type, TestTaskRunner* task_runner = nullptr)
 {
     ContextOptions options{};
     ChainParams params{chain_type};
@@ -312,6 +327,10 @@ Context create_context(TestKernelNotifications& notifications, kernel_Error& err
     assert_error_ok(error);
     options.SetNotifications(notifications, error);
     assert_error_ok(error);
+    if (task_runner) {
+        options.SetTaskRunner(*task_runner, error);
+        assert_error_ok(error);
+    }
 
     return Context{options, error};
 }
@@ -420,8 +439,15 @@ void chainman_mainnet_validation_test(TestDirectory& test_directory)
     error.code = kernel_ErrorCode::kernel_ERROR_OK;
 
     TestKernelNotifications notifications{};
-    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    TestTaskRunner task_runner{};
+
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET, &task_runner)};
     assert_error_ok(error);
+
+    TestValidationInterface validation_interface{};
+    validation_interface.Register(context, error);
+    assert_error_ok(error);
+
     auto chainman{create_chainman(test_directory, false, false, false, false, error, context)};
     assert_error_ok(error);
 
@@ -449,6 +475,9 @@ void chainman_mainnet_validation_test(TestDirectory& test_directory)
     // If we try to validate it again, it should be a duplicate
     assert(!chainman->ProcessBlock(block, error));
     assert_is_error(error, kernel_ERROR_DUPLICATE_BLOCK);
+
+    validation_interface.Unregister(context, error);
+    assert_error_ok(error);
 }
 
 void chainman_regtest_validation_test()
