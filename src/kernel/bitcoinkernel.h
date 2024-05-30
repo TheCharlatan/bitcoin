@@ -231,6 +231,7 @@ typedef enum {
 typedef enum {
     kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION = 0,  //! Set the wipe block tree db option, default is false.
                                                            //! Should only be set in combination with wiping the chainstate db.
+                                                           //! Will trigger a reindex once kernel_import_blocks is called.
     kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION,      //! Set the wipe chainstate option, default is false.
     kernel_BLOCK_TREE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION, //! Set the block tree db in memory option, default is false.
     kernel_CHAINSTATE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION, //! Set the coins db in memory option, default is false.
@@ -624,6 +625,24 @@ void kernel_chainstate_manager_load_chainstate(
     kernel_ChainstateManager* chainstate_manager,
     kernel_Error* error
 ) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
+
+/**
+ * @brief May be called after kernel_chainstate_manager_load_chainstate to
+ * initialize the chainstate manager. Triggers the start of a reindex if the
+ * option was previously set for the chainstate and block manager. Can also
+ * import an array of existing block files selected by the user.
+ *
+ * @param[in] context              Non-null.
+ * @param[in] chainstate_manager   Non-null.
+ * @param[in] block_file_paths     Nullable, array of block files described by their full filesystem paths.
+ * @param[in] block_file_paths_len Length of the block_file_paths array.
+ * @param[out] error               Nullable, will contain an error/success code for the operation.
+ */
+void kernel_import_blocks(const kernel_Context* context,
+                          kernel_ChainstateManager* chainstate_manager,
+                          const char** block_file_paths, size_t block_file_paths_len,
+                          kernel_Error* error
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2);
 
 /**
  * @brief Process and validate the passed in block with the chainstate manager.
