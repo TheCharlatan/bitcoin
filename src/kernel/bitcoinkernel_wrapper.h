@@ -139,6 +139,46 @@ public:
     friend class ContextOptions;
 };
 
+template <typename T>
+class TaskRunner
+{
+private:
+    kernel_TaskRunnerCallbacks MakeCallbacks()
+    {
+        return kernel_TaskRunnerCallbacks{
+            .user_data = this,
+            .insert = [](void* user_data, kernel_ValidationEvent* event) { static_cast<T*>(user_data)->insert(event); },
+            .flush = [](void* user_data) { static_cast<T*>(user_data)->flush(); },
+            .size = [](void* user_data) -> unsigned int { return static_cast<T*>(user_data)->size(); },
+        };
+    }
+
+    struct Deleter {
+        void operator()(kernel_TaskRunner* ptr) const
+        {
+            kernel_task_runner_destroy(ptr);
+        }
+    };
+    const std::unique_ptr<kernel_TaskRunner, Deleter> m_task_runner;
+
+protected:
+    virtual void insert(kernel_ValidationEvent* event)
+    {
+        kernel_execute_event_and_destroy(event);
+    }
+
+    virtual void flush() {}
+
+    virtual size_t size() { return 0; }
+
+public:
+    TaskRunner() : m_task_runner{kernel_task_runner_create(MakeCallbacks())} {}
+
+    virtual ~TaskRunner() = default;
+
+    friend class ContextOptions;
+};
+
 class ContextOptions
 {
 private:
@@ -171,6 +211,15 @@ public:
             notifications.m_notifications.get());
     }
 
+    template <typename T>
+    bool SetTaskRunner(TaskRunner<T>& task_runner) const noexcept
+    {
+        return kernel_context_options_set(
+            m_options.get(),
+            kernel_ContextOptionType::kernel_TASK_RUNNER_OPTION,
+            task_runner.m_task_runner.get());
+    }
+
     friend class Context;
 };
 
@@ -199,6 +248,72 @@ public:
 
     /** Check whether this Context object is valid. */
     explicit operator bool() const noexcept { return bool{m_context}; }
+};
+
+class UnownedBlock
+{
+private:
+    const kernel_BlockPointer* m_block;
+
+public:
+    UnownedBlock(const kernel_BlockPointer* block) noexcept : m_block{block} {}
+
+    UnownedBlock(const UnownedBlock&) = delete;
+    UnownedBlock& operator=(const UnownedBlock&) = delete;
+    UnownedBlock(UnownedBlock&&) = delete;
+    UnownedBlock& operator=(UnownedBlock&&) = delete;
+};
+
+class BlockValidationState
+{
+private:
+    const kernel_BlockValidationState* m_state;
+
+public:
+    BlockValidationState(const kernel_BlockValidationState* state) noexcept : m_state{state} {}
+
+    BlockValidationState(const BlockValidationState&) = delete;
+    BlockValidationState& operator=(const BlockValidationState&) = delete;
+    BlockValidationState(BlockValidationState&&) = delete;
+    BlockValidationState& operator=(BlockValidationState&&) = delete;
+};
+
+template <typename T>
+class ValidationInterface
+{
+private:
+    struct Deleter {
+        void operator()(kernel_ValidationInterface* ptr) const
+        {
+            kernel_validation_interface_destroy(ptr);
+        }
+    };
+
+    const std::unique_ptr<kernel_ValidationInterface, Deleter> m_validation_interface;
+
+public:
+    ValidationInterface() noexcept : m_validation_interface{kernel_validation_interface_create(kernel_ValidationInterfaceCallbacks{
+                                .user_data = this,
+                                .block_checked = [](void* user_data, const kernel_BlockPointer* block, const kernel_BlockValidationState* state) {
+                                    static_cast<T*>(user_data)->BlockChecked(UnownedBlock{block}, BlockValidationState{state});
+                                },
+                            })}
+    {
+    }
+
+    virtual ~ValidationInterface() = default;
+
+    virtual void BlockChecked(UnownedBlock block, const BlockValidationState state) {}
+
+    bool Register(Context& context) const noexcept
+    {
+        return kernel_validation_interface_register(context.m_context.get(), m_validation_interface.get());
+    }
+
+    bool Unregister(Context& context) const noexcept
+    {
+        return kernel_validation_interface_unregister(context.m_context.get(), m_validation_interface.get());
+    }
 };
 
 class ChainstateManagerOptions
