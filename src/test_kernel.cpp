@@ -235,6 +235,20 @@ public:
     }
 };
 
+class ImmediateTaskRunner
+{
+public:
+    kernel_TaskRunnerCallbacks MakeCallbacks()
+    {
+        return kernel_TaskRunnerCallbacks{
+            .user_data = this,
+            .insert = [](void* user_data, kernel_ValidationEvent* event) { kernel_execute_event_and_destroy(event, nullptr); },
+            .flush = [](void* user_data) {},
+            .size = [](void* user_data) -> unsigned int { return 0; },
+        };
+    }
+};
+
 class ContextOptions
 {
 private:
@@ -266,6 +280,12 @@ public:
             kernel_ContextOptionType::kernel_NOTIFICATION_INTERFACE_CALLBACKS_OPTION,
             &callbacks,
             &error);
+    }
+
+    void SetTaskRunnerCallbacks(ImmediateTaskRunner& task_runner, kernel_Error& error)
+    {
+        auto callbacks = task_runner.MakeCallbacks();
+        kernel_context_options_set(m_options, kernel_ContextOptionType::kernel_TASK_RUNNER_CALLBACKS_OPTION, &callbacks, &error);
     }
 
     ~ContextOptions()
@@ -308,6 +328,45 @@ void default_context_test()
     Context context{error};
     assert_error_ok(error);
 }
+
+class ValidationInterface
+{
+private:
+    kernel_ValidationInterface* m_validation_interface;
+
+public:
+    ValidationInterface() : m_validation_interface{kernel_validation_interface_create(kernel_ValidationInterfaceCallbacks{
+                                .user_data = this,
+                                .block_checked = [](void* user_data, const kernel_BlockPointer* block, const kernel_BlockValidationState* state) {
+                                    reinterpret_cast<ValidationInterface*>(user_data)->BlockChecked();
+                                },
+                            })}
+    {
+    }
+
+    ValidationInterface(const ValidationInterface&) = delete;
+    ValidationInterface& operator=(const ValidationInterface&) = delete;
+
+    void BlockChecked()
+    {
+        std::cout << "Block validated!\n";
+    }
+
+    void Register(Context& context, kernel_Error& error)
+    {
+        kernel_validation_interface_register(context.m_context, m_validation_interface, &error);
+    }
+
+    void Unregister(Context& context, kernel_Error& error)
+    {
+        kernel_validation_interface_unregister(context.m_context, m_validation_interface, &error);
+    }
+
+    ~ValidationInterface()
+    {
+        kernel_validation_interface_destroy(m_validation_interface);
+    }
+};
 
 class ChainstateManagerOptions
 {
@@ -464,7 +523,7 @@ public:
     }
 };
 
-Context create_context(KernelNotifications& notifications, kernel_Error& error, kernel_ChainType chain_type)
+Context create_context(KernelNotifications& notifications, kernel_Error& error, kernel_ChainType chain_type, ImmediateTaskRunner* task_runner = nullptr)
 {
     ContextOptions options{};
     ChainParams params{chain_type};
@@ -472,6 +531,10 @@ Context create_context(KernelNotifications& notifications, kernel_Error& error, 
     assert_error_ok(error);
     options.SetNotificationCallbacks(notifications, error);
     assert_error_ok(error);
+    if (task_runner) {
+        options.SetTaskRunnerCallbacks(*task_runner, error);
+        assert_error_ok(error);
+    }
 
     return Context{options, error};
 }
@@ -514,8 +577,15 @@ void chainman_mainnet_validation_test(std::filesystem::path path_root)
     error.code = kernel_ErrorCode::kernel_ERROR_OK;
 
     KernelNotifications notifications{};
-    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    ImmediateTaskRunner task_runner{};
+
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET, &task_runner)};
     assert_error_ok(error);
+
+    ValidationInterface validation_interface{};
+    validation_interface.Register(context, error);
+    assert_error_ok(error);
+
     auto chainman{create_chainman(path_root, false, false, error, context)};
     assert_error_ok(error);
 
@@ -527,6 +597,9 @@ void chainman_mainnet_validation_test(std::filesystem::path path_root)
     // If we try to validate it again, it should be a duplicate
     assert(!chainman->ValidateBlock(block, error));
     assert_is_error(error);
+
+    validation_interface.Unregister(context, error);
+    assert_error_ok(error);
 }
 
 void chainman_regtest_validation_test()

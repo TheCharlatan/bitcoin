@@ -27,8 +27,10 @@
 #include <util/fs.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
+#include <util/task_runner.h>
 #include <util/translation.h>
 #include <validation.h>
+#include <validationinterface.h>
 
 #include <algorithm>
 #include <cassert>
@@ -297,9 +299,42 @@ public:
     }
 };
 
+class ValidationTaskRunner : public util::TaskRunnerInterface
+{
+private:
+    std::unique_ptr<const kernel_TaskRunnerCallbacks> m_cbs;
+
+public:
+    ValidationTaskRunner(std::unique_ptr<const kernel_TaskRunnerCallbacks> tr_cbs) : m_cbs{std::move(tr_cbs)} {}
+
+    void insert(std::function<void()> func) override
+    {
+        if (m_cbs && m_cbs->insert) {
+            // prevent the event from being deleted when it goes out of scope
+            // here, it is the caller's responsibility to correctly call
+            // kernel_execute_event_and_destroy to process it, preventing a memory leak.
+            auto heap_func = new std::function<void()>(func);
+
+            m_cbs->insert(m_cbs->user_data, reinterpret_cast<kernel_ValidationEvent*>(heap_func));
+        }
+    }
+
+    void flush() override
+    {
+        if (m_cbs && m_cbs->flush) m_cbs->flush(m_cbs->user_data);
+    }
+
+    size_t size() override
+    {
+        if (m_cbs && m_cbs->size) return m_cbs->size(m_cbs->user_data);
+        return 0;
+    }
+};
+
 struct ContextOptions {
     std::unique_ptr<const kernel_NotificationInterfaceCallbacks> m_kni_cbs;
     std::unique_ptr<const CChainParams> m_chainparams;
+    std::unique_ptr<const kernel_TaskRunnerCallbacks> m_tr_cbs;
 
     void set_option(const kernel_ContextOptionType option, const void* value, kernel_Error* err)
     {
@@ -325,6 +360,15 @@ struct ContextOptions {
             set_error_ok(err);
             return;
         }
+        case kernel_ContextOptionType::kernel_TASK_RUNNER_CALLBACKS_OPTION: {
+            auto tr_cbs{reinterpret_cast<const kernel_TaskRunnerCallbacks*>(value)};
+            if (!tr_cbs) {
+                set_error_invalid_pointer(err, "Invalid kernel_TaskRunnerCallbacks pointer.");
+            }
+            m_tr_cbs = std::make_unique<kernel_TaskRunnerCallbacks>(*tr_cbs);
+            set_error_ok(err);
+            return;
+        }
         default: {
             set_error(err, kernel_ErrorCode::kernel_ERROR_UNKNOWN_OPTION, "Unknown context option");
         }
@@ -336,6 +380,8 @@ class Context
 {
 public:
     std::unique_ptr<kernel::Context> m_context;
+
+    std::unique_ptr<ValidationSignals> m_signals;
 
     std::unique_ptr<KernelNotifications> m_notifications;
 
@@ -360,10 +406,33 @@ public:
             m_chainparams = CChainParams::Main();
         }
 
+        if (options && options->m_tr_cbs) {
+            m_signals = std::make_unique<ValidationSignals>(std::make_unique<ValidationTaskRunner>(
+                std::make_unique<const kernel_TaskRunnerCallbacks>(*options->m_tr_cbs)));
+        }
+
         if (!kernel::SanityChecks(*m_context)) {
             set_error(error, kernel_ErrorCode::kernel_ERROR_INVALID_CONTEXT, "Context sanity check failed.");
         } else {
             set_error_ok(error);
+        }
+    }
+};
+
+class KernelValidationInterface final : public CValidationInterface
+{
+public:
+    const kernel_ValidationInterfaceCallbacks m_cbs;
+
+    explicit KernelValidationInterface(const kernel_ValidationInterfaceCallbacks vi_cbs) : m_cbs{vi_cbs} {}
+
+protected:
+    void BlockChecked(const CBlock& block, const BlockValidationState& stateIn) override
+    {
+        if (m_cbs.block_checked) {
+            m_cbs.block_checked(m_cbs.user_data,
+                                reinterpret_cast<const kernel_BlockPointer*>(&block),
+                                reinterpret_cast<const kernel_BlockValidationState*>(&stateIn));
         }
     }
 };
@@ -435,6 +504,20 @@ node::ChainstateLoadOptions* cast_chainstate_load_options(kernel_ChainstateLoadO
         set_error_invalid_pointer(err, "Invalid kernel_ChainstateLoadOptions pointer.");
     }
     return reinterpret_cast<node::ChainstateLoadOptions*>(load_opts);
+}
+
+std::shared_ptr<KernelValidationInterface>* cast_validation_interface(kernel_ValidationInterface* validation_interface_, kernel_Error* err)
+{
+    if (!validation_interface_) {
+        set_error_invalid_pointer(err, "Invalid kernel_ValidationInterface pointer.");
+        return nullptr;
+    }
+    auto validation_interface = reinterpret_cast<std::shared_ptr<KernelValidationInterface>*>(validation_interface_);
+    if (!*validation_interface) {
+        set_error_invalid_pointer(err, "Invalid kernel_ValidationInterface pointer.");
+        return nullptr;
+    }
+    return validation_interface;
 }
 
 } // namespace
@@ -624,6 +707,71 @@ void kernel_context_destroy(kernel_Context* context_)
     delete reinterpret_cast<Context*>(context_);
 }
 
+kernel_ValidationInterface* kernel_validation_interface_create(kernel_ValidationInterfaceCallbacks vi_cbs)
+{
+    return reinterpret_cast<kernel_ValidationInterface*>(new std::shared_ptr<KernelValidationInterface>(new KernelValidationInterface(vi_cbs)));
+}
+
+void kernel_validation_interface_register(kernel_Context* context_, kernel_ValidationInterface* validation_interface_, kernel_Error* err)
+{
+    auto context{cast_context(context_, err)};
+    if (!context) {
+        return;
+    }
+    auto validation_interface{cast_validation_interface(validation_interface_, err)};
+    if (!validation_interface) {
+        return;
+    }
+    if (!context->m_signals) {
+        set_error(err, kernel_ErrorCode::kernel_ERROR_INVALID_CONTEXT, "Cannot register validation interface with context that has no validation signals");
+    }
+    context->m_signals->RegisterSharedValidationInterface(*validation_interface);
+    set_error_ok(err);
+}
+
+void kernel_validation_interface_unregister(kernel_Context* context_, kernel_ValidationInterface* validation_interface_, kernel_Error* err)
+{
+    auto context{cast_context(context_, err)};
+    if (!context) {
+        return;
+    }
+    auto validation_interface{cast_validation_interface(validation_interface_, err)};
+    if (!validation_interface) {
+        return;
+    }
+    if (!context->m_signals) {
+        set_error(err, kernel_ErrorCode::kernel_ERROR_INVALID_CONTEXT, "Cannot de-register validation interface with context that has no validation signals");
+    }
+    context->m_signals->SyncWithValidationInterfaceQueue();
+    context->m_signals->FlushBackgroundCallbacks();
+    context->m_signals->UnregisterSharedValidationInterface(*validation_interface);
+    set_error_ok(err);
+}
+
+void kernel_validation_interface_destroy(kernel_ValidationInterface* validation_interface)
+{
+    if (!validation_interface) {
+        return;
+    }
+    delete reinterpret_cast<std::shared_ptr<KernelValidationInterface>*>(validation_interface);
+}
+
+void kernel_execute_event_and_destroy(kernel_ValidationEvent* event, kernel_Error* error)
+{
+    std::function<void()>* func = reinterpret_cast<std::function<void()>*>(event);
+    if (!func) {
+        set_error_invalid_pointer(error, "Invalid kernel_ValidationEvent pointer");
+        return;
+    }
+    try {
+        (*func)();
+        delete func;
+    } catch (const std::exception& e) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, std::string{e.what()});
+        if (func) delete func;
+    }
+}
+
 kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, kernel_Error* error)
 {
     fs::path abs_data_dir{fs::absolute(fs::PathFromString(data_dir))};
@@ -635,7 +783,8 @@ kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const 
     return reinterpret_cast<kernel_ChainstateManagerOptions*>(new ChainstateManager::Options{
         .chainparams = *context->m_chainparams,
         .datadir = abs_data_dir,
-        .notifications = *context->m_notifications});
+        .notifications = *context->m_notifications,
+        .signals = context->m_signals.get()});
 }
 
 void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* chainman_opts_)

@@ -90,6 +90,13 @@ typedef struct kernel_ContextOptions kernel_ContextOptions;
  * also used to hold the chain parameters and callbacks for handling error and
  * validation events.
  *
+ * The processing of validation events is done through the user-defined task
+ * runner. Only a single task runner may be defined at a time for a context. The
+ * task runner drives the execution of events triggering validation interface
+ * callbacks. Multiple validation interfaces can be registered with the context.
+ * The kernel will create an event for each of the registered validation
+ * interfaces through the task runner.
+ *
  * A constructed context can be safely used from multiple threads, but functions
  * taking it as a non-cost argument need exclusive access to it.
  */
@@ -146,6 +153,35 @@ typedef struct kernel_ChainstateLoadOptions kernel_ChainstateLoadOptions;
  */
 typedef struct kernel_Block kernel_Block;
 
+/**
+ * Opaque data structure for holding a non-owned block. This is typically a
+ * block available to the user through one of the validation callbacks.
+ */
+typedef struct kernel_BlockPointer kernel_BlockPointer;
+
+/**
+ * Opaque data structure for holding a validation event. The event can only be
+ * processed by calling kernel_execute_event_and_destroy(..).
+ */
+typedef struct kernel_ValidationEvent kernel_ValidationEvent;
+
+/**
+ * Opaque data structure for holding the state of a block during validation.
+ *
+ * Contains information indicating whether validation was successful, and if not
+ * which step during block validation failed.
+ */
+typedef struct kernel_BlockValidationState kernel_BlockValidationState;
+
+/**
+ * Opaque data structure for holding a validation interface.
+ *
+ * The validation interface can be registered with the task runner of an
+ * existing context. It holds callbacks that will be triggered by certain
+ * validation events.
+ */
+typedef struct kernel_ValidationInterface kernel_ValidationInterface;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -172,6 +208,18 @@ typedef void (*kernel_NotifyFlushError)(void* user_data, const char* message);
 typedef void (*kernel_NotifyFatalError)(void* user_data, const char* message);
 
 /**
+ * Function signatures for the task runner used to process validation events.
+ */
+typedef void (*kernel_TaskRunnerInsert)(void* user_data, kernel_ValidationEvent* event);
+typedef void (*kernel_TaskRunnerFlush)(void* user_data);
+typedef uint32_t (*kernel_TaskRunnerSize)(void* user_data);
+
+/**
+ * Function signatures for the validation interface.
+ */
+typedef void (*kernel_ValidationInterfaceBlockChecked)(void* user_data, const kernel_BlockPointer* block, const kernel_BlockValidationState* state);
+
+/**
  * Available types of context options. Passed with a corresponding value to
  * kernel_context_options_set(..).
  */
@@ -180,6 +228,8 @@ typedef enum {
                                                     //!< to a kernel_ChainParameters struct.
     kernel_NOTIFICATION_INTERFACE_CALLBACKS_OPTION, //!< Set the kernel notification options, value should be a
                                                     //!< valid pointer to a kernel_NotificationInterfaceCallbacks struct.
+    kernel_TASK_RUNNER_CALLBACKS_OPTION,            //!< Set the task runner, value should be a valid pointer to
+                                                    //!< kernel_TaskRunnerCallbacks struct.
 } kernel_ContextOptionType;
 
 /**
@@ -200,6 +250,33 @@ typedef enum {
                                                           //! Will trigger a reindex once ImportBlocks is called.
     kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION,     //! Set the wipe chainstate option, value should be a bool.
 } kernel_ChainstateLoadOptionType;
+
+/**
+ * Holds the task runner callbacks. The user data pointer may be used to point
+ * to user-defined structures to make processing the tasks easier. May also be
+ * used to process the tasks asynchronously, or in separate threads.
+ */
+typedef struct {
+    void* user_data;                //!< Holds a user-defined opaque structure.
+    kernel_TaskRunnerInsert insert; //!< Adds an event to the task runner. The event needs to be consumed with
+                                    //!< kernel_execute_event_and_destroy, but may be queued for later, asynchronous or threaded
+                                    //!< processing, or be executed immediately.
+    kernel_TaskRunnerFlush flush;   //!< If this is called the user should ensure that all queued, or pending events
+                                    //!< are executed before processing a further event.
+    kernel_TaskRunnerSize size;     //!< Should return the number of queued or pending events that are awaiting
+                                    //!< execution.
+} kernel_TaskRunnerCallbacks;
+
+/**
+ * Holds the validation interface callbacks. The user data pointer may be used
+ * to point to user-defined structures to make processing the notifications
+ * easier.
+ */
+typedef struct {
+    void* user_data;                                      //!< Holds a user-defined opaque structure.
+    kernel_ValidationInterfaceBlockChecked block_checked; //!< Called when a new block has been checked. Contains the
+                                                          //!< result of its validation.
+} kernel_ValidationInterfaceCallbacks;
 
 /**
  * A struct for holding the kernel notification callbacks. The user data pointer
@@ -567,6 +644,53 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
  * Destroy the chainstate manager.
  */
 void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainstate_manager, const kernel_Context* context, kernel_Error* error);
+
+/**
+ * @brief Creates a new validation interface for consuming events issued by the
+ * chainstate manager. The interface should be created and registered before the
+ * chainstate manager is created.
+ *
+ * @param[in] vi_cbs The callbacks used for passing validation information to the user.
+ * @return           A validation interface. This should remain in memory for as long as
+ *                   the user expects to receive validation events.
+ */
+kernel_ValidationInterface* kernel_validation_interface_create(kernel_ValidationInterfaceCallbacks vi_cbs);
+
+/**
+ * @brief Register a validation interface with the internal task runner
+ * associated with this context. This also registers it with the chainstate
+ * manager if the chainstate manager is subsequently created with this context.
+ *
+ * @param[in] context              Non-null, will register the validation interface with this context.
+ * @param[in] validation_interface Non-null.
+ * @param[out] error               Nullable, will contain an error/success code for the operation.
+ */
+void kernel_validation_interface_register(kernel_Context* context, kernel_ValidationInterface* validation_interface, kernel_Error* error);
+
+/**
+ * @brief Unregister a validation interface from the internal task runner
+ * associated with this context. This should be done before destroying the
+ * kernel context it was previously registered with.
+ *
+ * @param[in] context              Non-null, will deregister the validation interface from this context.
+ * @param[in] validation_interface Non-null.
+ * @param[out] error               Nullable, will contain an error/success code for the operation.
+ */
+void kernel_validation_interface_unregister(kernel_Context* context, kernel_ValidationInterface* validation_interface, kernel_Error* error);
+
+/**
+ * Destroy the validation interface.
+ */
+void kernel_validation_interface_destroy(kernel_ValidationInterface* validation_interface);
+
+/**
+ * @brief Use this (and only this) function to run the callback received through
+ * the task runner. Once executed, the event is no longer valid.
+ *
+ * @param[in] event  Non-null.
+ * @param[out] error Nullable, will contain an error/success code for the operation.
+ */
+void kernel_execute_event_and_destroy(kernel_ValidationEvent* event, kernel_Error* error);
 
 /**
  * Create options for loading the chainstate.
