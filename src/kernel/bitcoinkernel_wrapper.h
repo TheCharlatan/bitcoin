@@ -567,6 +567,57 @@ public:
     friend class ContextOptions;
 };
 
+class UnownedBlock
+{
+private:
+    const btck_BlockPointer* m_block;
+
+public:
+    UnownedBlock(const btck_BlockPointer* block) : m_block{block} {}
+
+    UnownedBlock(const UnownedBlock&) = delete;
+    UnownedBlock& operator=(const UnownedBlock&) = delete;
+    UnownedBlock(UnownedBlock&&) = delete;
+    UnownedBlock& operator=(UnownedBlock&&) = delete;
+};
+
+class BlockValidationState
+{
+private:
+    const btck_BlockValidationState* m_state;
+
+public:
+    BlockValidationState(const btck_BlockValidationState* state) : m_state{state} {}
+
+    BlockValidationState(const BlockValidationState&) = delete;
+    BlockValidationState& operator=(const BlockValidationState&) = delete;
+    BlockValidationState(BlockValidationState&&) = delete;
+    BlockValidationState& operator=(BlockValidationState&&) = delete;
+};
+
+template <typename T>
+class ValidationInterface
+{
+private:
+    const btck_ValidationInterfaceCallbacks m_validation_interface;
+
+public:
+    ValidationInterface() : m_validation_interface{btck_ValidationInterfaceCallbacks{
+                                .user_data = this,
+                                .block_checked = [](void* user_data, const btck_BlockPointer* block, const btck_BlockValidationState* state) {
+                                    static_cast<T*>(user_data)->BlockChecked(UnownedBlock{block}, BlockValidationState{state});
+                                },
+                            }}
+    {
+    }
+
+    virtual ~ValidationInterface() = default;
+
+    virtual void BlockChecked(UnownedBlock block, const BlockValidationState state) {}
+
+    friend class ContextOptions;
+};
+
 class ChainParams : Handle<btck_ChainParameters, btck_chain_parameters_destroy>
 {
 public:
@@ -589,6 +640,12 @@ public:
     void SetNotifications(KernelNotifications<T>& notifications)
     {
         btck_context_options_set_notifications(impl(), notifications.m_notifications);
+    }
+
+    template <typename T>
+    void SetValidationInterface(ValidationInterface<T>& validation_interface)
+    {
+        btck_context_options_set_validation_interface(impl(), validation_interface.m_validation_interface);
     }
 
     friend class Context;
