@@ -60,6 +60,9 @@ extern "C" {
  * functions, e.g. for scripts, may communicate more detailed error information
  * through status code out parameters.
  *
+ * Fine-grained validation information is communicated through the validation
+ * interface.
+ *
  * The kernel notifications issue callbacks for errors. These are usually
  * indicative of a system error. If such an error is issued, it is recommended
  * to halt and tear down the existing kernel objects. Remediating the error may
@@ -142,6 +145,12 @@ typedef struct kernel_ContextOptions kernel_ContextOptions;
  * validation objects are instantiated from it, the context needs to be kept in
  * memory for the duration of their lifetimes.
  *
+ * The processing of validation events is done through an internal task
+ * runner owned by the context. The task runner drives the execution of events
+ * triggering validation interface callbacks. Multiple validation interfaces can
+ * be registered with the context. The kernel will create an event for each of
+ * the registered validation interfaces through the task runner.
+ *
  * A constructed context can be safely used from multiple threads, but functions
  * taking it as a non-cost argument need exclusive access to it.
  */
@@ -201,6 +210,30 @@ typedef struct kernel_ChainstateLoadOptions kernel_ChainstateLoadOptions;
  */
 typedef struct kernel_Block kernel_Block;
 
+/**
+ * Opaque data structure for holding a non-owned block. This is typically a
+ * block available to the user through one of the validation callbacks.
+ */
+typedef struct kernel_BlockPointer kernel_BlockPointer;
+
+/**
+ * Opaque data structure for holding the state of a block during validation.
+ *
+ * Contains information indicating whether validation was successful, and if not
+ * which step during block validation failed.
+ */
+typedef struct kernel_BlockValidationState kernel_BlockValidationState;
+
+/**
+ * Opaque data structure for holding a validation interface.
+ *
+ * The validation interface can be registered with the internal task runner of an
+ * existing context. It holds callbacks that will be triggered by certain
+ * validation events. The callbacks registered with it will block further
+ * validation progress when triggered.
+ */
+typedef struct kernel_ValidationInterface kernel_ValidationInterface;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -232,6 +265,23 @@ typedef void (*kernel_NotifyWarningSet)(void* user_data, kernel_Warning warning,
 typedef void (*kernel_NotifyWarningUnset)(void* user_data, kernel_Warning warning);
 typedef void (*kernel_NotifyFlushError)(void* user_data, const char* message);
 typedef void (*kernel_NotifyFatalError)(void* user_data, const char* message);
+
+/**
+ * Function signatures for the validation interface.
+ */
+typedef void (*kernel_ValidationInterfaceBlockChecked)(void* user_data, const kernel_BlockPointer* block, const kernel_BlockValidationState* state);
+
+/**
+ * Holds the validation interface callbacks. The user data pointer may be used
+ * to point to user-defined structures to make processing the validation
+ * callbacks easier.
+ */
+typedef struct {
+    const void* user_data;                                //!< Holds a user-defined opaque structure that is passed to the validation
+                                                          //!< interface callbacks.
+    kernel_ValidationInterfaceBlockChecked block_checked; //!< Called when a new block has been checked. Contains the
+                                                          //!< result of its validation.
+} kernel_ValidationInterfaceCallbacks;
 
 /**
  * A struct for holding the kernel notification callbacks. The user data
@@ -530,6 +580,21 @@ void kernel_context_options_set_notifications(
 ) BITCOINKERNEL_ARG_NONNULL(1, 2);
 
 /**
+ * @brief Set the validation interface callbacks for the context options. The
+ * context created with the options will be configured for these validation
+ * interface callbacks. The callbacks will then be triggered from validation
+ * events issued by the chainstate manager created from the same context.
+ *
+ * @param[in] context_options                Non-null, previously created with kernel_context_options_create.
+ * @param[in] validation_interface_callbacks The callbacks used for passing validation information to the
+ *                                           user.
+ */
+void kernel_context_options_set_validation_interface(
+    kernel_ContextOptions* context_options,
+    kernel_ValidationInterfaceCallbacks validation_interface_callbacks
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * Destroy the context options.
  */
 void kernel_context_options_destroy(kernel_ContextOptions* context_options);
@@ -726,7 +791,11 @@ bool kernel_import_blocks(const kernel_Context* context,
 ) BITCOINKERNEL_ARG_NONNULL(1, 2);
 
 /**
- * @brief Process and validate the passed in block with the chainstate manager.
+ * @brief Process and validate the passed in block with the chainstate
+ * manager. More detailed validation information in case of a failure can also
+ * be retrieved through a registered validation interface. If the block fails
+ * to validate the `block_checked` callback's 'BlockValidationState' will
+ * contain details.
  *
  * @param[in] context            Non-null.
  * @param[in] chainstate_manager Non-null.
