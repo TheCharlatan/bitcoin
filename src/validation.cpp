@@ -5132,15 +5132,7 @@ void ChainstateManager::LoadExternalBlockFile(
 
                 // Activate the genesis block so normal node progress can continue
                 if (hash == params.GetConsensus().hashGenesisBlock) {
-                    bool genesis_activation_failure = false;
-                    for (auto c : GetAll()) {
-                        BlockValidationState state;
-                        if (!c->ActivateBestChain(state, nullptr)) {
-                            genesis_activation_failure = true;
-                            break;
-                        }
-                    }
-                    if (genesis_activation_failure) {
+                    if (!ActivateBestChains()) {
                         break;
                     }
                 }
@@ -6437,4 +6429,25 @@ std::optional<std::pair<const CBlockIndex*, const CBlockIndex*>> ChainstateManag
     const Chainstate* chainstate{HistoricalChainstate()};
     if (!chainstate) return {};
     return std::make_pair(chainstate->m_chain.Tip(), chainstate->TargetBlock());
+}
+
+util::Result<void> ChainstateManager::ActivateBestChains() const
+{
+    // We can't hold cs_main during ActivateBestChain even though we're accessing
+    // the chainman unique_ptrs since ABC requires us not to be holding cs_main, so retrieve
+    // the relevant pointers before the ABC call.
+    std::vector<Chainstate*> chainstates;
+    {
+        LOCK(GetMutex());
+        for (auto& chainstate : m_chainstates) {
+            chainstates.emplace_back(chainstate.get());
+        }
+    }
+    for (Chainstate* chainstate : chainstates) {
+        BlockValidationState state;
+        if (!chainstate->ActivateBestChain(state, nullptr)) {
+            return util::Error{Untranslated(strprintf("Failed to connect best block (%s)", state.ToString()))};
+        }
+    }
+    return {};
 }
