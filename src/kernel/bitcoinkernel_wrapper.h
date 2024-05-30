@@ -520,6 +520,20 @@ public:
     ChainMan(const ChainMan&) = delete;
     ChainMan& operator=(const ChainMan&) = delete;
 
+    bool ImportBlocks(const std::span<const std::string> paths) const
+    {
+        std::vector<const char*> c_paths;
+        std::vector<size_t> c_paths_lens;
+        c_paths.reserve(paths.size());
+        c_paths_lens.reserve(paths.size());
+        for (const auto& path : paths) {
+            c_paths.push_back(path.c_str());
+            c_paths_lens.push_back(path.length());
+        }
+
+        return btck_chainstate_manager_import_blocks(m_chainman, c_paths.data(), c_paths_lens.data(), c_paths.size());
+    }
+
     bool ProcessBlock(const Block& block, bool* new_block) const
     {
         return btck_chainstate_manager_process_block(m_chainman, block.m_block.get(), new_block);

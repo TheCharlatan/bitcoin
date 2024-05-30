@@ -766,6 +766,25 @@ void btck_chainstate_manager_destroy(btck_ChainstateManager* chainman)
     chainman = nullptr;
 }
 
+bool btck_chainstate_manager_import_blocks(btck_ChainstateManager* chainman, const char** block_file_paths, size_t* block_file_paths_lens, size_t block_file_paths_len)
+{
+    try {
+        std::vector<fs::path> import_files;
+        import_files.reserve(block_file_paths_len);
+        for (uint32_t i = 0; i < block_file_paths_len; i++) {
+            if (block_file_paths[i] != nullptr) {
+                import_files.emplace_back(std::string{block_file_paths[i], block_file_paths_lens[i]}.c_str());
+            }
+        }
+        node::ImportBlocks(*chainman->m_chainman, import_files);
+        chainman->m_chainman->ActiveChainstate().ForceFlushStateToDisk();
+    } catch (const std::exception& e) {
+        LogError("Failed to import blocks: %s", e.what());
+        return false;
+    }
+    return true;
+}
+
 btck_Block* btck_block_create(const void* raw_block, size_t raw_block_length)
 {
     auto block{std::make_shared<CBlock>()};
