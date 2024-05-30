@@ -70,6 +70,9 @@ extern "C" {
  * functions, e.g. for scripts, may communicate more detailed error information
  * through status code out parameters.
  *
+ * Fine-grained validation information is communicated through the validation
+ * interface.
+ *
  * The kernel notifications issue callbacks for errors. These are usually
  * indicative of a system error. If such an error is issued, it is recommended
  * to halt and tear down the existing kernel objects. Remediating the error may
@@ -148,6 +151,10 @@ typedef struct btck_ContextOptions btck_ContextOptions;
  * validation objects are instantiated from it, the context is kept in memory
  * for the duration of their lifetimes.
  *
+ * The processing of validation events is done through an internal task runner
+ * owned by the context. It passes events through the registered validation
+ * interface callbacks.
+ *
  * A constructed context can be safely used from multiple threads.
  */
 typedef struct btck_Context btck_Context;
@@ -186,6 +193,20 @@ typedef struct btck_ChainstateManager btck_ChainstateManager;
  */
 typedef struct btck_Block btck_Block;
 
+/**
+ * Opaque data structure for holding a non-owned block. This is typically a
+ * block available to the user through one of the validation callbacks.
+ */
+typedef struct btck_BlockPointer btck_BlockPointer;
+
+/**
+ * Opaque data structure for holding the state of a block during validation.
+ *
+ * Contains information indicating whether validation was successful, and if not
+ * which step during block validation failed.
+ */
+typedef struct btck_BlockValidationState btck_BlockValidationState;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     btck_INIT_REINDEX,
@@ -217,6 +238,24 @@ typedef void (*btck_NotifyWarningSet)(void* user_data, btck_Warning warning, con
 typedef void (*btck_NotifyWarningUnset)(void* user_data, btck_Warning warning);
 typedef void (*btck_NotifyFlushError)(void* user_data, const char* message, size_t message_len);
 typedef void (*btck_NotifyFatalError)(void* user_data, const char* message, size_t message_len);
+
+/**
+ * Function signatures for the validation interface.
+ */
+typedef void (*btck_ValidationInterfaceBlockChecked)(void* user_data, const btck_BlockPointer* block, const btck_BlockValidationState* state);
+
+/**
+ * Holds the validation interface callbacks. The user data pointer may be used
+ * to point to user-defined structures to make processing the validation
+ * callbacks easier. Note that these callbacks block any further validation
+ * execution when they are called.
+ */
+typedef struct {
+    const void* user_data;                                //!< Holds a user-defined opaque structure that is passed to the validation
+                                                          //!< interface callbacks.
+    btck_ValidationInterfaceBlockChecked block_checked; //!< Called when a new block has been checked. Contains the
+                                                          //!< result of its validation.
+} btck_ValidationInterfaceCallbacks;
 
 /**
  * A struct for holding the kernel notification callbacks. The user data
@@ -633,6 +672,21 @@ BITCOINKERNEL_API void btck_context_options_set_notifications(
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
+ * @brief Set the validation interface callbacks for the context options. The
+ * context created with the options will be configured for these validation
+ * interface callbacks. The callbacks will then be triggered from validation
+ * events issued by the chainstate manager created from the same context.
+ *
+ * @param[in] context_options                Non-null, previously created with btck_context_options_create.
+ * @param[in] validation_interface_callbacks The callbacks used for passing validation information to the
+ *                                           user.
+ */
+BITCOINKERNEL_API void btck_context_options_set_validation_interface(
+    btck_ContextOptions* context_options,
+    btck_ValidationInterfaceCallbacks validation_interface_callbacks
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * Destroy the context options.
  */
 BITCOINKERNEL_API void btck_context_options_destroy(btck_ContextOptions* context_options);
@@ -789,7 +843,11 @@ BITCOINKERNEL_API bool btck_chainstate_manager_import_blocks( btck_ChainstateMan
 ) BITCOINKERNEL_ARG_NONNULL(1, 2);
 
 /**
- * @brief Process and validate the passed in block with the chainstate manager.
+ * @brief Process and validate the passed in block with the chainstate
+ * manager. More detailed validation information in case of a failure can also
+ * be retrieved through a registered validation interface. If the block fails
+ * to validate the `block_checked` callback's 'BlockValidationState' will
+ * contain details.
  *
  * @param[in] chainstate_manager Non-null.
  * @param[in] block              Non-null, block to be validated.
