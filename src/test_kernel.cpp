@@ -435,6 +435,22 @@ public:
         kernel_chainstate_manager_load_chainstate(m_context.m_context, chainstate_load_opts.m_options, m_chainman, &error);
     }
 
+    void ImportBlocks(std::vector<std::filesystem::path> paths, kernel_Error& error)
+    {
+        std::vector<const char*> c_paths;
+        std::vector<std::string> str_paths;
+        c_paths.reserve(paths.size());
+        str_paths.reserve(paths.size());
+        for (const auto& path : paths) {
+            str_paths.push_back(path.string());
+        }
+        for (const auto& path : str_paths) {
+            c_paths.push_back(path.c_str());
+        }
+
+        kernel_import_blocks(m_context.m_context, m_chainman, c_paths.data(), c_paths.size(), &error);
+    }
+
     bool ValidateBlock(Block& block, kernel_Error& error)
     {
         return kernel_chainstate_manager_process_block(m_context.m_context, m_chainman, block.m_block, &error);
@@ -547,6 +563,10 @@ void chainman_reindex_test(std::filesystem::path path_root)
     assert_error_ok(error);
     auto chainman{create_chainman(path_root, true, false, error, context)};
     assert_error_ok(error);
+
+    std::vector<std::filesystem::path> import_files;
+    chainman->ImportBlocks(import_files, error);
+    assert_error_ok(error);
 }
 
 void chainman_reindex_chainstate_test(std::filesystem::path path_root)
@@ -558,6 +578,10 @@ void chainman_reindex_chainstate_test(std::filesystem::path path_root)
     auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
     assert_error_ok(error);
     auto chainman{create_chainman(path_root, false, true, error, context)};
+
+    std::vector<std::filesystem::path> import_files;
+    import_files.push_back(path_root / "blocks" / "blk00000.dat");
+    chainman->ImportBlocks(import_files, error);
     assert_error_ok(error);
 }
 

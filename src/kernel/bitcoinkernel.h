@@ -570,7 +570,7 @@ kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create();
  * @param[in] chainstate_load_options Non-null, created with kernel_chainstate_load_options_create.
  * @param[in] n_option                Describes the option field that should be set with the value.
  * @param[in] value                   Non-null, single value setting the field selected by n_option.
- * @param[out] error                  Nullable, will contain an error/successs code for the operation.
+ * @param[out] error                  Nullable, will contain an error/success code for the operation.
  */
 void kernel_chainstate_load_options_set(
     kernel_ChainstateLoadOptions* chainstate_load_options,
@@ -597,6 +597,23 @@ void kernel_chainstate_manager_load_chainstate(
     kernel_ChainstateLoadOptions* chainstate_load_options,
     kernel_ChainstateManager* chainstate_manager,
     kernel_Error* error);
+
+/**
+ * @brief May be called after kernel_chainstate_manager_load_chainstate to
+ * initialize the chainstate manager. Triggers the start of a reindex if the
+ * option was previously set for the chainstate and block manager. Can also
+ * import an array of existing block files selected by the user.
+ *
+ * @param[in] context              Non-null.
+ * @param[in] chainstate_manager   Non-null.
+ * @param[in] block_file_paths     Nullable, array of block files described by their full filesystem paths.
+ * @param[in] block_file_paths_len Length of the block_file_paths array.
+ * @param[out] error               Nullable, will contain an error/success code for the operation.
+ */
+void kernel_import_blocks(const kernel_Context* context,
+                          kernel_ChainstateManager* chainstate_manager,
+                          const char** block_file_paths, size_t block_file_paths_len,
+                          kernel_Error* error);
 
 /**
  * @brief Process and validate the passed in block with the chainstate manager.
