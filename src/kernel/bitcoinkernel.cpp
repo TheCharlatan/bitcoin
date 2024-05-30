@@ -420,6 +420,14 @@ std::shared_ptr<CBlock>* cast_cblocksharedpointer(kernel_Block* block, kernel_Er
     return reinterpret_cast<std::shared_ptr<CBlock>*>(block);
 }
 
+node::ChainstateLoadOptions* cast_chainstate_load_options(kernel_ChainstateLoadOptions* load_opts, kernel_Error* err)
+{
+    if (!load_opts) {
+        set_error_invalid_pointer(err, "Invalid kernel_ChainstateLoadOptions pointer.");
+    }
+    return reinterpret_cast<node::ChainstateLoadOptions*>(load_opts);
+}
+
 } // namespace
 
 void kernel_add_log_level_category(const kernel_LogCategory category_, const kernel_LogLevel level_)
@@ -662,6 +670,33 @@ kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()
     return reinterpret_cast<kernel_ChainstateLoadOptions*>(new node::ChainstateLoadOptions);
 }
 
+void kernel_chainstate_load_options_set(
+    kernel_ChainstateLoadOptions* chainstate_load_opts_,
+    kernel_ChainstateLoadOptionType n_option,
+    void* value,
+    kernel_Error* error)
+{
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_, error)};
+    if (!chainstate_load_opts) {
+        return;
+    }
+    switch (n_option) {
+    case kernel_ChainstateLoadOptionType::kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION: {
+        auto reindex{reinterpret_cast<bool*>(value)};
+        chainstate_load_opts->wipe_block_tree_db = *reindex;
+        return;
+    }
+    case kernel_ChainstateLoadOptionType::kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION: {
+        auto reindex_chainstate{reinterpret_cast<bool*>(value)};
+        chainstate_load_opts->wipe_chainstate_db = *reindex_chainstate;
+        return;
+    }
+    default: {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_UNKNOWN_OPTION, "Unknown chainstate load option");
+    }
+    }
+}
+
 void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_opts_)
 {
     delete reinterpret_cast<node::ChainstateLoadOptions*>(chainstate_load_opts_);
@@ -682,6 +717,10 @@ void kernel_chainstate_manager_load_chainstate(const kernel_Context* context_,
 
     if (chainstate_load_opts_) {
         chainstate_load_opts = *reinterpret_cast<node::ChainstateLoadOptions*>(chainstate_load_opts_);
+    }
+
+    if (chainstate_load_opts.wipe_block_tree_db && !chainstate_load_opts.wipe_chainstate_db) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
     }
 
     auto chainman{cast_chainstate_manager(chainman_, error)};

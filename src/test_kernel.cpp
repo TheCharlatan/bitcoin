@@ -373,6 +373,22 @@ public:
         kernel_chainstate_load_options_destroy(m_options);
     }
 
+    void SetWipeBlockTreeDb(bool reindex, kernel_Error& error)
+    {
+        kernel_chainstate_load_options_set(m_options,
+                                           kernel_ChainstateLoadOptionType::kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION,
+                                           &reindex,
+                                           &error);
+    }
+
+    void SetWipeChainstateDb(bool reindex_chainstate, kernel_Error& error)
+    {
+        kernel_chainstate_load_options_set(m_options,
+                                           kernel_ChainstateLoadOptionType::kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION,
+                                           &reindex_chainstate,
+                                           &error);
+    }
+
     friend class ChainMan;
 };
 
@@ -444,36 +460,47 @@ Context create_context(KernelNotifications& notifications, kernel_Error& error, 
     return Context{options, error};
 }
 
-std::unique_ptr<ChainMan> create_chainman(std::filesystem::path path_root, kernel_Error& error, Context& context)
+std::unique_ptr<ChainMan> create_chainman(std::filesystem::path path_root,
+                                          bool reindex,
+                                          bool wipe_chainstate,
+                                          kernel_Error& error,
+                                          Context& context)
 {
     ChainstateManagerOptions chainman_opts{context, path_root, error};
     assert_error_ok(error);
     BlockManagerOptions blockman_opts{context, path_root / "blocks", error};
+    assert_error_ok(error);
     assert_error_ok(error);
 
     auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts, error)};
     assert_error_ok(error);
 
     ChainstateLoadOptions chainstate_load_opts{};
+    if (reindex) {
+        chainstate_load_opts.SetWipeBlockTreeDb(reindex, error);
+        assert_error_ok(error);
+        chainstate_load_opts.SetWipeChainstateDb(reindex, error);
+        assert_error_ok(error);
+    }
+    if (wipe_chainstate) {
+        chainstate_load_opts.SetWipeChainstateDb(wipe_chainstate, error);
+    }
+    assert_error_ok(error);
     chainman->LoadChainstate(chainstate_load_opts, error);
     assert_error_ok(error);
 
     return chainman;
 }
 
-void chainman_mainnet_validation_test()
+void chainman_mainnet_validation_test(std::filesystem::path path_root)
 {
     kernel_Error error{};
     error.code = kernel_ErrorCode::kernel_ERROR_OK;
 
-    const auto rand_str{random_string(16)};
-    auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
-    std::filesystem::create_directories(path_root);
-
     KernelNotifications notifications{};
     auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
     assert_error_ok(error);
-    auto chainman{create_chainman(path_root, error, context)};
+    auto chainman{create_chainman(path_root, false, false, error, context)};
     assert_error_ok(error);
 
     std::string block_str{"010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e362990101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000"};
@@ -488,17 +515,17 @@ void chainman_mainnet_validation_test()
 
 void chainman_regtest_validation_test()
 {
-    kernel_Error error{};
-    error.code = kernel_ErrorCode::kernel_ERROR_OK;
-
     const auto rand_str{random_string(16)};
     auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
     std::filesystem::create_directories(path_root);
 
+    kernel_Error error{};
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
     KernelNotifications notifications{};
     auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_REGTEST)};
     assert_error_ok(error);
-    auto chainman{create_chainman(path_root, error, context)};
+    auto chainman{create_chainman(path_root, false, false, error, context)};
     assert_error_ok(error);
 
     auto blocks{read_blocks("block_data.txt")};
@@ -508,6 +535,30 @@ void chainman_regtest_validation_test()
         chainman->ValidateBlock(block, error);
         assert_error_ok(error);
     }
+}
+
+void chainman_reindex_test(std::filesystem::path path_root)
+{
+    kernel_Error error{};
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    KernelNotifications notifications{};
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    assert_error_ok(error);
+    auto chainman{create_chainman(path_root, true, false, error, context)};
+    assert_error_ok(error);
+}
+
+void chainman_reindex_chainstate_test(std::filesystem::path path_root)
+{
+    kernel_Error error{};
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    KernelNotifications notifications{};
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    assert_error_ok(error);
+    auto chainman{create_chainman(path_root, false, true, error, context)};
+    assert_error_ok(error);
 }
 
 int main()
@@ -525,9 +576,17 @@ int main()
 
     default_context_test();
 
-    chainman_mainnet_validation_test();
+    const auto rand_str{random_string(16)};
+    auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
+    std::filesystem::create_directories(path_root);
+
+    chainman_mainnet_validation_test(path_root);
 
     chainman_regtest_validation_test();
+
+    chainman_reindex_test(path_root);
+
+    chainman_reindex_chainstate_test(path_root);
 
     std::cout << "Libbitcoinkernel test completed.\n";
     return 0;
