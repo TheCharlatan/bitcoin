@@ -311,6 +311,16 @@ public:
     BlockValidationState& operator=(const BlockValidationState&) = delete;
     BlockValidationState(BlockValidationState&&) = delete;
     BlockValidationState& operator=(BlockValidationState&&) = delete;
+
+    btck_ValidationMode ValidationMode() const
+    {
+        return btck_block_validation_state_get_validation_mode(m_state);
+    }
+
+    btck_BlockValidationResult BlockValidationResult() const
+    {
+        return btck_block_validation_state_get_block_validation_result(m_state);
+    }
 };
 
 template <typename T>

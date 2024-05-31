@@ -245,6 +245,31 @@ typedef void (*btck_NotifyFatalError)(void* user_data, const char* message, size
 typedef void (*btck_ValidationInterfaceBlockChecked)(void* user_data, const btck_BlockPointer* block, const btck_BlockValidationState* state);
 
 /**
+ * Whether a validated data structure is valid, invalid, or an error was
+ * encountered during processing.
+ */
+typedef enum {
+    btck_VALIDATION_STATE_VALID = 0,
+    btck_VALIDATION_STATE_INVALID,
+    btck_VALIDATION_STATE_ERROR,
+} btck_ValidationMode;
+
+/**
+ * A granular "reason" why a block was invalid.
+ */
+typedef enum {
+    btck_BLOCK_RESULT_UNSET = 0, //!< initial value. Block has not yet been rejected
+    btck_BLOCK_CONSENSUS,        //!< invalid by consensus rules (excluding any below reasons)
+    btck_BLOCK_CACHED_INVALID,  //!< this block was cached as being invalid and we didn't store the reason why
+    btck_BLOCK_INVALID_HEADER,  //!< invalid proof of work or time too old
+    btck_BLOCK_MUTATED,         //!< the block's data didn't match the data committed to by the PoW
+    btck_BLOCK_MISSING_PREV,    //!< We don't have the previous block the checked one is built on
+    btck_BLOCK_INVALID_PREV,    //!< A block this one builds on is invalid
+    btck_BLOCK_TIME_FUTURE,     //!< block timestamp was > 2 hours in the future (or our clock is bad)
+    btck_BLOCK_HEADER_LOW_WORK, //!< the block header may be on a too-little-work chain
+} btck_BlockValidationResult;
+
+/**
  * Holds the validation interface callbacks. The user data pointer may be used
  * to point to user-defined structures to make processing the validation
  * callbacks easier. Note that these callbacks block any further validation
@@ -911,6 +936,27 @@ BITCOINKERNEL_API btck_Transaction* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_
  * Destroy the block.
  */
 BITCOINKERNEL_API void btck_block_destroy(btck_Block* block);
+
+///@}
+
+/** @name BlockValidationState
+ * Functions for working with block validation states.
+ */
+///@{
+
+/**
+ * Returns the validation mode from an opaque block validation state pointer.
+ */
+BITCOINKERNEL_API btck_ValidationMode btck_block_validation_state_get_validation_mode(
+    const btck_BlockValidationState* block_validation_state
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * Returns the validation result from an opaque block validation state pointer.
+ */
+BITCOINKERNEL_API btck_BlockValidationResult btck_block_validation_state_get_block_validation_result(
+    const btck_BlockValidationState* block_validation_state
+) BITCOINKERNEL_ARG_NONNULL(1);
 
 ///@}
 
