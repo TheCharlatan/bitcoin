@@ -144,7 +144,7 @@ btck_Warning cast_btck_warning(kernel::Warning warning)
 {
     switch (warning) {
     case kernel::Warning::UNKNOWN_NEW_RULES_ACTIVATED:
-        return btck_Warning::btck_LARGE_WORK_INVALID_CHAIN;
+        return btck_Warning::btck_UNKNOWN_NEW_RULES_ACTIVATED;
     case kernel::Warning::LARGE_WORK_INVALID_CHAIN:
         return btck_Warning::btck_LARGE_WORK_INVALID_CHAIN;
     } // no default case, so the compiler can warn about missing cases
@@ -299,6 +299,12 @@ struct ChainstateManagerOptions {
     {
     }
 };
+
+const BlockValidationState* cast_block_validation_state(const btck_BlockValidationState* block_validation_state)
+{
+    assert(block_validation_state);
+    return reinterpret_cast<const BlockValidationState*>(block_validation_state);
+}
 
 } // namespace
 
@@ -649,6 +655,40 @@ void btck_context_destroy(btck_Context* context)
     if (!context) return;
     delete context;
     context = nullptr;
+}
+
+btck_ValidationMode btck_block_validation_state_get_validation_mode(const btck_BlockValidationState* block_validation_state_)
+{
+    auto& block_validation_state = *cast_block_validation_state(block_validation_state_);
+    if (block_validation_state.IsValid()) return btck_ValidationMode::btck_VALIDATION_STATE_VALID;
+    if (block_validation_state.IsInvalid()) return btck_ValidationMode::btck_VALIDATION_STATE_INVALID;
+    return btck_ValidationMode::btck_VALIDATION_STATE_ERROR;
+}
+
+btck_BlockValidationResult btck_block_validation_state_get_block_validation_result(const btck_BlockValidationState* block_validation_state_)
+{
+    auto& block_validation_state = *cast_block_validation_state(block_validation_state_);
+    switch (block_validation_state.GetResult()) {
+    case BlockValidationResult::BLOCK_RESULT_UNSET:
+        return btck_BlockValidationResult::btck_BLOCK_RESULT_UNSET;
+    case BlockValidationResult::BLOCK_CONSENSUS:
+        return btck_BlockValidationResult::btck_BLOCK_CONSENSUS;
+    case BlockValidationResult::BLOCK_CACHED_INVALID:
+        return btck_BlockValidationResult::btck_BLOCK_CACHED_INVALID;
+    case BlockValidationResult::BLOCK_INVALID_HEADER:
+        return btck_BlockValidationResult::btck_BLOCK_INVALID_HEADER;
+    case BlockValidationResult::BLOCK_MUTATED:
+        return btck_BlockValidationResult::btck_BLOCK_MUTATED;
+    case BlockValidationResult::BLOCK_MISSING_PREV:
+        return btck_BlockValidationResult::btck_BLOCK_MISSING_PREV;
+    case BlockValidationResult::BLOCK_INVALID_PREV:
+        return btck_BlockValidationResult::btck_BLOCK_INVALID_PREV;
+    case BlockValidationResult::BLOCK_TIME_FUTURE:
+        return btck_BlockValidationResult::btck_BLOCK_TIME_FUTURE;
+    case BlockValidationResult::BLOCK_HEADER_LOW_WORK:
+        return btck_BlockValidationResult::btck_BLOCK_HEADER_LOW_WORK;
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
 }
 
 btck_ChainstateManagerOptions* btck_chainstate_manager_options_create(const btck_Context* context, const char* data_dir, size_t data_dir_len, const char* blocks_dir, size_t blocks_dir_len)
