@@ -338,7 +338,7 @@ public:
     ValidationInterface() : m_validation_interface{kernel_validation_interface_create(kernel_ValidationInterfaceCallbacks{
                                 .user_data = this,
                                 .block_checked = [](void* user_data, const kernel_BlockPointer* block, const kernel_BlockValidationState* state) {
-                                    reinterpret_cast<ValidationInterface*>(user_data)->BlockChecked();
+                                    reinterpret_cast<ValidationInterface*>(user_data)->BlockChecked(state);
                                 },
                             })}
     {
@@ -347,9 +347,60 @@ public:
     ValidationInterface(const ValidationInterface&) = delete;
     ValidationInterface& operator=(const ValidationInterface&) = delete;
 
-    void BlockChecked()
+    void BlockChecked(const kernel_BlockValidationState* state)
     {
-        std::cout << "Block validated!\n";
+        std::cout << "Block checked: ";
+        auto mode{kernel_get_validation_mode_from_block_validation_state(state)};
+        switch (mode) {
+        case kernel_ValidationMode::kernel_VALIDATION_STATE_VALID: {
+            std::cout << "Valid block\n";
+            return;
+        }
+        case kernel_ValidationMode::kernel_VALIDATION_STATE_INVALID: {
+            std::cout << "Invalid block: ";
+            auto result = kernel_get_block_validation_result_from_block_validation_state(state);
+            switch (result) {
+            case kernel_BlockValidationResult::kernel_BLOCK_RESULT_UNSET:
+                std::cout << "initial value. Block has not yet been rejected" << std::endl;
+                break;
+            case kernel_BlockValidationResult::kernel_BLOCK_HEADER_LOW_WORK:
+                std::cout << "the block header may be on a too-little-work chain" << std::endl;
+                break;
+            case kernel_BlockValidationResult::kernel_BLOCK_CONSENSUS:
+                std::cout << "invalid by consensus rules (excluding any below reasons)" << std::endl;
+                break;
+            case kernel_BlockValidationResult::kernel_BLOCK_RECENT_CONSENSUS_CHANGE:
+                std::cout << "Invalid by a change to consensus rules more recent than SegWit." << std::endl;
+                break;
+            case kernel_BlockValidationResult::kernel_BLOCK_CACHED_INVALID:
+                std::cout << "this block was cached as being invalid and we didn't store the reason why" << std::endl;
+                break;
+            case kernel_BlockValidationResult::kernel_BLOCK_INVALID_HEADER:
+                std::cout << "invalid proof of work or time too old" << std::endl;
+                break;
+            case kernel_BlockValidationResult::kernel_BLOCK_MUTATED:
+                std::cout << "the block's data didn't match the data committed to by the PoW" << std::endl;
+                break;
+            case kernel_BlockValidationResult::kernel_BLOCK_MISSING_PREV:
+                std::cout << "We don't have the previous block the checked one is built on" << std::endl;
+                break;
+            case kernel_BlockValidationResult::kernel_BLOCK_INVALID_PREV:
+                std::cout << "A block this one builds on is invalid" << std::endl;
+                break;
+            case kernel_BlockValidationResult::kernel_BLOCK_TIME_FUTURE:
+                std::cout << "block timestamp was > 2 hours in the future (or our clock is bad)" << std::endl;
+                break;
+            case kernel_BlockValidationResult::kernel_BLOCK_CHECKPOINT:
+                std::cout << "the block failed to meet one of our checkpoints" << std::endl;
+                break;
+            }
+            return;
+        }
+        case kernel_ValidationMode::kernel_VALIDATION_STATE_ERROR: {
+            std::cout << "Internal error\n";
+            return;
+        }
+        }
     }
 
     void Register(Context& context, kernel_Error& error)

@@ -772,6 +772,43 @@ void kernel_execute_event_and_destroy(kernel_ValidationEvent* event, kernel_Erro
     }
 }
 
+kernel_ValidationMode kernel_get_validation_mode_from_block_validation_state(const kernel_BlockValidationState* block_validation_state_)
+{
+    auto block_validation_state = reinterpret_cast<const BlockValidationState*>(block_validation_state_);
+    if (block_validation_state->IsValid()) return kernel_ValidationMode::kernel_VALIDATION_STATE_VALID;
+    if (block_validation_state->IsInvalid()) return kernel_ValidationMode::kernel_VALIDATION_STATE_INVALID;
+    return kernel_ValidationMode::kernel_VALIDATION_STATE_ERROR;
+}
+
+kernel_BlockValidationResult kernel_get_block_validation_result_from_block_validation_state(const kernel_BlockValidationState* block_validation_state_)
+{
+    auto block_validation_state = reinterpret_cast<const BlockValidationState*>(block_validation_state_);
+    switch (block_validation_state->GetResult()) {
+    case BlockValidationResult::BLOCK_RESULT_UNSET:
+        return kernel_BlockValidationResult::kernel_BLOCK_RESULT_UNSET;
+    case BlockValidationResult::BLOCK_CONSENSUS:
+        return kernel_BlockValidationResult::kernel_BLOCK_CONSENSUS;
+    case BlockValidationResult::BLOCK_RECENT_CONSENSUS_CHANGE:
+        return kernel_BlockValidationResult::kernel_BLOCK_RECENT_CONSENSUS_CHANGE;
+    case BlockValidationResult::BLOCK_CACHED_INVALID:
+        return kernel_BlockValidationResult::kernel_BLOCK_CACHED_INVALID;
+    case BlockValidationResult::BLOCK_INVALID_HEADER:
+        return kernel_BlockValidationResult::kernel_BLOCK_INVALID_HEADER;
+    case BlockValidationResult::BLOCK_MUTATED:
+        return kernel_BlockValidationResult::kernel_BLOCK_MUTATED;
+    case BlockValidationResult::BLOCK_MISSING_PREV:
+        return kernel_BlockValidationResult::kernel_BLOCK_MISSING_PREV;
+    case BlockValidationResult::BLOCK_INVALID_PREV:
+        return kernel_BlockValidationResult::kernel_BLOCK_INVALID_PREV;
+    case BlockValidationResult::BLOCK_TIME_FUTURE:
+        return kernel_BlockValidationResult::kernel_BLOCK_TIME_FUTURE;
+    case BlockValidationResult::BLOCK_CHECKPOINT:
+        return kernel_BlockValidationResult::kernel_BLOCK_CHECKPOINT;
+    case BlockValidationResult::BLOCK_HEADER_LOW_WORK:
+        return kernel_BlockValidationResult::kernel_BLOCK_HEADER_LOW_WORK;
+    }
+}
+
 kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, kernel_Error* error)
 {
     fs::path abs_data_dir{fs::absolute(fs::PathFromString(data_dir))};
