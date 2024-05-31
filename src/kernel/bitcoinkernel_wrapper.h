@@ -213,6 +213,16 @@ public:
     BlockValidationState& operator=(const BlockValidationState&) = delete;
     BlockValidationState(BlockValidationState&&) = delete;
     BlockValidationState& operator=(BlockValidationState&&) = delete;
+
+    kernel_ValidationMode ValidationMode() const noexcept
+    {
+        return kernel_block_validation_state_get_validation_mode(m_state);
+    }
+
+    kernel_BlockValidationResult BlockValidationResult() const noexcept
+    {
+        return kernel_block_validation_state_get_block_validation_result(m_state);
+    }
 };
 
 template <typename T>
