@@ -5,6 +5,7 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <chain.h>
+#include <coins.h>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
 #include <kernel/chainparams.h>
@@ -26,6 +27,7 @@
 #include <sync.h>
 #include <tinyformat.h>
 #include <uint256.h>
+#include <undo.h>
 #include <util/fs.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
@@ -482,6 +484,12 @@ CBlockIndex* cast_block_index(kernel_BlockIndex* index)
 {
     assert(index);
     return reinterpret_cast<CBlockIndex*>(index);
+}
+
+CBlockUndo* cast_block_undo(kernel_BlockUndo* undo)
+{
+    assert(undo);
+    return reinterpret_cast<CBlockUndo*>(undo);
 }
 
 } // namespace
@@ -1133,10 +1141,87 @@ kernel_Block* kernel_read_block_from_disk(const kernel_Context* context_,
     return reinterpret_cast<kernel_Block*>(block);
 }
 
+kernel_BlockUndo* kernel_read_block_undo_from_disk(const kernel_Context* context_,
+                                                   kernel_ChainstateManager* chainman_,
+                                                   kernel_BlockIndex* block_index_,
+                                                   kernel_Error* error)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+    auto block_index{cast_block_index(block_index_)};
+
+    if (block_index->nHeight < 1) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "The genesis block does not have undo data.");
+    }
+    auto block_undo{new CBlockUndo{}};
+    if (!chainman->m_blockman.UndoReadFromDisk(*block_undo, *block_index)) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "Failed to read undo data from disk.");
+    }
+    return reinterpret_cast<kernel_BlockUndo*>(block_undo);
+}
+
 void kernel_block_index_destroy(kernel_BlockIndex* block_index)
 {
     // This is just a dummy function. The user does not control block index memory.
     return;
+}
+
+uint64_t kernel_block_undo_size(kernel_BlockUndo* block_undo_)
+{
+    auto block_undo{cast_block_undo(block_undo_)};
+    return block_undo->vtxundo.size();
+}
+
+void kernel_block_undo_destroy(kernel_BlockUndo* block_undo)
+{
+    if (block_undo) {
+        delete cast_block_undo(block_undo);
+    }
+}
+
+uint64_t kernel_get_transaction_undo_size(kernel_BlockUndo* block_undo_, uint64_t transaction_undo_index)
+{
+    auto block_undo{cast_block_undo(block_undo_)};
+    return block_undo->vtxundo[transaction_undo_index].vprevout.size();
+}
+
+kernel_TransactionOutput* kernel_get_undo_output_by_index(kernel_BlockUndo* block_undo_,
+                                                          uint64_t transaction_undo_index,
+                                                          uint64_t output_index,
+                                                          kernel_Error* error)
+{
+    auto block_undo{cast_block_undo(block_undo_)};
+
+    if (transaction_undo_index >= block_undo->vtxundo.size()) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_OUT_OF_BOUNDS, "transaction undo index is out of bounds.");
+        return nullptr;
+    }
+
+    const auto& tx_undo = block_undo->vtxundo[transaction_undo_index];
+
+    if (output_index >= tx_undo.vprevout.size()) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_OUT_OF_BOUNDS, "previous output index is out of bounds.");
+        return nullptr;
+    }
+
+    const auto& prevout{tx_undo.vprevout.at(output_index).out};
+    std::unique_ptr<unsigned char[]> byte_array(new unsigned char[prevout.scriptPubKey.size()]);
+    std::copy(prevout.scriptPubKey.begin(), prevout.scriptPubKey.end(), byte_array.get());
+
+    auto kernel_prevout{new kernel_TransactionOutput{}};
+
+    kernel_prevout->value = prevout.nValue;
+    kernel_prevout->script_pubkey_len = prevout.scriptPubKey.size();
+    kernel_prevout->script_pubkey = byte_array.release();
+
+    return reinterpret_cast<kernel_TransactionOutput*>(kernel_prevout);
+}
+
+void kernel_transaction_output_destroy(kernel_TransactionOutput* transaction_output)
+{
+    if (transaction_output && transaction_output->script_pubkey) {
+        delete[] transaction_output->script_pubkey;
+    }
+    if (transaction_output) delete transaction_output;
 }
 
 bool kernel_chainstate_manager_process_block(const kernel_Context* context_, kernel_ChainstateManager* chainman_, kernel_Block* block_, kernel_Error* error)
