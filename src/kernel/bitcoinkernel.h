@@ -265,14 +265,6 @@ typedef enum {
 } kernel_ContextOptionType;
 
 /**
- * Available types of block manager options. Passed with a corresponding value
- * to kernel_block_manager_options_set(..).
- */
-typedef enum {
-    kernel_REINDEX_BLOCK_MANAGER_OPTION = 0, //!< Set the reindex option, value should be a bool.
-} kernel_BlockManagerOptionType;
-
-/**
  * Available types of chainstate load options. Passed with a corresponding value
  * to kernel_chainstate_load_options_set(..).
  */
@@ -473,6 +465,14 @@ typedef enum {
 } kernel_ChainType;
 
 /**
+ * Convenience struct for holding serialized data.
+ */
+typedef struct {
+    unsigned char* data;
+    size_t size;
+} kernel_ByteArray;
+
+/**
  * @brief Verify if the input at input_index of tx_to spends the script pubkey
  * under the constraints specified by flags. If the witness flag is set the
  * amount parameter is used. Additionally, if the spent outputs parameter is
@@ -660,21 +660,6 @@ kernel_BlockManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_manage
 ) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2);
 
 /**
- * @brief Sets a single, specific field in the block manager options. The option
- * type has to match the option value.
- *
- * @param[in] block_manager_options Non-null, created with kernel_block_manager_options_create.
- * @param[in] n_option              Describes the option field that should be set with the value.
- * @param[in] value                 Non-null, single value setting the field selected by n_option.
- * @param[out] error                Nullable, will contain an error/success code for the operation.
- */
-void kernel_block_manager_options_set(
-    kernel_BlockManagerOptions* block_manager_options,
-    kernel_BlockManagerOptionType n_option,
-    void* value,
-    kernel_Error* error);
-
-/**
  * Destroy the block manager options.
  */
 void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* block_manager_options);
@@ -856,6 +841,31 @@ kernel_Block* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_create(
  * Destroy the block.
  */
 void kernel_block_destroy(kernel_Block* block);
+
+/**
+ * @brief Copies block data into the returned byte array.
+ *
+ * @param[in] block  Non-null.
+ * @return           Allocated byte array holding the block data, or null on error.
+ */
+kernel_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_copy_block_data(
+    kernel_Block* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Copies block data into the returned byte array.
+ *
+ * @param[in] block  Non-null.
+ * @return           Allocated byte array holding the block data, or null on error.
+ */
+kernel_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_copy_block_pointer_data(
+    const kernel_BlockPointer* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * A helper function for destroying an existing byte array.
+ */
+void kernel_byte_array_destroy(kernel_ByteArray* byte_array);
 
 /**
  * Returns the validation mode from an opaque block validation state pointer.
