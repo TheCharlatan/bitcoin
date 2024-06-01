@@ -535,6 +535,21 @@ void chainman_mainnet_validation_test(TestDirectory& test_directory)
     assert(chainman->ProcessBlock(block, error));
     assert_error_ok(error);
 
+    auto tip = chainman->GetBlockIndexFromTip();
+    auto read_block = chainman->ReadBlock(tip, error);
+    assert_error_ok(error);
+    assert(read_block.GetBlockData() == raw_block);
+
+    // Check that we can read the previous block
+    auto tip_2 = tip.GetPreviousBlockIndex(error);
+    assert_error_ok(error);
+    auto read_block_2 = chainman->ReadBlock(tip_2, error);
+    assert_error_ok(error);
+
+    // It should be an error if we go another block back, since the genesis has no ancestor
+    auto tip_3 = tip_2.GetPreviousBlockIndex(error);
+    assert_is_error(error, kernel_ERROR_OUT_OF_BOUNDS);
+
     // If we try to validate it again, it should be a duplicate
     assert(!chainman->ProcessBlock(block, error));
     assert_is_error(error, kernel_ERROR_DUPLICATE_BLOCK);
@@ -578,6 +593,17 @@ void chainman_regtest_validation_test()
         chainman->ProcessBlock(block, error);
         assert_error_ok(error);
     }
+
+    auto tip = chainman->GetBlockIndexFromTip();
+    auto read_block = chainman->ReadBlock(tip, error);
+    assert_error_ok(error);
+    assert(read_block.GetBlockData() == REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 1]);
+
+    auto tip_2 = tip.GetPreviousBlockIndex(error);
+    assert_error_ok(error);
+    auto read_block_2 = chainman->ReadBlock(tip_2, error);
+    assert_error_ok(error);
+    assert(read_block_2.GetBlockData() == REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 2]);
 }
 
 void chainman_reindex_test(TestDirectory& test_directory)

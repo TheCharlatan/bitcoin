@@ -454,6 +454,37 @@ public:
     friend class ChainMan;
 };
 
+class BlockIndex
+{
+private:
+    struct Deleter {
+        void operator()(kernel_BlockIndex* ptr) const
+        {
+            kernel_block_index_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_BlockIndex, Deleter> m_block_index;
+
+public:
+    BlockIndex(kernel_BlockIndex* block_index) : m_block_index{block_index} {}
+
+    BlockIndex GetPreviousBlockIndex(kernel_Error& error)
+    {
+        if (!m_block_index) {
+            return BlockIndex{nullptr};
+        }
+        return kernel_get_previous_block_index(m_block_index.get(), &error);
+    }
+
+    operator bool() const
+    {
+        return m_block_index && m_block_index.get();
+    }
+
+    friend class ChainMan;
+};
+
 class ChainMan
 {
 private:
@@ -489,6 +520,16 @@ public:
     bool ProcessBlock(Block& block, kernel_Error& error)
     {
         return kernel_chainstate_manager_process_block(m_context.m_context.get(), m_chainman, block.m_block.get(), &error);
+    }
+
+    BlockIndex GetBlockIndexFromTip()
+    {
+        return kernel_get_block_index_from_tip(m_context.m_context.get(), m_chainman);
+    }
+
+    Block ReadBlock(BlockIndex& block_index, kernel_Error& error)
+    {
+        return Block{kernel_read_block_from_disk(m_context.m_context.get(), m_chainman, block_index.m_block_index.get(), &error)};
     }
 
     ~ChainMan()
