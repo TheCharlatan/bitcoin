@@ -331,6 +331,12 @@ const BlockValidationState* cast_block_validation_state(const btck_BlockValidati
     return reinterpret_cast<const BlockValidationState*>(block_validation_state);
 }
 
+const CBlock* cast_const_cblock(const btck_BlockPointer* block)
+{
+    assert(block);
+    return reinterpret_cast<const CBlock*>(block);
+}
+
 } // namespace
 
 struct btck_Transaction {
@@ -897,6 +903,29 @@ btck_Transaction* btck_block_get_transaction_at(const btck_Block* block, size_t 
 {
     assert(index < block->m_block->vtx.size());
     return new btck_Transaction{block->m_block->vtx[index]};
+}
+
+int btck_block_to_bytes(const btck_Block* block, btck_WriteBytes writer, void* user_data)
+{
+    try {
+        WriterStream ws{writer, user_data};
+        ws << TX_WITH_WITNESS(*block->m_block);
+        return 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int btck_block_pointer_to_bytes(const btck_BlockPointer* block_, btck_WriteBytes writer, void* user_data)
+{
+    auto block{cast_const_cblock(block_)};
+    try {
+        WriterStream ws{writer, user_data};
+        ws << TX_WITH_WITNESS(*block);
+        return 0;
+    } catch (...) {
+        return -1;
+    }
 }
 
 void btck_block_destroy(btck_Block* block)
