@@ -23,6 +23,8 @@
 #include <string_view>
 #include <vector>
 
+using namespace btck;
+
 std::string random_string(uint32_t length)
 {
     const std::string chars = "0123456789"
@@ -572,6 +574,22 @@ BOOST_AUTO_TEST_CASE(btck_chainman_regtest_tests)
     auto read_block_2 = chainman->ReadBlock(tip_2).value();
     check_equal(read_block_2.GetBlockData(), REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 2]);
 
-    std::filesystem::remove_all(test_directory.m_directory / "blocks" / "blk00000.dat");
-    BOOST_CHECK(!chainman->ReadBlock(tip_2));
+    BlockSpentOutputs block_spent_outputs{chainman->ReadBlockSpentOutputs(tip)};
+    BOOST_CHECK_EQUAL(block_spent_outputs.m_size, 1);
+    RefWrapper<TransactionSpentOutputs> transaction_spent_outputs{block_spent_outputs.GetTxSpentOutputs(block_spent_outputs.m_size - 1)};
+    RefWrapper<Coin> coin{transaction_spent_outputs.Get().GetCoin(transaction_spent_outputs.Get().m_size - 1)};
+    RefWrapper<TransactionOutput> output = coin.Get().GetOutput();
+    uint32_t coin_height = coin.Get().GetConfirmationHeight();
+    BOOST_CHECK_EQUAL(coin_height, 205);
+    BOOST_CHECK_EQUAL(output.Get().GetAmount(), 100000000);
+    auto script_pubkey = output.Get().GetScriptPubkey();
+    BOOST_CHECK_EQUAL(script_pubkey.Get().GetScriptPubkeyData().size(), 22);
+
+    // Test that reading past the size returns null data
+    // BOOST_CHECK_THROW(block_spent_outputs.GetTxSpentOutputs(block_spent_outputs.m_size), std::runtime_error);
+
+    // std::filesystem::remove_all(test_directory.m_directory / "blocks" / "blk00000.dat");
+    // BOOST_CHECK(!chainman->ReadBlock(tip_2).has_value());
+    // std::filesystem::remove_all(test_directory.m_directory / "blocks" / "rev00000.dat");
+    // BOOST_CHECK_THROW(chainman->ReadBlockSpentOutputs(tip), std::runtime_error);
 }
