@@ -466,6 +466,51 @@ public:
     friend class ChainMan;
 };
 
+struct TransactionOutputDeleter {
+    void operator()(kernel_TransactionOutput* ptr) const
+    {
+        kernel_transaction_output_destroy(ptr);
+    }
+};
+
+class BlockUndo
+{
+private:
+    struct Deleter {
+        void operator()(kernel_BlockUndo* ptr) const
+        {
+            kernel_block_undo_destroy(ptr);
+        }
+    };
+
+    const std::unique_ptr<kernel_BlockUndo, Deleter> m_block_undo;
+
+public:
+    const uint64_t m_size;
+
+    BlockUndo(kernel_BlockUndo* block_undo) noexcept
+        : m_block_undo{block_undo},
+          m_size{kernel_block_undo_size(block_undo)}
+    {
+    }
+
+    BlockUndo(const BlockUndo&) = delete;
+    BlockUndo& operator=(const BlockUndo&) = delete;
+
+    uint64_t GetTxOutSize(uint64_t index) const noexcept
+    {
+        return kernel_get_transaction_undo_size(m_block_undo.get(), index);
+    }
+
+    std::unique_ptr<kernel_TransactionOutput, TransactionOutputDeleter> GetTxUndoPrevoutByIndex(
+        uint64_t tx_undo_index,
+        uint64_t tx_prevout_index) const noexcept
+    {
+        return std::unique_ptr<kernel_TransactionOutput, TransactionOutputDeleter>(
+            kernel_get_undo_output_by_index(m_block_undo.get(), tx_undo_index, tx_prevout_index));
+    }
+};
+
 class BlockIndex
 {
 private:
@@ -549,6 +594,13 @@ public:
         auto block{kernel_read_block_from_disk(m_context.m_context.get(), m_chainman, block_index.m_block_index.get())};
         if (!block) return std::nullopt;
         return block;
+    }
+
+    std::optional<BlockUndo> ReadBlockUndo(const BlockIndex& block_index) const noexcept
+    {
+        auto undo{kernel_read_block_undo_from_disk(m_context.m_context.get(), m_chainman, block_index.m_block_index.get())};
+        if (!undo) return std::nullopt;
+        return undo;
     }
 
     ~ChainMan()

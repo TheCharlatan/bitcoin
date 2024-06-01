@@ -543,6 +543,14 @@ void chainman_regtest_validation_test()
     auto tip_2 = tip.GetPreviousBlockIndex().value();
     auto read_block_2 = chainman->ReadBlock(tip_2).value();
     assert(read_block_2.GetBlockData() == REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 2]);
+
+    auto block_undo{chainman->ReadBlockUndo(tip)};
+    assert(block_undo);
+    auto tx_undo_size = block_undo->GetTxOutSize(block_undo->m_size - 1);
+    auto output = block_undo->GetTxUndoPrevoutByIndex(block_undo->m_size - 1, tx_undo_size - 1);
+    assert(output);
+    assert(output->script_pubkey_len == 22);
+    assert(output->value == 100000000);
 }
 
 void chainman_reindex_test(TestDirectory& test_directory)
