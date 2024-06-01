@@ -593,6 +593,27 @@ BOOST_AUTO_TEST_CASE(kernel_chainman_regtest_tests)
     auto read_block_2 = chainman->ReadBlock(tip_2).value();
     check_equal(read_block_2.GetBlockData(), REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 2]);
 
+    auto block_undo{chainman->ReadBlockUndo(tip)};
+    BOOST_REQUIRE(block_undo);
+    BOOST_CHECK_EQUAL(block_undo->GetTxOutSize(block_undo->m_size), 0);
+    auto tx_undo_size = block_undo->GetTxOutSize(block_undo->m_size - 1);
+    auto output = block_undo->GetTxUndoPrevoutByIndex(block_undo->m_size - 1, tx_undo_size - 1);
+    uint32_t output_height = block_undo->GetTxUndoPrevoutHeight(block_undo->m_size - 1, tx_undo_size - 1);
+    BOOST_CHECK_EQUAL(output_height, 205);
+    BOOST_REQUIRE(output);
+    BOOST_CHECK_EQUAL(output.GetOutputAmount(), 100000000);
+    auto script_pubkey = output.GetScriptPubkey();
+    BOOST_REQUIRE(script_pubkey);
+    BOOST_CHECK_EQUAL(script_pubkey.GetScriptPubkeyData().size(), 22);
+
+    // Test that reading past the size returns null data
+    output = block_undo->GetTxUndoPrevoutByIndex(block_undo->m_size, tx_undo_size);
+    BOOST_CHECK(!output);
+    output_height = block_undo->GetTxUndoPrevoutHeight(block_undo->m_size, tx_undo_size);
+    BOOST_CHECK_EQUAL(output_height, 0);
+
     std::filesystem::remove_all(test_directory.m_directory / "blocks" / "blk00000.dat");
-    BOOST_CHECK(!chainman->ReadBlock(tip_2));
+    BOOST_CHECK(!chainman->ReadBlock(tip_2).has_value());
+    std::filesystem::remove_all(test_directory.m_directory / "blocks" / "rev00000.dat");
+    BOOST_CHECK(!chainman->ReadBlockUndo(tip).has_value());
 }
