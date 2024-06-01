@@ -399,6 +399,7 @@ struct btck_Context : Handle<btck_Context, std::shared_ptr<const Context>> {};
 struct btck_ChainParameters : Handle<btck_ChainParameters, std::unique_ptr<const CChainParams>> {};
 struct btck_ChainstateManagerOptions : Handle<btck_ChainstateManagerOptions, ChainstateManagerOptions> {};
 struct btck_ChainstateManager : Handle<btck_ChainstateManager, ChainMan> {};
+struct btck_Chain : Handle<btck_Chain, CChain> {};
 
 btck_Transaction* btck_transaction_create(const void* raw_transaction, size_t raw_transaction_len)
 {
@@ -718,6 +719,16 @@ void btck_context_destroy(btck_Context* context)
     delete context;
 }
 
+btck_BlockTreeEntry* btck_block_tree_entry_get_previous(const btck_BlockTreeEntry* entry)
+{
+    if (!btck_BlockTreeEntry::get(entry).pprev) {
+        LogInfo("Genesis block has no previous.");
+        return nullptr;
+    }
+
+    return btck_BlockTreeEntry::ref(btck_BlockTreeEntry::get(entry).pprev);
+}
+
 void btck_block_tree_entry_destroy(btck_BlockTreeEntry* block_tree_entry)
 {
     if (!block_tree_entry) return;
@@ -945,6 +956,16 @@ void btck_block_destroy(btck_Block* block)
     delete block;
 }
 
+btck_Block* btck_block_read(const btck_ChainstateManager* chainman, const btck_BlockTreeEntry* entry)
+{
+    auto block{std::shared_ptr<CBlock>(new CBlock{})};
+    if (!btck_ChainstateManager::get(chainman).m_chainman->m_blockman.ReadBlock(*block, btck_BlockTreeEntry::get(entry))) {
+        LogError("Failed to read block.");
+        return nullptr;
+    }
+    return btck_Block::ref(new std::shared_ptr<const CBlock>{block});
+}
+
 int btck_chainstate_manager_process_block(
     btck_ChainstateManager* chainman,
     const btck_Block* block,
@@ -956,4 +977,20 @@ int btck_chainstate_manager_process_block(
         *_new_block = new_block ? 1 : 0;
     }
     return result ? 0 : -1;
+}
+
+btck_Chain* btck_chainstate_manager_get_active_chain(const btck_ChainstateManager* chainman)
+{
+    return btck_Chain::ref(&WITH_LOCK(btck_ChainstateManager::get(chainman).m_chainman->GetMutex(), return btck_ChainstateManager::get(chainman).m_chainman->ActiveChain()));
+}
+
+btck_BlockTreeEntry* btck_chain_get_tip(const btck_Chain* chain)
+{
+    return btck_BlockTreeEntry::ref(btck_Chain::get(chain).Tip());
+}
+
+void btck_chain_destroy(btck_Chain* chain)
+{
+    // The chain is always unowned, so only delete the wrapper struct, not the data it is pointing to.
+    delete chain;
 }
