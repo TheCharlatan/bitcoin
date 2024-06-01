@@ -478,6 +478,12 @@ const CBlock* cast_const_cblock(const kernel_BlockPointer* block)
     return reinterpret_cast<const CBlock*>(block);
 }
 
+CBlockIndex* cast_block_index(kernel_BlockIndex* index)
+{
+    assert(index);
+    return reinterpret_cast<CBlockIndex*>(index);
+}
+
 } // namespace
 
 int kernel_verify_script(const unsigned char* script_pubkey, size_t script_pubkey_len,
@@ -1091,6 +1097,46 @@ void kernel_block_destroy(kernel_Block* block)
     if (block) {
         delete cast_cblocksharedpointer(block);
     }
+}
+
+kernel_BlockIndex* kernel_get_block_index_from_tip(const kernel_Context* context_, kernel_ChainstateManager* chainman_)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+    return reinterpret_cast<kernel_BlockIndex*>(WITH_LOCK(::cs_main, return chainman->ActiveChain().Tip()));
+}
+
+kernel_BlockIndex* kernel_get_previous_block_index(kernel_BlockIndex* block_index_, kernel_Error* error)
+{
+    CBlockIndex* block_index{cast_block_index(block_index_)};
+
+    if (!block_index->pprev) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_OUT_OF_BOUNDS, "Genesis block has no previous.");
+        return nullptr;
+    }
+
+    return reinterpret_cast<kernel_BlockIndex*>(block_index->pprev);
+}
+
+kernel_Block* kernel_read_block_from_disk(const kernel_Context* context_,
+                                          kernel_ChainstateManager* chainman_,
+                                          kernel_BlockIndex* block_index_,
+                                          kernel_Error* error)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+    CBlockIndex* block_index{cast_block_index(block_index_)};
+
+    auto block{new std::shared_ptr<CBlock>(new CBlock{})};
+    if (!chainman->m_blockman.ReadBlockFromDisk(**block, *block_index)) {
+        set_error(error, kernel_ERROR_INTERNAL, "Failed to read block from disk.");
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_Block*>(block);
+}
+
+void kernel_block_index_destroy(kernel_BlockIndex* block_index)
+{
+    // This is just a dummy function. The user does not control block index memory.
+    return;
 }
 
 bool kernel_chainstate_manager_process_block(const kernel_Context* context_, kernel_ChainstateManager* chainman_, kernel_Block* block_, kernel_Error* error)
