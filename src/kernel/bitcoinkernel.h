@@ -248,6 +248,11 @@ typedef void (*btck_NotifyFatalError)(void* user_data, const char* message, size
 typedef void (*btck_ValidationInterfaceBlockChecked)(void* user_data, const btck_BlockPointer* block, const btck_BlockValidationState* state);
 
 /**
+ * Function signature for serializing data.
+ */
+typedef int (*btck_WriteBytes)(const void* bytes, size_t size, void* userdata);
+
+/**
  * Whether a validated data structure is valid, invalid, or an error was
  * encountered during processing.
  */
@@ -386,11 +391,6 @@ typedef enum {
     btck_CHAIN_TYPE_SIGNET,
     btck_CHAIN_TYPE_REGTEST,
 } btck_ChainType;
-
-/**
- * Function signature for serializing data.
- */
-typedef int (*btck_WriteBytes)(const void* bytes, size_t size, void* userdata);
 
 /** @name Transaction
  * Functions for working with transactions.
@@ -993,6 +993,38 @@ BITCOINKERNEL_API uint64_t BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_count_tra
 BITCOINKERNEL_API btck_Transaction* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_get_transaction_at(
     const btck_Block* block, uint64_t transaction_index
 ) BITCOINKERNEL_ARG_NONNULL(1);
+
+/*
+ * @brief Serializes the block through the passed in callback to bytes.
+ * This is consensus serialization that is also used for the p2p network.
+ *
+ * @param[in] block     Non-null.
+ * @param[in] writer    Non-null, callback to a write bytes function.
+ * @param[in] user_data Holds a user-defined opaque structure that will be
+ *                      passed back through the writer callback.
+ * @return              True on success.
+ */
+BITCOINKERNEL_API int btck_block_to_bytes(
+    const btck_Block* block,
+    btck_WriteBytes writer,
+    void* user_data
+) BITCOINKERNEL_ARG_NONNULL(1, 2);
+
+/*
+ * @brief Serializes the block pointer through the passed in callback to bytes.
+ * This is consensus serialization that is also used for the p2p network.
+ *
+ * @param[in] block     Non-null.
+ * @param[in] writer    Non-null, callback to a write bytes function.
+ * @param[in] user_data Holds a user-defined opaque structure that will be
+ *                      passed back through the writer callback.
+ * @return              True on success.
+ */
+BITCOINKERNEL_API int btck_block_pointer_to_bytes(
+    const btck_BlockPointer* block,
+    btck_WriteBytes writer,
+    void* user_data
+) BITCOINKERNEL_ARG_NONNULL(1, 2);
 
 /**
  * Destroy the block.
