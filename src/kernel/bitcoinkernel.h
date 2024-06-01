@@ -437,6 +437,14 @@ typedef enum {
 } kernel_ChainType;
 
 /**
+ * Convenience struct for holding serialized data.
+ */
+typedef struct {
+    unsigned char* data;
+    size_t size;
+} kernel_ByteArray;
+
+/**
  * @brief Verify if the input at input_index of tx_to spends the script pubkey
  * under the constraints specified by flags.
  *
@@ -810,6 +818,29 @@ kernel_Block* kernel_block_from_string(const char* block_hex_string, kernel_Erro
  * Destroy the block.
  */
 void kernel_block_destroy(kernel_Block* block);
+
+/**
+ * @brief Copies block data into the returned byte array.
+ *
+ * @param[in] block  Non-null.
+ * @param[out] error Nullable, will contain an error/success code for the operation.
+ * @return           Allocated byte array holding the block data, or null on error.
+ */
+kernel_ByteArray* kernel_copy_block_data(kernel_Block* block, kernel_Error* error);
+
+/**
+ * @brief Copies block data into the returned byte array.
+ *
+ * @param[in] block  Non-null.
+ * @param[out] error Nullable, will contain an error/success code for the operation.
+ * @return           Allocated byte array holding the block data, or null on error.
+ */
+kernel_ByteArray* kernel_copy_block_pointer_data(const kernel_BlockPointer* block, kernel_Error* error);
+
+/**
+ * A helper function for destroying an existing byte array.
+ */
+void kernel_byte_array_destroy(kernel_ByteArray* byte_array);
 
 /**
  * Returns the validation mode from an opaque block validation state pointer.

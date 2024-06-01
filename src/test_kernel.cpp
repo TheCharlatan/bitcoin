@@ -10,9 +10,12 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -73,6 +76,16 @@ ByteArray hex_string_to_byte_array(const std::string& hex)
     result.data = byte_array.release();
     result.size = bytes.size();
     return result;
+}
+
+std::string byte_array_to_hex_string(kernel_ByteArray* byte_array)
+{
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0');
+    for (unsigned int i{0}; i < byte_array->size; i++) {
+        oss << std::setw(2) << static_cast<int>(byte_array->data[i]);
+    }
+    return oss.str();
 }
 
 const auto VERIFY_ALL_PRE_TAPROOT = kernel_SCRIPT_FLAGS_VERIFY_P2SH | kernel_SCRIPT_FLAGS_VERIFY_DERSIG |
@@ -335,10 +348,12 @@ private:
     kernel_ValidationInterface* m_validation_interface;
 
 public:
+    std::optional<std::string> m_expected_valid_block = std::nullopt;
+
     ValidationInterface() : m_validation_interface{kernel_validation_interface_create(kernel_ValidationInterfaceCallbacks{
                                 .user_data = this,
                                 .block_checked = [](void* user_data, const kernel_BlockPointer* block, const kernel_BlockValidationState* state) {
-                                    reinterpret_cast<ValidationInterface*>(user_data)->BlockChecked(state);
+                                    reinterpret_cast<ValidationInterface*>(user_data)->BlockChecked(block, state);
                                 },
                             })}
     {
@@ -347,9 +362,21 @@ public:
     ValidationInterface(const ValidationInterface&) = delete;
     ValidationInterface& operator=(const ValidationInterface&) = delete;
 
-    void BlockChecked(const kernel_BlockValidationState* state)
+    void BlockChecked(const kernel_BlockPointer* block, const kernel_BlockValidationState* state)
     {
         std::cout << "Block checked: ";
+        {
+            kernel_Error error;
+            error.code = kernel_ErrorCode::kernel_ERROR_OK;
+            auto serialized_block{kernel_copy_block_pointer_data(block, &error)};
+            assert_error_ok(error);
+
+            if (m_expected_valid_block.has_value()) {
+                assert(m_expected_valid_block.value() == byte_array_to_hex_string(serialized_block));
+            }
+            kernel_byte_array_destroy(serialized_block);
+        }
+
         auto mode{kernel_get_validation_mode_from_block_validation_state(state)};
         switch (mode) {
         case kernel_ValidationMode::kernel_VALIDATION_STATE_VALID: {
@@ -641,6 +668,7 @@ void chainman_mainnet_validation_test(std::filesystem::path path_root)
     assert_error_ok(error);
 
     std::string block_str{"010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e362990101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000"};
+    validation_interface.m_expected_valid_block.emplace(block_str);
     Block block{block_str, error};
     chainman->ValidateBlock(block, error);
     assert_error_ok(error);

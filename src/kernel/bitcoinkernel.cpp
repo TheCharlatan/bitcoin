@@ -22,6 +22,7 @@
 #include <script/script.h>
 #include <serialize.h>
 #include <span.h>
+#include <streams.h>
 #include <sync.h>
 #include <uint256.h>
 #include <util/fs.h>
@@ -504,6 +505,14 @@ node::ChainstateLoadOptions* cast_chainstate_load_options(kernel_ChainstateLoadO
         set_error_invalid_pointer(err, "Invalid kernel_ChainstateLoadOptions pointer.");
     }
     return reinterpret_cast<node::ChainstateLoadOptions*>(load_opts);
+}
+
+const CBlock* cast_cblockpointer(const kernel_BlockPointer* block_pointer, kernel_Error* err)
+{
+    if (!block_pointer) {
+        set_error_invalid_pointer(err, "Invalid kernel_BlockPointer pointer.");
+    }
+    return reinterpret_cast<const CBlock*>(block_pointer);
 }
 
 std::shared_ptr<KernelValidationInterface>* cast_validation_interface(kernel_ValidationInterface* validation_interface_, kernel_Error* err)
@@ -1027,6 +1036,52 @@ kernel_Block* kernel_block_from_string(const char* block_hex_string, kernel_Erro
     }
 
     return reinterpret_cast<kernel_Block*>(new std::shared_ptr<CBlock>(block));
+}
+
+void kernel_byte_array_destroy(kernel_ByteArray* byte_array)
+{
+    delete[] byte_array->data;
+    delete byte_array;
+}
+
+kernel_ByteArray* kernel_copy_block_data(kernel_Block* block_, kernel_Error* error)
+{
+    auto block{cast_cblocksharedpointer(block_, error)};
+    if (!block) {
+        return nullptr;
+    }
+
+    DataStream ss{};
+    ss << TX_WITH_WITNESS(**block);
+
+    auto byte_array{new kernel_ByteArray{
+        .data = new unsigned char[ss.size()],
+        .size = ss.size(),
+    }};
+
+    std::memcpy(byte_array->data, ss.data(), byte_array->size);
+
+    return byte_array;
+}
+
+kernel_ByteArray* kernel_copy_block_pointer_data(const kernel_BlockPointer* block_, kernel_Error* error)
+{
+    auto block{cast_cblockpointer(block_, error)};
+    if (!block) {
+        return nullptr;
+    }
+
+    DataStream ss{};
+    ss << TX_WITH_WITNESS(*block);
+
+    auto byte_array{new kernel_ByteArray{
+        .data = new unsigned char[ss.size()],
+        .size = ss.size(),
+    }};
+
+    std::memcpy(byte_array->data, ss.data(), byte_array->size);
+
+    return byte_array;
 }
 
 void kernel_block_destroy(kernel_Block* block)
