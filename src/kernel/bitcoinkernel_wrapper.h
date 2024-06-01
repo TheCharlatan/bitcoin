@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -535,6 +536,15 @@ public:
         : Handle{check(entry)}
     {
     }
+
+    std::optional<BlockTreeEntry> GetPrevious() const
+    {
+        auto entry{btck_block_tree_entry_get_previous(impl())};
+        if (!entry) return std::nullopt;
+        return entry;
+    }
+
+    friend class ChainMan;
 };
 
 template <typename T>
@@ -778,6 +788,27 @@ public:
     friend class ChainMan;
 };
 
+class Chain
+{
+private:
+    struct Deleter {
+        void operator()(btck_Chain* ptr) const noexcept
+        {
+            btck_chain_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<btck_Chain, Deleter> m_chain;
+
+public:
+    Chain(btck_Chain* chain) : m_chain{check(chain)} {}
+
+    BlockTreeEntry GetTip() const
+    {
+        return btck_chain_get_tip(m_chain.get());
+    }
+};
+
 class ChainMan : Handle<btck_ChainstateManager, btck_chainstate_manager_destroy>
 {
 public:
@@ -806,6 +837,18 @@ public:
         int res = btck_chainstate_manager_process_block(impl(), block.impl(), &_new_block);
         if (new_block) *new_block = _new_block == 1;
         return res == 0;
+    }
+
+    RefWrapper<Chain> GetChain() const
+    {
+        return Chain{btck_chainstate_manager_get_active_chain(impl())};
+    }
+
+    std::optional<Block> ReadBlock(BlockTreeEntry& entry) const
+    {
+        auto block{btck_block_read(impl(), entry.impl())};
+        if (!block) return std::nullopt;
+        return block;
     }
 };
 
