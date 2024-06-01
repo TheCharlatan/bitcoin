@@ -383,6 +383,7 @@ typedef enum {
     kernel_ERROR_UNKNOWN_OPTION,
     kernel_ERROR_INVALID_CONTEXT,
     kernel_ERROR_INTERNAL,
+    kernel_ERROR_OUT_OF_BOUNDS,
 } kernel_ErrorCode;
 
 /**
@@ -851,6 +852,46 @@ kernel_ValidationMode kernel_get_validation_mode_from_block_validation_state(con
  * Returns the validation result from an opaque block validation state pointer.
  */
 kernel_BlockValidationResult kernel_get_block_validation_result_from_block_validation_state(const kernel_BlockValidationState* block_validation_state);
+
+/**
+ * @brief Get the block index entry of the current chain tip.
+ *
+ * @param[in] context            Non-null.
+ * @param[in] chainstate_manager Non-null.
+ * @param[out] error             Nullable, will contain an error/success code for the operation.
+ * @return                       The block index of the current tip, or null on error.
+ */
+kernel_BlockIndex* kernel_get_block_index_from_tip(const kernel_Context* context, kernel_ChainstateManager* chainstate_manager, kernel_Error* error);
+
+/**
+ * @brief Returns the previous block index in the chain, or null if the current
+ * block index entry is the genesis block.
+ *
+ * @param[in] block_index Non-null.
+ * @param[out] error      Nullable, will contain an error/success code for the operation.
+ * @return                The previous block index, or null on error or if the current block index is the genesis block.
+ */
+kernel_BlockIndex* kernel_get_previous_block_index(kernel_BlockIndex* block_index, kernel_Error* error);
+
+/**
+ * @brief Reads the block the passed in block index points to from disk and
+ * return it.
+ *
+ * @param[in] context            Non-null.
+ * @param[in] chainstate_manager Non-null.
+ * @param[in] block_index        Non-null.
+ * @param[out] error             Nullable, will contain an error/success code for the operation.
+ * @return                       The read out block, or null on error.
+ */
+kernel_Block* kernel_read_block_from_disk(const kernel_Context* context,
+                                          kernel_ChainstateManager* chainstate_manager,
+                                          kernel_BlockIndex* block_index,
+                                          kernel_Error* error);
+
+/**
+ * @brief Destroy the block index.
+ */
+void kernel_block_index_destroy(kernel_BlockIndex* block_index);
 
 #ifdef __cplusplus
 } // extern "C"

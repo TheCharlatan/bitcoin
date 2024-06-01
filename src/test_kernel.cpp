@@ -540,12 +540,54 @@ public:
     {
     }
 
+    Block(kernel_Block* block) : m_block{block} {}
+
     Block(const Block&) = delete;
     Block& operator=(const Block&) = delete;
+
+    std::string ToHexString(kernel_Error& error)
+    {
+        auto serialized_block{kernel_copy_block_data(m_block, &error)};
+        if (error.code != kernel_ErrorCode::kernel_ERROR_OK) {
+            return "";
+        }
+        auto hex_block{byte_array_to_hex_string(serialized_block)};
+        kernel_byte_array_destroy(serialized_block);
+        return hex_block;
+    }
 
     ~Block()
     {
         kernel_block_destroy(m_block);
+    }
+
+    friend class ChainMan;
+};
+
+class BlockIndex
+{
+private:
+    kernel_BlockIndex* m_block_index;
+
+public:
+    BlockIndex(kernel_BlockIndex* block_index) : m_block_index{block_index} {}
+
+    BlockIndex(const BlockIndex&) = delete;
+    BlockIndex& operator=(const BlockIndex&) = delete;
+
+    BlockIndex GetPreviousBlockIndex(kernel_Error& error)
+    {
+        return kernel_get_previous_block_index(m_block_index, &error);
+    }
+
+    bool IsNull()
+    {
+        return m_block_index == nullptr;
+    }
+
+    ~BlockIndex()
+    {
+        kernel_block_index_destroy(m_block_index);
     }
 
     friend class ChainMan;
@@ -586,6 +628,16 @@ public:
         }
 
         kernel_import_blocks(m_context.m_context, m_chainman, c_paths.data(), c_paths.size(), &error);
+    }
+
+    BlockIndex GetBlockIndexFromTip(kernel_Error& error)
+    {
+        return kernel_get_block_index_from_tip(m_context.m_context, m_chainman, &error);
+    }
+
+    Block ReadBlock(BlockIndex& block_index, kernel_Error& error)
+    {
+        return Block{kernel_read_block_from_disk(m_context.m_context, m_chainman, block_index.m_block_index, &error)};
     }
 
     bool ValidateBlock(Block& block, kernel_Error& error)
@@ -673,6 +725,23 @@ void chainman_mainnet_validation_test(std::filesystem::path path_root)
     chainman->ValidateBlock(block, error);
     assert_error_ok(error);
 
+    auto tip = chainman->GetBlockIndexFromTip(error);
+    assert_error_ok(error);
+    auto read_block = chainman->ReadBlock(tip, error);
+    assert_error_ok(error);
+    assert(read_block.ToHexString(error) == block_str);
+    assert_error_ok(error);
+
+    // Check that we can read the previous block
+    auto tip_2 = tip.GetPreviousBlockIndex(error);
+    assert_error_ok(error);
+    auto read_block_2 = chainman->ReadBlock(tip_2, error);
+    assert_error_ok(error);
+
+    // It should be an error if we go another block back, since the genesis has no ancestor
+    auto tip_3 = tip_2.GetPreviousBlockIndex(error);
+    assert_is_error(error);
+
     // If we try to validate it again, it should be a duplicate
     assert(!chainman->ValidateBlock(block, error));
     assert_is_error(error);
@@ -703,6 +772,22 @@ void chainman_regtest_validation_test()
         chainman->ValidateBlock(block, error);
         assert_error_ok(error);
     }
+
+    auto tip = chainman->GetBlockIndexFromTip(error);
+    assert_error_ok(error);
+    auto read_block = chainman->ReadBlock(tip, error);
+    assert_error_ok(error);
+    assert(read_block.ToHexString(error) == blocks[blocks.size() - 1]);
+    assert(read_block.ToHexString(error) == blocks[blocks.size() - 1]);
+    assert_error_ok(error);
+
+    auto tip_2 = tip.GetPreviousBlockIndex(error);
+    assert_error_ok(error);
+    auto read_block_2 = chainman->ReadBlock(tip_2, error);
+    assert_error_ok(error);
+    assert(read_block_2.ToHexString(error) == blocks[blocks.size() - 2]);
+    assert(read_block_2.ToHexString(error) == blocks[blocks.size() - 2]);
+    assert_error_ok(error);
 }
 
 void chainman_reindex_test(std::filesystem::path path_root)

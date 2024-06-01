@@ -515,6 +515,15 @@ const CBlock* cast_cblockpointer(const kernel_BlockPointer* block_pointer, kerne
     return reinterpret_cast<const CBlock*>(block_pointer);
 }
 
+CBlockIndex* cast_block_index(kernel_BlockIndex* block_index, kernel_Error* err)
+{
+    if (!block_index) {
+        set_error_invalid_pointer(err, "Invalid kernel_BlockIndex pointer.");
+        return nullptr;
+    }
+    return reinterpret_cast<CBlockIndex*>(block_index);
+}
+
 std::shared_ptr<KernelValidationInterface>* cast_validation_interface(kernel_ValidationInterface* validation_interface_, kernel_Error* err)
 {
     if (!validation_interface_) {
@@ -1087,6 +1096,67 @@ kernel_ByteArray* kernel_copy_block_pointer_data(const kernel_BlockPointer* bloc
 void kernel_block_destroy(kernel_Block* block)
 {
     delete reinterpret_cast<std::shared_ptr<CBlock>*>(block);
+}
+
+kernel_BlockIndex* kernel_get_block_index_from_tip(const kernel_Context* context_, kernel_ChainstateManager* chainman_, kernel_Error* error)
+{
+    auto context{cast_const_context(context_, error)};
+    if (!context) {
+        return nullptr;
+    }
+    auto chainman{cast_chainstate_manager(chainman_, error)};
+    if (!chainman) {
+        return nullptr;
+    }
+
+    return reinterpret_cast<kernel_BlockIndex*>(WITH_LOCK(::cs_main, return chainman->ActiveChain().Tip()));
+}
+
+kernel_BlockIndex* kernel_get_previous_block_index(kernel_BlockIndex* block_index_, kernel_Error* error)
+{
+    CBlockIndex* block_index{cast_block_index(block_index_, error)};
+    if (!block_index) {
+        return nullptr;
+    }
+
+    if (!block_index->pprev) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_OUT_OF_BOUNDS, "Genesis block has no previous.");
+    }
+
+    return reinterpret_cast<kernel_BlockIndex*>(block_index->pprev);
+}
+
+kernel_Block* kernel_read_block_from_disk(const kernel_Context* context_,
+                                          kernel_ChainstateManager* chainman_,
+                                          kernel_BlockIndex* block_index_,
+                                          kernel_Error* error)
+{
+    auto context{cast_const_context(context_, error)};
+    if (!context) {
+        return nullptr;
+    }
+
+    auto chainman{cast_chainstate_manager(chainman_, error)};
+    if (!chainman) {
+        return nullptr;
+    }
+    CBlockIndex* block_index{cast_block_index(block_index_, error)};
+    if (!block_index) {
+        return nullptr;
+    }
+
+    auto block = new std::shared_ptr<CBlock>(new CBlock{});
+    auto res = chainman->m_blockman.ReadBlockFromDisk(**block, *block_index);
+    if (!res) {
+        set_error(error, kernel_ERROR_INTERNAL, "Failed to read block from disk.");
+    }
+    return reinterpret_cast<kernel_Block*>(block);
+}
+
+void kernel_block_index_destroy(kernel_BlockIndex* block_index)
+{
+    // This is just a dummy function. The user does not control block index memory.
+    return;
 }
 
 bool kernel_chainstate_manager_process_block(const kernel_Context* context_, kernel_ChainstateManager* chainman_, kernel_Block* block_, kernel_Error* error)
