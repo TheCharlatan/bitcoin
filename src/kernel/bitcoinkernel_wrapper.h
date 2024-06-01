@@ -8,6 +8,7 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <memory>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -298,6 +299,18 @@ public:
         : m_block_tree_entry{check(entry)}
     {
     }
+
+    std::optional<BlockTreeEntry> GetPrevious() const
+    {
+        if (!m_block_tree_entry) {
+            return std::nullopt;
+        }
+        auto entry{btck_block_tree_entry_get_previous(m_block_tree_entry.get())};
+        if (!entry) return std::nullopt;
+        return entry;
+    }
+
+    friend class ChainMan;
 };
 
 template <typename T>
@@ -583,6 +596,27 @@ public:
     friend class ChainMan;
 };
 
+class Chain
+{
+private:
+    struct Deleter {
+        void operator()(btck_Chain* ptr) const noexcept
+        {
+            btck_chain_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<btck_Chain, Deleter> m_chain;
+
+public:
+    Chain(btck_Chain* chain) : m_chain{check(chain)} {}
+
+    BlockTreeEntry GetTip() const
+    {
+        return btck_chain_get_tip(m_chain.get());
+    }
+};
+
 class ChainMan
 {
 private:
@@ -614,6 +648,18 @@ public:
     bool ProcessBlock(const Block& block, bool* new_block) const
     {
         return btck_chainstate_manager_process_block(m_chainman, block.m_block.get(), new_block);
+    }
+
+    RefWrapper<Chain> GetChain() const
+    {
+        return Chain{btck_chainstate_manager_get_active_chain(m_chainman)};
+    }
+
+    std::optional<Block> ReadBlock(BlockTreeEntry& entry) const
+    {
+        auto block{btck_block_read(m_chainman, entry.m_block_tree_entry.get())};
+        if (!block) return std::nullopt;
+        return block;
     }
 
     ~ChainMan()
