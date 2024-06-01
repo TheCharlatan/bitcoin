@@ -297,6 +297,14 @@ public:
     UnownedBlock& operator=(const UnownedBlock&) = delete;
     UnownedBlock(UnownedBlock&&) = delete;
     UnownedBlock& operator=(UnownedBlock&&) = delete;
+
+    std::vector<unsigned char> GetBlockData() const
+    {
+        auto serialized_block{btck_block_pointer_copy_data(m_block)};
+        std::vector<unsigned char> vec{serialized_block->data, serialized_block->data + serialized_block->size};
+        btck_byte_array_destroy(serialized_block);
+        return vec;
+    }
 };
 
 class BlockValidationState
@@ -503,6 +511,14 @@ public:
     Transaction GetTransaction(uint64_t index)
     {
         return Transaction{btck_block_get_transaction_at(m_block.get(), index)};
+    }
+
+    std::vector<unsigned char> GetBlockData() const
+    {
+        auto serialized_block{btck_block_copy_data(m_block.get())};
+        std::vector<unsigned char> vec{serialized_block->data, serialized_block->data + serialized_block->size};
+        btck_byte_array_destroy(serialized_block);
+        return vec;
     }
 
     friend class ChainMan;

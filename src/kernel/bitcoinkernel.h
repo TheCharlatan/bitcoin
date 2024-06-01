@@ -383,6 +383,14 @@ typedef enum {
     btck_CHAIN_TYPE_REGTEST,
 } btck_ChainType;
 
+/**
+ * Convenience struct for holding serialized data.
+ */
+typedef struct {
+    unsigned char* data;
+    size_t size;
+} btck_ByteArray;
+
 /** @name Transaction
  * Functions for working with transactions.
  */
@@ -932,10 +940,42 @@ BITCOINKERNEL_API btck_Transaction* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_
     const btck_Block* block, uint64_t transaction_index
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
+/*
+ * @brief Copies block data into the returned byte array.
+ *
+ * @param[in] block  Non-null.
+ * @return           Allocated byte array holding the block data.
+ */
+BITCOINKERNEL_API btck_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_copy_data(
+    btck_Block* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Copies block data into the returned byte array.
+ *
+ * @param[in] block  Non-null.
+ * @return           Allocated byte array holding the block data.
+ */
+BITCOINKERNEL_API btck_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_pointer_copy_data(
+    const btck_BlockPointer* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
 /**
  * Destroy the block.
  */
 BITCOINKERNEL_API void btck_block_destroy(btck_Block* block);
+
+///@}
+
+/** @name ByteArray
+ * Functions for working with byte arrays.
+ */
+///@{
+
+/**
+ * A helper function for destroying an existing byte array.
+ */
+BITCOINKERNEL_API void btck_byte_array_destroy(btck_ByteArray* byte_array);
 
 ///@}
 
