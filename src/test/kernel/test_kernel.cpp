@@ -486,6 +486,18 @@ void chainman_mainnet_validation_test(TestDirectory& test_directory)
     BOOST_CHECK(chainman->ProcessBlock(block, &new_block));
     BOOST_CHECK(new_block);
 
+    auto tip{chainman->GetBlockIndexFromTip()};
+    auto read_block{chainman->ReadBlock(tip)};
+    BOOST_REQUIRE(read_block);
+    check_equal(read_block.value().GetBlockData(), raw_block);
+
+    // Check that we can read the previous block
+    auto tip_2{tip.GetPreviousBlockIndex()};
+    auto read_block_2{chainman->ReadBlock(tip_2.value())};
+
+    // It should be an error if we go another block back, since the genesis has no ancestor
+    BOOST_CHECK(!tip_2.value().GetPreviousBlockIndex());
+
     // If we try to validate it again, it should be a duplicate
     BOOST_CHECK(chainman->ProcessBlock(block, &new_block));
     BOOST_CHECK(!new_block);
@@ -557,4 +569,15 @@ BOOST_AUTO_TEST_CASE(btck_chainman_regtest_tests)
         BOOST_CHECK(chainman->ProcessBlock(block, &new_block));
         BOOST_CHECK(new_block);
     }
+
+    auto tip = chainman->GetBlockIndexFromTip();
+    auto read_block = chainman->ReadBlock(tip).value();
+    check_equal(read_block.GetBlockData(), REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 1]);
+
+    auto tip_2 = tip.GetPreviousBlockIndex().value();
+    auto read_block_2 = chainman->ReadBlock(tip_2).value();
+    check_equal(read_block_2.GetBlockData(), REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 2]);
+
+    std::filesystem::remove_all(test_directory.m_directory / "blocks" / "blk00000.dat");
+    BOOST_CHECK(!chainman->ReadBlock(tip_2));
 }

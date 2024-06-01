@@ -312,6 +312,12 @@ const CBlock* cast_const_cblock(const btck_BlockPointer* block)
     return reinterpret_cast<const CBlock*>(block);
 }
 
+const CBlockIndex* cast_const_block_index(const btck_BlockIndex* index)
+{
+    assert(index);
+    return reinterpret_cast<const CBlockIndex*>(index);
+}
+
 } // namespace
 
 struct btck_Transaction
@@ -912,6 +918,41 @@ void btck_block_destroy(btck_Block* block)
     if (!block) return;
     delete block;
     block = nullptr;
+}
+
+btck_BlockIndex* btck_block_index_get_tip(btck_ChainstateManager* chainman)
+{
+    return reinterpret_cast<btck_BlockIndex*>(WITH_LOCK(chainman->m_chainman->GetMutex(), return chainman->m_chainman->ActiveChain().Tip()));
+}
+
+btck_BlockIndex* btck_block_index_get_previous(const btck_BlockIndex* block_index_)
+{
+    const CBlockIndex* block_index{cast_const_block_index(block_index_)};
+
+    if (!block_index->pprev) {
+        LogInfo("Genesis block has no previous.");
+        return nullptr;
+    }
+
+    return reinterpret_cast<btck_BlockIndex*>(block_index->pprev);
+}
+
+btck_Block* btck_block_read( btck_ChainstateManager* chainman, const btck_BlockIndex* block_index_)
+{
+    const CBlockIndex* block_index{cast_const_block_index(block_index_)};
+
+    auto block{std::shared_ptr<CBlock>(new CBlock{})};
+    if (!chainman->m_chainman->m_blockman.ReadBlock(*block, *block_index)) {
+        LogError("Failed to read block.");
+        return nullptr;
+    }
+    return new btck_Block{block};
+}
+
+void btck_block_index_destroy(btck_BlockIndex* block_index)
+{
+    // This is just a dummy function. The user does not control block index memory.
+    return;
 }
 
 bool btck_chainstate_manager_process_block(
