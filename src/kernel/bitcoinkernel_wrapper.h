@@ -15,6 +15,8 @@
 #include <string_view>
 #include <vector>
 
+namespace btck {
+
 class Transaction;
 class TransactionOutput;
 
@@ -86,6 +88,14 @@ public:
     ScriptPubkey(btck_ScriptPubkey* script_pubkey)
         : m_script_pubkey{check(script_pubkey)}
     {
+    }
+
+    std::vector<unsigned char> GetScriptPubkeyData() const
+    {
+        auto serialized_data{btck_script_pubkey_copy_data(m_script_pubkey.get())};
+        std::vector<unsigned char> vec{serialized_data->data, serialized_data->data + serialized_data->size};
+        btck_byte_array_destroy(serialized_data);
+        return vec;
     }
 };
 
@@ -525,6 +535,125 @@ public:
     friend class ChainMan;
 };
 
+class Coin
+{
+private:
+    struct Deleter {
+        void operator()(btck_Coin* ptr) const noexcept
+        {
+            btck_coin_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<btck_Coin, Deleter> m_coin;
+
+public:
+    Coin(btck_Coin* coin) : m_coin{check(coin)} {}
+
+    // Copy constructor and assignment
+    Coin(const Coin& other)
+        : m_coin{check(btck_coin_copy(other.m_coin.get()))} { }
+    Coin& operator=(const Coin& other)
+    {
+        if (this != &other) {
+            m_coin.reset(check(btck_coin_copy(other.m_coin.get())));
+        }
+        return *this;
+    }
+
+    uint32_t GetConfirmationHeight() const { return btck_coin_confirmation_height(m_coin.get()); }
+
+    bool IsCoinbase() const { return btck_coin_is_coinbase(m_coin.get()); }
+
+    RefWrapper<TransactionOutput> GetOutput() const
+    {
+        return TransactionOutput{btck_coin_get_output(m_coin.get())};
+    }
+};
+
+class TransactionSpentOutputs
+{
+private:
+    struct Deleter {
+        void operator()(btck_TransactionSpentOutputs* ptr) const noexcept
+        {
+            btck_transaction_spent_outputs_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<btck_TransactionSpentOutputs, Deleter> m_transaction_spent_outputs;
+
+public:
+    uint64_t m_size;
+
+    TransactionSpentOutputs(btck_TransactionSpentOutputs* transaction_spent_outputs)
+        : m_transaction_spent_outputs{check(transaction_spent_outputs)},
+          m_size{btck_transaction_spent_outputs_size(transaction_spent_outputs)}
+    {
+    }
+    // Copy constructor and assignment
+    TransactionSpentOutputs(const TransactionSpentOutputs& other)
+        : m_transaction_spent_outputs{check(btck_transaction_spent_outputs_copy(other.m_transaction_spent_outputs.get()))},
+          m_size{other.m_size}
+    {
+    }
+    TransactionSpentOutputs& operator=(const TransactionSpentOutputs& other)
+    {
+        if (this != &other) {
+            m_transaction_spent_outputs.reset(check(btck_transaction_spent_outputs_copy(other.m_transaction_spent_outputs.get())));
+            m_size = btck_transaction_spent_outputs_size(m_transaction_spent_outputs.get());
+        }
+        return *this;
+    }
+
+    RefWrapper<Coin> GetCoin(uint64_t index) const
+    {
+        return Coin{btck_transaction_spent_outputs_get_coin_at(m_transaction_spent_outputs.get(), index)};
+    }
+};
+
+class BlockSpentOutputs
+{
+private:
+    struct Deleter {
+        void operator()(btck_BlockSpentOutputs* ptr) const noexcept
+        {
+            btck_block_spent_outputs_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<btck_BlockSpentOutputs, Deleter> m_block_spent_outputs;
+
+public:
+    uint64_t m_size;
+
+    BlockSpentOutputs(btck_BlockSpentOutputs* block_spent_outputs)
+        : m_block_spent_outputs{check(block_spent_outputs)},
+          m_size{btck_block_spent_outputs_size(block_spent_outputs)}
+    {
+    }
+
+    // Copy constructor and assignment
+    BlockSpentOutputs(const BlockSpentOutputs& other)
+        : m_block_spent_outputs{check(btck_block_spent_outputs_copy(other.m_block_spent_outputs.get()))},
+          m_size{other.m_size}
+    {
+    }
+    BlockSpentOutputs& operator=(const BlockSpentOutputs& other)
+    {
+        if (this != &other) {
+            m_block_spent_outputs.reset(check(btck_block_spent_outputs_copy(other.m_block_spent_outputs.get())));
+            m_size = btck_block_spent_outputs_size(m_block_spent_outputs.get());
+        }
+        return *this;
+    }
+
+    RefWrapper<TransactionSpentOutputs> GetTxSpentOutputs(uint64_t tx_undo_index) const
+    {
+        return TransactionSpentOutputs{btck_block_spent_outputs_get_transaction_spent_outputs_at(m_block_spent_outputs.get(), tx_undo_index)};
+    }
+};
+
 class BlockIndex
 {
 private:
@@ -598,10 +727,17 @@ public:
         return block;
     }
 
+    BlockSpentOutputs ReadBlockSpentOutputs(const BlockIndex& block_index) const
+    {
+        return btck_block_spent_outputs_read(m_chainman, block_index.m_block_index.get());
+    }
+
     ~ChainMan()
     {
         btck_chainstate_manager_destroy(m_chainman);
     }
 };
+
+} // namespace btck
 
 #endif // BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
