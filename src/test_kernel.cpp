@@ -593,6 +593,38 @@ public:
     friend class ChainMan;
 };
 
+class BlockUndo
+{
+private:
+    kernel_BlockUndo* m_block_undo;
+
+public:
+    uint64_t m_size;
+
+    BlockUndo(kernel_BlockUndo* block_undo, kernel_Error& error) : m_block_undo{block_undo}
+    {
+        m_size = kernel_block_undo_size(block_undo, &error);
+    }
+
+    BlockUndo(const BlockUndo&) = delete;
+    BlockUndo& operator=(const BlockUndo&) = delete;
+
+    uint64_t GetTxOutSize(uint64_t index, kernel_Error& error)
+    {
+        return kernel_get_transaction_undo_size(m_block_undo, index, &error);
+    }
+
+    kernel_TransactionOutput* GetTxUndoPrevoutByIndex(uint64_t tx_undo_index, uint64_t tx_prevout_index, kernel_Error& error)
+    {
+        return kernel_get_undo_output_by_index(m_block_undo, tx_undo_index, tx_prevout_index, &error);
+    }
+
+    ~BlockUndo()
+    {
+        kernel_block_undo_destroy(m_block_undo);
+    }
+};
+
 class ChainMan
 {
 private:
@@ -638,6 +670,11 @@ public:
     Block ReadBlock(BlockIndex& block_index, kernel_Error& error)
     {
         return Block{kernel_read_block_from_disk(m_context.m_context, m_chainman, block_index.m_block_index, &error)};
+    }
+
+    BlockUndo ReadBlockUndo(BlockIndex& block_index, kernel_Error& error)
+    {
+        return BlockUndo{kernel_read_block_undo_from_disk(m_context.m_context, m_chainman, block_index.m_block_index, &error), error};
     }
 
     bool ValidateBlock(Block& block, kernel_Error& error)
@@ -788,6 +825,15 @@ void chainman_regtest_validation_test()
     assert(read_block_2.ToHexString(error) == blocks[blocks.size() - 2]);
     assert(read_block_2.ToHexString(error) == blocks[blocks.size() - 2]);
     assert_error_ok(error);
+
+    auto block_undo = chainman->ReadBlockUndo(tip, error);
+    assert_error_ok(error);
+    auto tx_undo_size = block_undo.GetTxOutSize(block_undo.m_size - 1, error);
+    assert_error_ok(error);
+    auto output = block_undo.GetTxUndoPrevoutByIndex(block_undo.m_size - 1, tx_undo_size - 1, error);
+    assert_error_ok(error);
+    std::cout << "last prevout pubkey length: " << output->script_pubkey_len << ", value: " << output->value << std::endl;
+    kernel_transaction_output_destroy(output);
 }
 
 void chainman_reindex_test(std::filesystem::path path_root)
