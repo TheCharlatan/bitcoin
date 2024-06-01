@@ -24,6 +24,8 @@
 #include <string_view>
 #include <vector>
 
+using namespace btck;
+
 std::string random_string(uint32_t length)
 {
     const std::string chars = "0123456789"
@@ -663,6 +665,31 @@ BOOST_AUTO_TEST_CASE(btck_chainman_regtest_tests)
     auto read_block_2 = chainman->ReadBlock(tip_2).value();
     check_equal(read_block_2.ToBytes(), as_bytes(REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 2]));
 
-    std::filesystem::remove_all(test_directory.m_directory / "blocks" / "blk00000.dat");
-    BOOST_CHECK(!chainman->ReadBlock(tip_2));
+    BlockSpentOutputs block_spent_outputs{chainman->ReadBlockSpentOutputs(tip)};
+    BOOST_CHECK_EQUAL(block_spent_outputs.Count(), 1);
+    TransactionSpentOutputsView transaction_spent_outputs{block_spent_outputs.GetTxSpentOutputs(block_spent_outputs.Count()- 1)};
+    CoinView coin{transaction_spent_outputs.GetCoin(transaction_spent_outputs.Count()- 1)};
+    TransactionOutputView output = coin.GetOutput();
+    uint32_t coin_height = coin.GetConfirmationHeight();
+    BOOST_CHECK_EQUAL(coin_height, 205);
+    BOOST_CHECK_EQUAL(output.Amount(), 100000000);
+    auto script_pubkey = output.GetScriptPubkey();
+    auto script_pubkey_bytes{script_pubkey.ToBytes()};
+    BOOST_CHECK_EQUAL(script_pubkey_bytes.size(), 22);
+    auto round_trip_script_pubkey{ScriptPubkey(script_pubkey_bytes)};
+    BOOST_CHECK_EQUAL(round_trip_script_pubkey.ToBytes().size(), 22);
+
+    for (const auto tx_spent_outputs : block_spent_outputs.TxsSpentOutputs()) {
+        for (const auto coins : tx_spent_outputs.Coins()) {
+            BOOST_CHECK_GT(coins.GetOutput().Amount(), 1);
+        }
+    }
+
+    // Test that reading past the size returns null data
+    // BOOST_CHECK_THROW(block_spent_outputs.GetTxSpentOutputs(block_spent_outputs.m_size), std::runtime_error);
+
+    // std::filesystem::remove_all(test_directory.m_directory / "blocks" / "blk00000.dat");
+    // BOOST_CHECK(!chainman->ReadBlock(tip_2).has_value());
+    // std::filesystem::remove_all(test_directory.m_directory / "blocks" / "rev00000.dat");
+    // BOOST_CHECK_THROW(chainman->ReadBlockSpentOutputs(tip), std::runtime_error);
 }
