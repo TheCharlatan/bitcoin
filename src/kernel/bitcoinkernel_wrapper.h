@@ -8,6 +8,7 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <memory>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -529,6 +530,34 @@ public:
     friend class ChainMan;
 };
 
+class BlockIndex
+{
+private:
+    struct Deleter {
+        void operator()(btck_BlockIndex* ptr) const noexcept
+        {
+            btck_block_index_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<btck_BlockIndex, Deleter> m_block_index;
+
+public:
+    BlockIndex(btck_BlockIndex* block_index) : m_block_index{check(block_index)} {}
+
+    std::optional<BlockIndex> GetPreviousBlockIndex() const
+    {
+        if (!m_block_index) {
+            return std::nullopt;
+        }
+        auto index{btck_block_index_get_previous(m_block_index.get())};
+        if (!index) return std::nullopt;
+        return index;
+    }
+
+    friend class ChainMan;
+};
+
 class ChainMan
 {
 private:
@@ -560,6 +589,18 @@ public:
     bool ProcessBlock(const Block& block, bool* new_block) const
     {
         return btck_chainstate_manager_process_block(m_chainman, block.m_block.get(), new_block);
+    }
+
+    BlockIndex GetBlockIndexFromTip() const
+    {
+        return btck_block_index_get_tip(m_chainman);
+    }
+
+    std::optional<Block> ReadBlock(BlockIndex& block_index) const
+    {
+        auto block{btck_block_read(m_chainman, block_index.m_block_index.get())};
+        if (!block) return std::nullopt;
+        return block;
     }
 
     ~ChainMan()

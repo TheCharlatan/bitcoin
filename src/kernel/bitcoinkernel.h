@@ -906,6 +906,19 @@ BITCOINKERNEL_API void btck_chainstate_manager_destroy(btck_ChainstateManager* c
 ///@{
 
 /**
+ * @brief Reads the block the passed in block index points to from disk and
+ * returns it.
+ *
+ * @param[in] chainstate_manager Non-null.
+ * @param[in] block_index        Non-null.
+ * @return                       The read out block, or null on error.
+ */
+BITCOINKERNEL_API btck_Block* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_read(
+    btck_ChainstateManager* chainstate_manager,
+    const btck_BlockIndex* block_index
+) BITCOINKERNEL_ARG_NONNULL(1, 2);
+
+/**
  * @brief Parse a serialized raw block into a new block object.
  *
  * @param[in] raw_block     Non-null, serialized block.
@@ -1006,6 +1019,40 @@ BITCOINKERNEL_API btck_ValidationMode btck_block_validation_state_get_validation
 BITCOINKERNEL_API btck_BlockValidationResult btck_block_validation_state_get_block_validation_result(
     const btck_BlockValidationState* block_validation_state
 ) BITCOINKERNEL_ARG_NONNULL(1);
+
+///@}
+
+/** @name BlockIndex
+ * Functions for working with block indexes.
+ */
+///@{
+
+/**
+ * @brief Get the block index entry of the current chain tip. Once returned,
+ * there is no guarantee that it remains in the active chain.
+ *
+ * @param[in] chainstate_manager Non-null.
+ * @return                       The block index of the current tip, or null if the chain is empty.
+ */
+BITCOINKERNEL_API btck_BlockIndex* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_index_get_tip(
+    btck_ChainstateManager* chainstate_manager
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Returns the previous block index in the chain, or null if the current
+ * block index entry is the genesis block.
+ *
+ * @param[in] block_index Non-null.
+ * @return                The previous block index, or null on error or if the current block index is the genesis block.
+ */
+BITCOINKERNEL_API btck_BlockIndex* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_index_get_previous(
+    const btck_BlockIndex* block_index
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Destroy the block index.
+ */
+BITCOINKERNEL_API void btck_block_index_destroy(btck_BlockIndex* block_index);
 
 ///@}
 
