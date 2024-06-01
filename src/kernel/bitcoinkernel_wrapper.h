@@ -362,6 +362,11 @@ public:
     UnownedBlock& operator=(const UnownedBlock&) = delete;
     UnownedBlock(UnownedBlock&&) = delete;
     UnownedBlock& operator=(UnownedBlock&&) = delete;
+
+    std::vector<std::byte> ToBytes() const
+    {
+        return write_bytes(m_block, btck_block_pointer_to_bytes);
+    }
 };
 
 class BlockValidationState
@@ -568,6 +573,11 @@ public:
     Transaction GetTransaction(uint64_t index)
     {
         return Transaction{btck_block_get_transaction_at(m_block.get(), index)};
+    }
+
+    std::vector<std::byte> ToBytes() const
+    {
+        return write_bytes(m_block.get(), btck_block_to_bytes);
     }
 
     friend class ChainMan;
