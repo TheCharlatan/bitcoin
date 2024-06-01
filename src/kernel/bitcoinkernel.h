@@ -392,6 +392,14 @@ typedef enum {
     kernel_CHAIN_TYPE_REGTEST,
 } kernel_ChainType;
 
+/**
+ * Convenience struct for holding serialized data.
+ */
+typedef struct {
+    unsigned char* data;
+    size_t size;
+} kernel_ByteArray;
+
 /** @name Transaction
  * Functions for working with transactions.
  */
@@ -849,9 +857,41 @@ BITCOINKERNEL_API kernel_Block* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_cr
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
+ * @brief Copies block data into the returned byte array.
+ *
+ * @param[in] block  Non-null.
+ * @return           Allocated byte array holding the block data.
+ */
+BITCOINKERNEL_API kernel_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_copy_data(
+    kernel_Block* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Copies block data into the returned byte array.
+ *
+ * @param[in] block  Non-null.
+ * @return           Allocated byte array holding the block data.
+ */
+BITCOINKERNEL_API kernel_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_pointer_copy_data(
+    const kernel_BlockPointer* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * Destroy the block.
  */
 BITCOINKERNEL_API void kernel_block_destroy(kernel_Block* block);
+
+///@}
+
+/** @name ByteArray
+ * Functions for working with byte arrays.
+ */
+///@{
+
+/**
+ * A helper function for destroying an existing byte array.
+ */
+BITCOINKERNEL_API void kernel_byte_array_destroy(kernel_ByteArray* byte_array);
 
 ///@}
 
