@@ -306,6 +306,12 @@ const BlockValidationState* cast_block_validation_state(const btck_BlockValidati
     return reinterpret_cast<const BlockValidationState*>(block_validation_state);
 }
 
+const CBlock* cast_const_cblock(const btck_BlockPointer* block)
+{
+    assert(block);
+    return reinterpret_cast<const CBlock*>(block);
+}
+
 } // namespace
 
 struct btck_Transaction
@@ -859,6 +865,48 @@ btck_Transaction* btck_block_get_transaction_at(const btck_Block* block, uint64_
 {
     assert(index < block->m_block->vtx.size());
     return new btck_Transaction{block->m_block->vtx[index]};
+}
+
+void btck_byte_array_destroy(btck_ByteArray* byte_array)
+{
+    if (!byte_array) return;
+    if (byte_array->data) {
+        delete[] byte_array->data;
+    }
+    delete byte_array;
+    byte_array = nullptr;
+}
+
+btck_ByteArray* btck_block_copy_data(btck_Block* block)
+{
+    DataStream ss{};
+    ss << TX_WITH_WITNESS(*block->m_block);
+
+    auto byte_array{new btck_ByteArray{
+        .data = new unsigned char[ss.size()],
+        .size = ss.size(),
+    }};
+
+    std::memcpy(byte_array->data, ss.data(), byte_array->size);
+
+    return byte_array;
+}
+
+btck_ByteArray* btck_block_pointer_copy_data(const btck_BlockPointer* block_)
+{
+    auto block{cast_const_cblock(block_)};
+
+    DataStream ss{};
+    ss << TX_WITH_WITNESS(*block);
+
+    auto byte_array{new btck_ByteArray{
+        .data = new unsigned char[ss.size()],
+        .size = ss.size(),
+    }};
+
+    std::memcpy(byte_array->data, ss.data(), byte_array->size);
+
+    return byte_array;
 }
 
 void btck_block_destroy(btck_Block* block)
