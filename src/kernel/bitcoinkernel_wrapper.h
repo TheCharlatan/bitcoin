@@ -16,6 +16,8 @@
 #include <type_traits>
 #include <vector>
 
+namespace btck {
+
 class Transaction;
 class TransactionOutput;
 
@@ -684,24 +686,103 @@ public:
     friend class ChainMan;
 };
 
-class Chain
+class Coin : Handle<btck_Coin, btck_coin_destroy>
 {
-private:
-    struct Deleter {
-        void operator()(btck_Chain* ptr) const noexcept
-        {
-            btck_chain_destroy(ptr);
-        }
-    };
-
-    std::unique_ptr<btck_Chain, Deleter> m_chain;
-
 public:
-    Chain(btck_Chain* chain) : m_chain{check(chain)} {}
+    Coin(btck_Coin* coin) : Handle{check(coin)} {}
+
+    // Copy constructor and assignment
+    Coin(const Coin& other)
+        : Handle{check(btck_coin_copy(other.impl()))} {}
+    Coin& operator=(const Coin& other)
+    {
+        if (this != &other) {
+            reset(check(btck_coin_copy(other.impl())));
+        }
+        return *this;
+    }
+
+    uint32_t GetConfirmationHeight() const { return btck_coin_confirmation_height(impl()); }
+
+    bool IsCoinbase() const { return btck_coin_is_coinbase(impl()); }
+
+    RefWrapper<TransactionOutput> GetOutput() const
+    {
+        return TransactionOutput{btck_coin_get_output(impl())};
+    }
+};
+
+class TransactionSpentOutputs : Handle<btck_TransactionSpentOutputs, btck_transaction_spent_outputs_destroy>
+{
+public:
+    uint64_t m_size;
+
+    TransactionSpentOutputs(btck_TransactionSpentOutputs* transaction_spent_outputs)
+        : Handle{check(transaction_spent_outputs)},
+          m_size{btck_transaction_spent_outputs_size(transaction_spent_outputs)}
+    {
+    }
+    // Copy constructor and assignment
+    TransactionSpentOutputs(const TransactionSpentOutputs& other)
+        : Handle{check(btck_transaction_spent_outputs_copy(other.impl()))},
+          m_size{other.m_size}
+    {
+    }
+    TransactionSpentOutputs& operator=(const TransactionSpentOutputs& other)
+    {
+        if (this != &other) {
+            reset(check(btck_transaction_spent_outputs_copy(other.impl())));
+            m_size = btck_transaction_spent_outputs_size(impl());
+        }
+        return *this;
+    }
+
+    RefWrapper<Coin> GetCoin(uint64_t index) const
+    {
+        return Coin{btck_transaction_spent_outputs_get_coin_at(impl(), index)};
+    }
+};
+
+class BlockSpentOutputs : Handle<btck_BlockSpentOutputs, btck_block_spent_outputs_destroy>
+{
+public:
+    uint64_t m_size;
+
+    BlockSpentOutputs(btck_BlockSpentOutputs* block_spent_outputs)
+        : Handle{check(block_spent_outputs)},
+          m_size{btck_block_spent_outputs_size(block_spent_outputs)}
+    {
+    }
+
+    // Copy constructor and assignment
+    BlockSpentOutputs(const BlockSpentOutputs& other)
+        : Handle{check(btck_block_spent_outputs_copy(other.impl()))},
+          m_size{other.m_size}
+    {
+    }
+    BlockSpentOutputs& operator=(const BlockSpentOutputs& other)
+    {
+        if (this != &other) {
+            reset(check(btck_block_spent_outputs_copy(other.impl())));
+            m_size = btck_block_spent_outputs_size(impl());
+        }
+        return *this;
+    }
+
+    RefWrapper<TransactionSpentOutputs> GetTxSpentOutputs(uint64_t tx_undo_index) const
+    {
+        return TransactionSpentOutputs{btck_block_spent_outputs_get_transaction_spent_outputs_at(impl(), tx_undo_index)};
+    }
+};
+
+class Chain : Handle<btck_Chain, btck_chain_destroy>
+{
+public:
+    Chain(btck_Chain* chain) : Handle{check(chain)} {}
 
     BlockTreeEntry GetTip() const
     {
-        return btck_chain_get_tip(m_chain.get());
+        return btck_chain_get_tip(impl());
     }
 };
 
@@ -746,6 +827,13 @@ public:
         if (!block) return std::nullopt;
         return block;
     }
+
+    BlockSpentOutputs ReadBlockSpentOutputs(const BlockTreeEntry& entry) const
+    {
+        return btck_block_spent_outputs_read(impl(), entry.impl());
+    }
 };
+
+} // namespace btck
 
 #endif // BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
