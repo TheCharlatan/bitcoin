@@ -482,6 +482,15 @@ void chainman_regtest_validation_test()
     auto read_block_2 = chainman->ReadBlock(tip_2, error);
     assert_error_ok(error);
     assert(read_block_2.GetBlockData() == blocks[blocks.size() - 2]);
+
+    auto block_undo = chainman->ReadBlockUndo(tip, error);
+    assert_error_ok(error);
+    auto tx_undo_size = block_undo.GetTxOutSize(block_undo.m_size - 1);
+    assert_error_ok(error);
+    auto output = block_undo.GetTxUndoPrevoutByIndex(block_undo.m_size - 1, tx_undo_size - 1, error);
+    assert_error_ok(error);
+    std::cout << "last prevout pubkey length: " << output->script_pubkey_len << ", value: " << output->value << std::endl;
+    kernel_transaction_output_destroy(output);
 }
 
 void chainman_reindex_test(std::filesystem::path path_root)
