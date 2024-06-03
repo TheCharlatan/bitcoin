@@ -220,8 +220,15 @@ BOOST_AUTO_TEST_CASE(btck_context_tests)
         Context context{};
     }
 
+    { // test with context options, but not options set
+        ContextOptions options{};
+        Context context{options};
+    }
+
     { // test with context options
         ContextOptions options{};
+        ChainParams params{ChainType::MAINNET};
+        options.SetChainParams(params);
         Context context{options};
     }
 }
