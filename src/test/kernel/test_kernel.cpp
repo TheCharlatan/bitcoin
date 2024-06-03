@@ -206,10 +206,42 @@ void logging_test()
     assert_error_ok(error);
 }
 
+void context_test()
+{
+    kernel_Error error;
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    { // test default context
+        Context context{error};
+        assert_error_ok(error);
+    }
+
+    { // test with context options
+        ContextOptions options{};
+        Context context{options, error};
+        assert_error_ok(error);
+    }
+}
+
 int main()
 {
     script_verify_test();
     logging_test();
+
+    kernel_Error error;
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    kernel_LoggingOptions logging_options = {
+        .log_timestamps = true,
+        .log_time_micros = true,
+        .log_threadnames = false,
+        .log_sourcelocations = false,
+        .always_print_category_levels = true,
+    };
+    Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options, error};
+    assert_error_ok(error);
+
+    context_test();
 
     std::cout << "Libbitcoinkernel test completed." << std::endl;
     return 0;
