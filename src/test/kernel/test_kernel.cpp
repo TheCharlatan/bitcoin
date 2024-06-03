@@ -280,8 +280,16 @@ BOOST_AUTO_TEST_CASE(btck_context_tests)
         Context context2 = context; // NOLINT: Test for copy constructor
     }
 
+    { // test with context options, but not options set
+        ContextOptions options{};
+        Context context{options};
+    }
+
     { // test with context options
         ContextOptions options{};
+        ChainParams params{ChainType::MAINNET};
+        ChainParams params_copy = params;
+        options.SetChainParams(params);
         Context context{options};
     }
 }
