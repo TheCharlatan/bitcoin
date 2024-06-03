@@ -19,6 +19,7 @@
 #include <util/signalinterrupt.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <exception>
@@ -236,6 +237,26 @@ std::string kernel_log_category_to_string(const kernel_LogCategory category)
 }
 
 struct ContextOptions {
+    std::unique_ptr<const CChainParams> m_chainparams;
+
+    void set_option(const kernel_ContextOptionType option, const void* value, kernel_Error* err)
+    {
+        switch (option) {
+        case kernel_ContextOptionType::kernel_CHAIN_PARAMETERS_OPTION: {
+            auto chain_params = reinterpret_cast<const CChainParams*>(value);
+            if (!chain_params) {
+                set_error_invalid_pointer(err, "Invalid kernel_ChainParameters pointer.");
+                return;
+            }
+            m_chainparams = std::make_unique<const CChainParams>(*chain_params);
+            set_error_ok(err);
+            return;
+        }
+        default: {
+            set_error(err, kernel_ErrorCode::kernel_ERROR_UNKNOWN_OPTION, "Unknown context option");
+        }
+        }
+    }
 };
 
 class Context
@@ -252,9 +273,14 @@ public:
     Context(kernel_Error* error, const ContextOptions* options)
         : m_context{std::make_unique<kernel::Context>()},
           m_notifications{std::make_unique<const kernel::Notifications>()},
-          m_interrupt{std::make_unique<util::SignalInterrupt>()},
-          m_chainparams{CChainParams::Main()}
+          m_interrupt{std::make_unique<util::SignalInterrupt>()}
     {
+        if (options && options->m_chainparams) {
+            m_chainparams = std::make_unique<const CChainParams>(*options->m_chainparams);
+        } else {
+            m_chainparams = CChainParams::Main();
+        }
+
         if (!kernel::SanityChecks(*m_context)) {
             set_error(error, kernel_ErrorCode::kernel_ERROR_INVALID_CONTEXT, "Context sanity check failed.");
         } else {
@@ -262,6 +288,14 @@ public:
         }
     }
 };
+
+ContextOptions* cast_context_options(kernel_ContextOptions* context_opts, kernel_Error* error)
+{
+    if (!context_opts) {
+        set_error_invalid_pointer(error, "Invalid kernel_ContextOptions pointer.");
+    }
+    return reinterpret_cast<ContextOptions*>(context_opts);
+}
 
 } // namespace
 
@@ -386,9 +420,42 @@ int kernel_verify_script(const unsigned char* script_pubkey, size_t script_pubke
     return ::verify_script(script_pubkey, script_pubkey_len, am, tx_to, tx_to_len, spentOutputs, spentOutputsLen, nIn, flags, error);
 }
 
+const kernel_ChainParameters* kernel_chain_parameters_create(const kernel_ChainType chain_type)
+{
+    switch (chain_type) {
+    case kernel_ChainType::kernel_CHAIN_TYPE_MAINNET: {
+        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::Main().release());
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET: {
+        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::TestNet().release());
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_SIGNET: {
+        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::SigNet({}).release());
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_REGTEST: {
+        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::RegTest({}).release());
+    }
+    }
+    assert(0);
+}
+
+void kernel_chain_parameters_destroy(const kernel_ChainParameters* chain_parameters)
+{
+    delete reinterpret_cast<const CChainParams*>(chain_parameters);
+}
+
 kernel_ContextOptions* kernel_context_options_create()
 {
     return reinterpret_cast<kernel_ContextOptions*>(new ContextOptions{});
+}
+
+void kernel_context_options_set(kernel_ContextOptions* context_opts_, const kernel_ContextOptionType n_option, const void* value, kernel_Error* error)
+{
+    auto context_options{cast_context_options(context_opts_, error)};
+    if (!context_options) {
+        return;
+    }
+    context_options->set_option(n_option, value, error);
 }
 
 void kernel_context_options_destroy(kernel_ContextOptions* context_opts_)

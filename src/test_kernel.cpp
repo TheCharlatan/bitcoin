@@ -118,6 +118,25 @@ public:
     }
 };
 
+class ChainParams
+{
+private:
+    const kernel_ChainParameters* m_chain_params;
+
+public:
+    ChainParams(kernel_ChainType chain_type) : m_chain_params{kernel_chain_parameters_create(chain_type)} {}
+
+    ChainParams(const ChainParams&) = delete;
+    ChainParams& operator=(const ChainParams&) = delete;
+
+    ~ChainParams()
+    {
+        kernel_chain_parameters_destroy(m_chain_params);
+    }
+
+    friend class ContextOptions;
+};
+
 class ContextOptions
 {
 private:
@@ -131,6 +150,15 @@ public:
 
     ContextOptions(const ContextOptions&) = delete;
     ContextOptions& operator=(const ContextOptions&) = delete;
+
+    void SetChainParams(ChainParams& chain_params, kernel_Error& error)
+    {
+        kernel_context_options_set(
+            m_options,
+            kernel_ContextOptionType::kernel_CHAIN_PARAMETERS_OPTION,
+            reinterpret_cast<const void*>(chain_params.m_chain_params),
+            &error);
+    }
 
     ~ContextOptions()
     {
@@ -178,6 +206,10 @@ void context_test()
     kernel_Error error;
     error.code = kernel_ErrorCode::kernel_ERROR_OK;
     ContextOptions options{};
+    ChainParams params{kernel_ChainType::kernel_CHAIN_TYPE_MAINNET};
+    options.SetChainParams(params, error);
+    assert_error_ok(error);
+
     Context context{options, error};
     assert_error_ok(error);
 }
