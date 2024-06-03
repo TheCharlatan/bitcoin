@@ -41,6 +41,36 @@ public:
     }
 };
 
+
+class TestKernelNotifications : public KernelNotifications<TestKernelNotifications>
+{
+public:
+    void HeaderTipHandler(kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
+    {
+        BOOST_CHECK_GT(timestamp, 0);
+    }
+
+    void WarningSetHandler(kernel_Warning warning, std::string_view message) override
+    {
+        std::cout << "Kernel warning is set: " << message << std::endl;
+    }
+
+    void WarningUnsetHandler(kernel_Warning warning) override
+    {
+        std::cout << "Kernel warning was unset." << std::endl;
+    }
+
+    void FlushErrorHandler(std::string_view error) override
+    {
+        std::cout << error << std::endl;
+    }
+
+    void FatalErrorHandler(std::string_view error) override
+    {
+        std::cout << error << std::endl;
+    }
+};
+
 constexpr auto VERIFY_ALL_PRE_SEGWIT{kernel_SCRIPT_FLAGS_VERIFY_P2SH | kernel_SCRIPT_FLAGS_VERIFY_DERSIG |
                                      kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY | kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY |
                                      kernel_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY};
@@ -208,9 +238,11 @@ BOOST_AUTO_TEST_CASE(kernel_context_tests)
     }
 
     { // test with context options
+        TestKernelNotifications notifications{};
         ContextOptions options{};
         ChainParams params{kernel_ChainType::kernel_CHAIN_TYPE_MAINNET};
         options.SetChainParams(params);
+        options.SetNotifications(notifications);
         Context context{options};
         BOOST_CHECK(context);
     }
