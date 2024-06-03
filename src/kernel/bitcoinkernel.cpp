@@ -7,8 +7,11 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <consensus/amount.h>
+#include <kernel/chainparams.h>
+#include <kernel/checks.h>
 #include <kernel/context.h>
 #include <kernel/cs_main.h>
+#include <kernel/notifications_interface.h>
 #include <logging.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
@@ -16,6 +19,8 @@
 #include <serialize.h>
 #include <streams.h>
 #include <tinyformat.h>
+#include <util/result.h>
+#include <util/signalinterrupt.h>
 #include <util/translation.h>
 
 #include <cassert>
@@ -24,6 +29,7 @@
 #include <exception>
 #include <functional>
 #include <list>
+#include <memory>
 #include <span>
 #include <string>
 #include <utility>
@@ -151,6 +157,32 @@ BCLog::LogFlags get_bclog_flag(btck_LogCategory category)
     assert(false);
 }
 
+struct ContextOptions {
+};
+
+class Context
+{
+public:
+    std::unique_ptr<kernel::Context> m_context;
+
+    std::unique_ptr<kernel::Notifications> m_notifications;
+
+    std::unique_ptr<util::SignalInterrupt> m_interrupt;
+
+    std::unique_ptr<const CChainParams> m_chainparams;
+
+    Context(const ContextOptions* options, bool& sane)
+        : m_context{std::make_unique<kernel::Context>()},
+          m_notifications{std::make_unique<kernel::Notifications>()},
+          m_interrupt{std::make_unique<util::SignalInterrupt>()},
+          m_chainparams{CChainParams::Main()}
+    {
+        if (!kernel::SanityChecks(*m_context)) {
+            sane = false;
+        }
+    }
+};
+
 } // namespace
 
 struct LoggingConnection {
@@ -170,6 +202,8 @@ struct btck_Transaction : Handle<btck_Transaction, std::shared_ptr<const CTransa
 struct btck_TransactionOutput : Handle<btck_TransactionOutput, CTxOut> {};
 struct btck_ScriptPubkey : Handle<btck_ScriptPubkey, CScript> {};
 struct btck_LoggingConnection : Handle<btck_LoggingConnection, LoggingConnection> {};
+struct btck_ContextOptions : Handle<btck_ContextOptions, ContextOptions> {};
+struct btck_Context : Handle<btck_Context, std::shared_ptr<const Context>> {};
 
 btck_Transaction* btck_transaction_create(const void* raw_transaction, size_t raw_transaction_len)
 {
@@ -400,4 +434,40 @@ void btck_logging_connection_destroy(btck_LoggingConnection* connection)
     if (!LogInstance().Enabled()) {
         LogInstance().DisconnectTestLogger();
     }
+}
+
+btck_ContextOptions* btck_context_options_create()
+{
+    return btck_ContextOptions::ref(new ContextOptions{});
+}
+
+void btck_context_options_destroy(btck_ContextOptions* options)
+{
+    if (!options) return;
+    delete options;
+    options = nullptr;
+}
+
+btck_Context* btck_context_create(const btck_ContextOptions* options)
+{
+    bool sane{true};
+    const ContextOptions* opts = options ? &btck_ContextOptions::get(options) : nullptr;
+    auto context{std::make_shared<const Context>(opts, sane)};
+    if (!sane) {
+        LogError("Kernel context sanity check failed.");
+        return nullptr;
+    }
+    return btck_Context::ref(new std::shared_ptr<const Context>(context));
+}
+
+btck_Context* btck_context_copy(const btck_Context* context)
+{
+    return btck_Context::ref(new std::shared_ptr<const Context>(btck_Context::get(context)));
+}
+
+void btck_context_destroy(btck_Context* context)
+{
+    if (!context) return;
+    delete context;
+    context = nullptr;
 }
