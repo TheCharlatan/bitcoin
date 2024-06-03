@@ -115,6 +115,15 @@ typedef struct btck_TransactionOutput btck_TransactionOutput;
 typedef struct btck_LoggingConnection btck_LoggingConnection;
 
 /**
+ * Opaque data structure for holding the chain parameters.
+ *
+ * These are eventually placed into a kernel context through the kernel context
+ * options. The parameters describe the properties of a chain, and may be
+ * instantiated for either mainnet, testnet, signet, or regtest.
+ */
+typedef struct btck_ChainParameters btck_ChainParameters;
+
+/**
  * Opaque data structure for holding options for creating a new kernel context.
  *
  * Once a kernel context has been created from these options, they may be
@@ -216,6 +225,17 @@ typedef enum
                                                      btck_SCRIPT_FLAGS_VERIFY_WITNESS |
                                                      btck_SCRIPT_FLAGS_VERIFY_TAPROOT
 } btck_ScriptFlags;
+
+/**
+ * Chain type used for creating chain params.
+ */
+typedef enum {
+    btck_CHAIN_TYPE_MAINNET = 0,
+    btck_CHAIN_TYPE_TESTNET,
+    btck_CHAIN_TYPE_TESTNET_4,
+    btck_CHAIN_TYPE_SIGNET,
+    btck_CHAIN_TYPE_REGTEST,
+} btck_ChainType;
 
 /**
  * Function signature for serializing data.
@@ -511,6 +531,28 @@ BITCOINKERNEL_API void btck_logging_connection_destroy(btck_LoggingConnection* l
 
 ///@}
 
+/** @name ChainParameters
+ * Functions for working with chain parameters.
+ */
+///@{
+
+/**
+ * @brief Creates a chain parameters struct with default parameters based on the
+ * passed in chain type.
+ *
+ * @param[in] chain_type Controls the chain parameters type created.
+ * @return               An allocated chain parameters opaque struct.
+ */
+BITCOINKERNEL_API btck_ChainParameters* BITCOINKERNEL_WARN_UNUSED_RESULT btck_chain_parameters_create(
+    const btck_ChainType chain_type);
+
+/**
+ * Destroy the chain parameters.
+ */
+BITCOINKERNEL_API void btck_chain_parameters_destroy(btck_ChainParameters* chain_parameters);
+
+///@}
+
 /** @name ContextOptions
  * Functions for working with context options.
  */
@@ -520,6 +562,18 @@ BITCOINKERNEL_API void btck_logging_connection_destroy(btck_LoggingConnection* l
  * Creates an empty context options.
  */
 BITCOINKERNEL_API btck_ContextOptions* BITCOINKERNEL_WARN_UNUSED_RESULT btck_context_options_create();
+
+/**
+ * @brief Sets the chain params for the context options. The context created
+ * with the options will be configured for these chain parameters.
+ *
+ * @param[in] context_options  Non-null, previously created by @ref btck_context_options_create.
+ * @param[in] chain_parameters Is set to the context options.
+ */
+BITCOINKERNEL_API void btck_context_options_set_chainparams(
+    btck_ContextOptions* context_options,
+    const btck_ChainParameters* chain_parameters
+) BITCOINKERNEL_ARG_NONNULL(1, 2);
 
 /**
  * Destroy the context options.
