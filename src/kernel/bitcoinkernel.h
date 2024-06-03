@@ -101,6 +101,15 @@ typedef struct kernel_TransactionOutput kernel_TransactionOutput;
 typedef struct kernel_LoggingConnection kernel_LoggingConnection;
 
 /**
+ * Opaque data structure for holding the chain parameters.
+ *
+ * These are eventually placed into a kernel context through the kernel context
+ * options. The parameters describe the properties of a chain, and may be
+ * instantiated for either mainnet, testnet, signet, or regtest.
+ */
+typedef struct kernel_ChainParameters kernel_ChainParameters;
+
+/**
  * Opaque data structure for holding options for creating a new kernel context.
  *
  * Once a kernel context has been created from these options, they may be
@@ -203,6 +212,17 @@ typedef enum
                                                      kernel_SCRIPT_FLAGS_VERIFY_WITNESS |
                                                      kernel_SCRIPT_FLAGS_VERIFY_TAPROOT
 } kernel_ScriptFlags;
+
+/**
+ * Chain type used for creating chain params.
+ */
+typedef enum {
+    kernel_CHAIN_TYPE_MAINNET = 0,
+    kernel_CHAIN_TYPE_TESTNET,
+    kernel_CHAIN_TYPE_TESTNET_4,
+    kernel_CHAIN_TYPE_SIGNET,
+    kernel_CHAIN_TYPE_REGTEST,
+} kernel_ChainType;
 
 /**
  * @brief Create a new transaction from the serialized data.
@@ -340,9 +360,36 @@ kernel_LoggingConnection* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_logging_connec
 void kernel_logging_connection_destroy(kernel_LoggingConnection* logging_connection);
 
 /**
+ * @brief Creates a chain parameters struct with default parameters based on the
+ * passed in chain type.
+ *
+ * @param[in] chain_type Controls the chain parameters type created.
+ * @return               An allocated chain parameters opaque struct.
+ */
+const kernel_ChainParameters* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chain_parameters_create(
+    const kernel_ChainType chain_type);
+
+/**
+ * Destroy the chain parameters.
+ */
+void kernel_chain_parameters_destroy(const kernel_ChainParameters* chain_parameters);
+
+/**
  * Creates an empty context options.
  */
-kernel_ContextOptions* kernel_context_options_create();
+kernel_ContextOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_context_options_create();
+
+/**
+ * @brief Sets the chain params for the context options. The context created
+ * with the options will be configured for these chain parameters.
+ *
+ * @param[in] context_options  Non-null, previously created with kernel_context_options_create.
+ * @param[in] chain_parameters Is set to the context options.
+ */
+void kernel_context_options_set_chainparams(
+    kernel_ContextOptions* context_options,
+    const kernel_ChainParameters* chain_parameters
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2);
 
 /**
  * Destroy the context options.
