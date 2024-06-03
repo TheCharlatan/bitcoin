@@ -201,8 +201,16 @@ BOOST_AUTO_TEST_CASE(kernel_context_tests)
         BOOST_CHECK(context);
     }
 
+    { // test with context options, but not options set
+      ContextOptions options{};
+      Context context{options};
+      BOOST_CHECK(context);
+    }
+
     { // test with context options
         ContextOptions options{};
+        ChainParams params{kernel_ChainType::kernel_CHAIN_TYPE_MAINNET};
+        options.SetChainParams(params);
         Context context{options};
         BOOST_CHECK(context);
     }
