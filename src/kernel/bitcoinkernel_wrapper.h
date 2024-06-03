@@ -60,6 +60,24 @@ public:
     }
 };
 
+class ChainParams
+{
+private:
+    struct Deleter {
+        void operator()(const kernel_ChainParameters* ptr) const
+        {
+            kernel_chain_parameters_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<const kernel_ChainParameters, Deleter> m_chain_params;
+
+public:
+    ChainParams(kernel_ChainType chain_type) : m_chain_params{kernel_chain_parameters_create(chain_type)} {}
+
+    friend class ContextOptions;
+};
+
 class ContextOptions
 {
 private:
@@ -74,6 +92,15 @@ private:
 
 public:
     ContextOptions() : m_options{kernel_context_options_create()} {}
+
+    void SetChainParams(ChainParams& chain_params, kernel_Error& error)
+    {
+        kernel_context_options_set(
+            m_options.get(),
+            kernel_ContextOptionType::kernel_CHAIN_PARAMETERS_OPTION,
+            chain_params.m_chain_params.get(),
+            &error);
+    }
 
     friend class Context;
 };
