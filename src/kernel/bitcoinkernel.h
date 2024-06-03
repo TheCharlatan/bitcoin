@@ -36,6 +36,11 @@ extern "C" {
  * initialized to an initial value. It is recommended to set kernel_ERROR_OK
  * before passing it to a function.
  *
+ * The kernel notifications issue callbacks for errors. These are usually
+ * indicative of a system error. If such an error is issued, it is recommended
+ * to halt and tear down the existing kernel objects. Remediating the error may
+ * require system intervention by the user.
+ *
  * ------ Pointer and argument conventions ------
  *
  * The user is responsible for de-allocating the memory owned by pointers
@@ -90,6 +95,22 @@ typedef struct kernel_ContextOptions kernel_ContextOptions;
  */
 typedef struct kernel_Context kernel_Context;
 
+/**
+ * Opaque data structure for holding a block index pointer.
+ *
+ * This is a pointer to an element in the block index currently in memory of the
+ * chainstate manager. It is valid for the lifetime of the chainstate manager it
+ * was retrieved from.
+ */
+typedef struct kernel_BlockIndex kernel_BlockIndex;
+
+/** Current sync state passed to tip changed callbacks. */
+typedef enum {
+    kernel_INIT_REINDEX,
+    kernel_INIT_DOWNLOAD,
+    kernel_POST_INIT
+} kernel_SynchronizationState;
+
 /** Callback function types */
 
 /**
@@ -99,13 +120,40 @@ typedef struct kernel_Context kernel_Context;
 typedef void (*kernel_LogCallback)(void* user_data, const char* message);
 
 /**
+ * Function signatures for the kernel notifications.
+ */
+typedef void (*kernel_NotifyBlockTip)(void* user_data, kernel_SynchronizationState state, kernel_BlockIndex* index);
+typedef void (*kernel_NotifyHeaderTip)(void* user_data, kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync);
+typedef void (*kernel_NotifyProgress)(void* user_data, const char* title, int progress_percent, bool resume_possible);
+typedef void (*kernel_NotifyWarning)(void* user_data, const char* warning);
+typedef void (*kernel_NotifyFlushError)(void* user_data, const char* message);
+typedef void (*kernel_NotifyFatalError)(void* user_data, const char* message);
+
+/**
  * Available types of context options. Passed with a corresponding value to
  * kernel_context_options_set(..).
  */
 typedef enum {
-    kernel_CHAIN_PARAMETERS_OPTION = 0, //!< Set the chain parameters, value should be a valid pointer
-                                        //!< to a kernel_ChainParameters struct.
+    kernel_CHAIN_PARAMETERS_OPTION = 0,             //!< Set the chain parameters, value should be a valid pointer
+                                                    //!< to a kernel_ChainParameters struct.
+    kernel_NOTIFICATION_INTERFACE_CALLBACKS_OPTION, //!< Set the kernel notification options, value should be a
+                                                    //!< valid pointer to a kernel_NotificationInterfaceCallbacks struct.
 } kernel_ContextOptionType;
+
+/**
+ * A struct for holding the kernel notification callbacks. The user data pointer
+ * may be used to point to user-defined structures to make processing the
+ * notifications easier.
+ */
+typedef struct {
+    void* user_data;                     //!< Holds a user-defined opaque structure.
+    kernel_NotifyBlockTip block_tip;     //!< The chain's tip was updated to the provided block index.
+    kernel_NotifyHeaderTip header_tip;   //!< A new best block header was added.
+    kernel_NotifyProgress progress;      //!< Reports on current block synchronization progress.
+    kernel_NotifyWarning warning;        //!< A warning issued by the kernel library during validation.
+    kernel_NotifyFlushError flush_error; //!< An error encountered when flushing data to disk.
+    kernel_NotifyFatalError fatal_error; //!< A un-recoverable system error encountered by the library.
+} kernel_NotificationInterfaceCallbacks;
 
 /**
  * A collection of logging categories that may be encountered by kernel code.

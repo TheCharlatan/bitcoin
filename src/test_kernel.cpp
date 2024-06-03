@@ -137,6 +137,61 @@ public:
     friend class ContextOptions;
 };
 
+class KernelNotifications
+{
+public:
+    kernel_NotificationInterfaceCallbacks MakeCallbacks()
+    {
+        return kernel_NotificationInterfaceCallbacks{
+            .user_data = this,
+            .block_tip = [](void* user_data, kernel_SynchronizationState state, kernel_BlockIndex* index) {
+                reinterpret_cast<KernelNotifications*>(user_data)->BlockTipHandler(state, index);
+            },
+            .header_tip = [](void* user_data, kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {
+                reinterpret_cast<KernelNotifications*>(user_data)->HeaderTipHandler(state, height, timestamp, presync);
+            },
+            .progress = [](void* user_data, const char* title, int progress_percent, bool resume_possible) {
+                reinterpret_cast<KernelNotifications*>(user_data)->ProgressHandler(title, progress_percent, resume_possible);
+            },
+            .warning = [](void* user_data, const char* warning) { reinterpret_cast<KernelNotifications*>(user_data)->WarningHandler(warning); },
+            .flush_error = [](void* user_data, const char* error) { reinterpret_cast<KernelNotifications*>(user_data)->FlushErrorHandler(error); },
+            .fatal_error = [](void* user_data, const char* error) { reinterpret_cast<KernelNotifications*>(user_data)->FatalErrorHandler(error); },
+        };
+    }
+
+    void BlockTipHandler(kernel_SynchronizationState state, kernel_BlockIndex* index)
+    {
+        std::cout << "Block tip changed" << std::endl;
+    }
+
+    void HeaderTipHandler(kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync)
+    {
+        assert(timestamp > 0);
+    }
+
+    void ProgressHandler(const char* title, int progress_percent, bool resum_possible)
+    {
+        std::cout << "Made progress: " << title << " " << progress_percent << "%" << std::endl;
+    }
+
+    void WarningHandler(const char* warning)
+    {
+        std::cout << warning << std::endl;
+    }
+
+    void FlushErrorHandler(const char* error)
+    {
+        std::cout << error << std::endl;
+        assert(0);
+    }
+
+    void FatalErrorHandler(const char* error)
+    {
+        std::cout << error << std::endl;
+        assert(0);
+    }
+};
+
 class ContextOptions
 {
 private:
@@ -157,6 +212,16 @@ public:
             m_options,
             kernel_ContextOptionType::kernel_CHAIN_PARAMETERS_OPTION,
             reinterpret_cast<const void*>(chain_params.m_chain_params),
+            &error);
+    }
+
+    void SetNotificationCallbacks(KernelNotifications& notifications, kernel_Error& error)
+    {
+        auto callbacks = notifications.MakeCallbacks();
+        kernel_context_options_set(
+            m_options,
+            kernel_ContextOptionType::kernel_NOTIFICATION_INTERFACE_CALLBACKS_OPTION,
+            &callbacks,
             &error);
     }
 
@@ -205,9 +270,12 @@ void context_test()
 {
     kernel_Error error;
     error.code = kernel_ErrorCode::kernel_ERROR_OK;
+    KernelNotifications notifications{};
     ContextOptions options{};
     ChainParams params{kernel_ChainType::kernel_CHAIN_TYPE_MAINNET};
     options.SetChainParams(params, error);
+    assert_error_ok(error);
+    options.SetNotificationCallbacks(notifications, error);
     assert_error_ok(error);
 
     Context context{options, error};
