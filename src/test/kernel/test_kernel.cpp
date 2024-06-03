@@ -197,6 +197,8 @@ void context_test()
 
     { // test with context options
         ContextOptions options{};
+        ChainParams params{kernel_ChainType::kernel_CHAIN_TYPE_MAINNET};
+        assert(options.SetChainParams(params));
         Context context{options};
         assert(context);
     }

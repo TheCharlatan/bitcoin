@@ -40,6 +40,9 @@ static const kernel::Context kernel_context_static{};
 
 namespace {
 
+// These tags are used to guard against void* types pointing to unexpected data
+constexpr uint64_t KERNEL_CHAIN_PARAMS_TAG{0};
+
 /** A class that deserializes a single CTransaction one time. */
 class TxInputStream
 {
@@ -152,7 +155,27 @@ std::string log_category_to_string(const kernel_LogCategory category)
     assert(false);
 }
 
+class KernelChainParams
+{
+    uint64_t m_tag;
+
+public:
+    std::unique_ptr<const CChainParams> m_chainparams;
+
+    KernelChainParams(std::unique_ptr<const CChainParams> chainparams)
+        : m_tag{KERNEL_CHAIN_PARAMS_TAG},
+          m_chainparams{std::move(chainparams)}
+    {
+    }
+
+    bool IsValid() const
+    {
+        return m_tag == KERNEL_CHAIN_PARAMS_TAG;
+    }
+};
+
 struct ContextOptions {
+    std::unique_ptr<const CChainParams> m_chainparams;
 };
 
 class Context
@@ -169,9 +192,14 @@ public:
     Context(const ContextOptions* options, bool& sane)
         : m_context{std::make_unique<kernel::Context>()},
           m_notifications{std::make_unique<kernel::Notifications>()},
-          m_interrupt{std::make_unique<util::SignalInterrupt>()},
-          m_chainparams{CChainParams::Main()}
+          m_interrupt{std::make_unique<util::SignalInterrupt>()}
     {
+        if (options && options->m_chainparams) {
+            m_chainparams = std::make_unique<const CChainParams>(*options->m_chainparams);
+        } else {
+            m_chainparams = CChainParams::Main();
+        }
+
         if (!kernel::SanityChecks(*m_context)) {
             sane = false;
         }
@@ -182,6 +210,24 @@ const ContextOptions* cast_const_context_options(const kernel_ContextOptions* op
 {
     assert(options);
     return reinterpret_cast<const ContextOptions*>(options);
+}
+
+ContextOptions* cast_context_options(kernel_ContextOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<ContextOptions*>(options);
+}
+
+const KernelChainParams* cast_const_chain_params(const kernel_ChainParameters* chain_params)
+{
+    assert(chain_params);
+    return reinterpret_cast<const KernelChainParams*>(chain_params);
+}
+
+Context* cast_context(kernel_Context* context)
+{
+    assert(context);
+    return reinterpret_cast<Context*>(context);
 }
 
 } // namespace
@@ -332,15 +378,59 @@ void kernel_logging_connection_destroy(kernel_LoggingConnection* connection_)
     }
 }
 
+const kernel_ChainParameters* kernel_chain_parameters_create(const kernel_ChainType chain_type)
+{
+    switch (chain_type) {
+    case kernel_ChainType::kernel_CHAIN_TYPE_MAINNET: {
+        return reinterpret_cast<const kernel_ChainParameters*>(new KernelChainParams(CChainParams::Main()));
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET: {
+        return reinterpret_cast<const kernel_ChainParameters*>(new KernelChainParams(CChainParams::TestNet()));
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_SIGNET: {
+        return reinterpret_cast<const kernel_ChainParameters*>(new KernelChainParams(CChainParams::SigNet({})));
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_REGTEST: {
+        return reinterpret_cast<const kernel_ChainParameters*>(new KernelChainParams(CChainParams::RegTest({})));
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+void kernel_chain_parameters_destroy(const kernel_ChainParameters* chain_parameters)
+{
+    if (chain_parameters) {
+        delete cast_const_chain_params(chain_parameters);
+    }
+}
+
 kernel_ContextOptions* kernel_context_options_create()
 {
     return reinterpret_cast<kernel_ContextOptions*>(new ContextOptions{});
 }
 
+bool kernel_context_options_set(kernel_ContextOptions* options_, const kernel_ContextOptionType n_option, const void* value)
+{
+    auto options{cast_context_options(options_)};
+    switch (n_option) {
+    case kernel_ContextOptionType::kernel_CHAIN_PARAMETERS_OPTION: {
+        auto chain_params{reinterpret_cast<const KernelChainParams*>(value)};
+        if (!chain_params->IsValid()) {
+            LogError("Selected kernel notifications context option, but the value is not a valid chain params struct.\n");
+            return false;
+        }
+        // Copy the chainparams, so the caller can free it again
+        options->m_chainparams = std::make_unique<const CChainParams>(*chain_params->m_chainparams);
+        return true;
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
 void kernel_context_options_destroy(kernel_ContextOptions* options)
 {
     if (options) {
-        delete reinterpret_cast<ContextOptions*>(options);
+        delete cast_context_options(options);
     }
 }
 
@@ -357,7 +447,9 @@ kernel_Context* kernel_context_create(const kernel_ContextOptions* options_)
     return reinterpret_cast<kernel_Context*>(context);
 }
 
-void kernel_context_destroy(kernel_Context* context_)
+void kernel_context_destroy(kernel_Context* context)
 {
-    delete reinterpret_cast<Context*>(context_);
+    if (context) {
+        delete cast_context(context);
+    }
 }

@@ -86,6 +86,15 @@ extern "C" {
 typedef struct kernel_LoggingConnection kernel_LoggingConnection;
 
 /**
+ * Opaque data structure for holding the chain parameters.
+ *
+ * These are eventually placed into a kernel context through the kernel context
+ * options. The parameters describe the properties of a chain, and may be
+ * instantiated for either mainnet, testnet, signet, or regtest.
+ */
+typedef struct kernel_ChainParameters kernel_ChainParameters;
+
+/**
  * Opaque data structure for holding options for creating a new kernel context.
  *
  * Once a kernel context has been created from these options, they may be
@@ -115,6 +124,15 @@ typedef struct kernel_Context kernel_Context;
  * internal logs will pass through this callback.
  */
 typedef void (*kernel_LogCallback)(void* user_data, const char* message);
+
+/**
+ * Available types of context options. Passed with a corresponding value to
+ * kernel_context_options_set(..).
+ */
+typedef enum {
+    kernel_CHAIN_PARAMETERS_OPTION = 0, //!< Set the chain parameters, value must be a valid pointer
+                                        //!< to a kernel_ChainParameters struct.
+} kernel_ContextOptionType;
 
 /**
  * A collection of logging categories that may be encountered by kernel code.
@@ -199,6 +217,16 @@ typedef struct {
     const unsigned char* script_pubkey;
     size_t script_pubkey_len;
 } kernel_TransactionOutput;
+
+/**
+ * Chain type used for creating chain params.
+ */
+typedef enum {
+    kernel_CHAIN_TYPE_MAINNET = 0,
+    kernel_CHAIN_TYPE_TESTNET,
+    kernel_CHAIN_TYPE_SIGNET,
+    kernel_CHAIN_TYPE_REGTEST,
+} kernel_ChainType;
 
 /**
  * @brief Verify if the input at input_index of tx_to spends the script pubkey
@@ -291,9 +319,40 @@ kernel_LoggingConnection* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_logging_connec
 void kernel_logging_connection_destroy(kernel_LoggingConnection* logging_connection);
 
 /**
+ * @brief Creates a chain parameters struct with default parameters based on the
+ * passed in chain type.
+ *
+ * @param[in] chain_type Controls the chain parameters type created.
+ * @return               An allocated chain parameters opaque struct.
+ */
+const kernel_ChainParameters* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chain_parameters_create(
+    const kernel_ChainType chain_type);
+
+/**
+ * Destroy the chain parameters.
+ */
+void kernel_chain_parameters_destroy(const kernel_ChainParameters* chain_parameters);
+
+/**
  * Creates an empty context options.
  */
-kernel_ContextOptions* kernel_context_options_create();
+kernel_ContextOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_context_options_create();
+
+/**
+ * @brief Sets a single, specific field in the options. The option type has to
+ * match the option value.
+ *
+ * @param[in] context_options Non-null, previously created with kernel_context_options_create.
+ * @param[in] n_option        Describes the option field that should be set with the value.
+ * @param[in] value           Non-null, single value that will be used to set the field selected by n_option.
+ * @return                    True on success, false if an error occurred, like the selected option not
+ *                            corresponding to the passed in value.
+ */
+bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_context_options_set(
+    kernel_ContextOptions* context_options,
+    const kernel_ContextOptionType n_option,
+    const void* value
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(3);
 
 /**
  * Destroy the context options.
