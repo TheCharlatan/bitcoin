@@ -49,7 +49,10 @@ const auto VERIFY_ALL_PRE_SEGWIT = kernel_SCRIPT_FLAGS_VERIFY_P2SH | kernel_SCRI
 
 void assert_error_ok(kernel_Error& error)
 {
-    assert(error.code == kernel_ErrorCode::kernel_ERROR_OK);
+    if (error.code != kernel_ErrorCode::kernel_ERROR_OK) {
+        std::cout << error.message << " error code: " << error.message << "\n";
+        assert(error.code == kernel_ErrorCode::kernel_ERROR_OK);
+    }
 }
 
 void verify_test(std::string spent, std::string spending, int64_t amount, unsigned int nIn)
@@ -115,6 +118,70 @@ public:
     }
 };
 
+class ContextOptions
+{
+private:
+    kernel_ContextOptions* m_options;
+
+public:
+    ContextOptions()
+        : m_options{kernel_context_options_create()}
+    {
+    }
+
+    ContextOptions(const ContextOptions&) = delete;
+    ContextOptions& operator=(const ContextOptions&) = delete;
+
+    ~ContextOptions()
+    {
+        kernel_context_options_destroy(m_options);
+    }
+
+    friend class Context;
+};
+
+class Context
+{
+private:
+    kernel_Context* m_context;
+
+public:
+    Context(ContextOptions& opts, kernel_Error& error)
+        : m_context{kernel_context_create(opts.m_options, &error)}
+    {
+    }
+
+    Context(kernel_Error& error)
+        : m_context{kernel_context_create(nullptr, &error)}
+    {
+    }
+
+    Context(const Context&) = delete;
+    Context& operator=(const Context&) = delete;
+
+    ~Context()
+    {
+        kernel_context_destroy(m_context);
+    }
+};
+
+void default_context_test()
+{
+    kernel_Error error;
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+    Context context{error};
+    assert_error_ok(error);
+}
+
+void context_test()
+{
+    kernel_Error error;
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+    ContextOptions options{};
+    Context context{options, error};
+    assert_error_ok(error);
+}
+
 int main()
 {
     kernel_Error error;
@@ -127,6 +194,10 @@ int main()
         "76a9144bfbaf6afb76cc5771bc6404810d1cc041a6933988ac",
         "02000000013f7cebd65c27431a90bba7f796914fe8cc2ddfc3f2cbd6f7e5f2fc854534da95000000006b483045022100de1ac3bcdfb0332207c4a91f3832bd2c2915840165f876ab47c5f8996b971c3602201c6c053d750fadde599e6f5c4e1963df0f01fc0d97815e8157e3d59fe09ca30d012103699b464d1d8bc9e47d4fb1cdaa89a1c5783d68363c4dbc4b524ed3d857148617feffffff02836d3c01000000001976a914fc25d6d5c94003bf5b0c7b640a248e2c637fcfb088ac7ada8202000000001976a914fbed3d9b11183209a57999d54d59f67c019e756c88ac6acb0700",
         0, 0);
+
+    default_context_test();
+
+    context_test();
 
     std::cout << "Libbitcoinkernel test completed.\n";
     return 0;
