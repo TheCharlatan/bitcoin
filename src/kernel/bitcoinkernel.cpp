@@ -9,6 +9,7 @@
 #include <kernel/checks.h>
 #include <kernel/context.h>
 #include <kernel/notifications_interface.h>
+#include <kernel/warning.h>
 #include <logging.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
@@ -18,6 +19,8 @@
 #include <tinyformat.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
+#include <util/translation.h>
+#include <validation.h>
 
 #include <cassert>
 #include <cstddef>
@@ -30,6 +33,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+class CBlockIndex;
 
 // Define G_TRANSLATION_FUN symbol in libbitcoinkernel library so users of the
 // library aren't required to export this symbol
@@ -111,7 +116,70 @@ std::string log_category_to_string(const kernel_LogCategory category)
     assert(false);
 }
 
+kernel_SynchronizationState cast_state(SynchronizationState state)
+{
+    switch (state) {
+    case SynchronizationState::INIT_REINDEX:
+        return kernel_SynchronizationState::kernel_INIT_REINDEX;
+    case SynchronizationState::INIT_DOWNLOAD:
+        return kernel_SynchronizationState::kernel_INIT_DOWNLOAD;
+    case SynchronizationState::POST_INIT:
+        return kernel_SynchronizationState::kernel_POST_INIT;
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+kernel_Warning cast_kernel_warning(kernel::Warning warning)
+{
+    switch (warning) {
+    case kernel::Warning::UNKNOWN_NEW_RULES_ACTIVATED:
+        return kernel_Warning::kernel_LARGE_WORK_INVALID_CHAIN;
+    case kernel::Warning::LARGE_WORK_INVALID_CHAIN:
+        return kernel_Warning::kernel_LARGE_WORK_INVALID_CHAIN;
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+class KernelNotifications : public kernel::Notifications
+{
+private:
+    kernel_NotificationInterfaceCallbacks m_cbs;
+
+public:
+    KernelNotifications(kernel_NotificationInterfaceCallbacks cbs)
+        : m_cbs{cbs}
+    {
+    }
+
+    kernel::InterruptResult blockTip(SynchronizationState state, CBlockIndex& index) override
+    {
+        if (m_cbs.block_tip) m_cbs.block_tip(m_cbs.user_data, cast_state(state), reinterpret_cast<kernel_BlockIndex*>(&index));
+        return {};
+    }
+    void headerTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
+    {
+        if (m_cbs.header_tip) m_cbs.header_tip(m_cbs.user_data, cast_state(state), height, timestamp, presync);
+    }
+    void warningSet(kernel::Warning id, const bilingual_str& message) override
+    {
+        if (m_cbs.warning_set) m_cbs.warning_set(m_cbs.user_data, cast_kernel_warning(id), message.original.c_str());
+    }
+    void warningUnset(kernel::Warning id) override
+    {
+        if (m_cbs.warning_unset) m_cbs.warning_unset(m_cbs.user_data, cast_kernel_warning(id));
+    }
+    void flushError(const bilingual_str& message) override
+    {
+        if (m_cbs.flush_error) m_cbs.flush_error(m_cbs.user_data, message.original.c_str());
+    }
+    void fatalError(const bilingual_str& message) override
+    {
+        if (m_cbs.fatal_error) m_cbs.fatal_error(m_cbs.user_data, message.original.c_str());
+    }
+};
+
 struct ContextOptions {
+    std::unique_ptr<const KernelNotifications> m_notifications;
     std::unique_ptr<const CChainParams> m_chainparams;
 };
 
@@ -120,7 +188,7 @@ class Context
 public:
     std::unique_ptr<kernel::Context> m_context;
 
-    std::unique_ptr<kernel::Notifications> m_notifications;
+    std::unique_ptr<KernelNotifications> m_notifications;
 
     std::unique_ptr<util::SignalInterrupt> m_interrupt;
 
@@ -128,9 +196,15 @@ public:
 
     Context(const ContextOptions* options, bool& sane)
         : m_context{std::make_unique<kernel::Context>()},
-          m_notifications{std::make_unique<kernel::Notifications>()},
           m_interrupt{std::make_unique<util::SignalInterrupt>()}
     {
+        if (options && options->m_notifications) {
+            m_notifications = std::make_unique<KernelNotifications>(*options->m_notifications);
+        } else {
+            m_notifications = std::make_unique<KernelNotifications>(kernel_NotificationInterfaceCallbacks{
+                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr});
+        }
+
         if (options && options->m_chainparams) {
             m_chainparams = std::make_unique<const CChainParams>(*options->m_chainparams);
         } else {
@@ -177,6 +251,12 @@ const CChainParams* cast_const_chain_params(const kernel_ChainParameters* chain_
 {
     assert(chain_params);
     return reinterpret_cast<const CChainParams*>(chain_params);
+}
+
+const KernelNotifications* cast_const_notifications(const kernel_Notifications* notifications)
+{
+    assert(notifications);
+    return reinterpret_cast<const KernelNotifications*>(notifications);
 }
 
 Context* cast_context(kernel_Context* context)
@@ -394,6 +474,18 @@ void kernel_chain_parameters_destroy(const kernel_ChainParameters* chain_paramet
     }
 }
 
+kernel_Notifications* kernel_notifications_create(kernel_NotificationInterfaceCallbacks callbacks)
+{
+    return reinterpret_cast<kernel_Notifications*>(new KernelNotifications{callbacks});
+}
+
+void kernel_notifications_destroy(const kernel_Notifications* notifications)
+{
+    if (notifications) {
+        delete cast_const_notifications(notifications);
+    }
+}
+
 kernel_ContextOptions* kernel_context_options_create()
 {
     return reinterpret_cast<kernel_ContextOptions*>(new ContextOptions{});
@@ -405,6 +497,14 @@ void kernel_context_options_set_chainparams(kernel_ContextOptions* options_, con
     auto chain_params{reinterpret_cast<const CChainParams*>(chain_parameters)};
     // Copy the chainparams, so the caller can free it again
     options->m_chainparams = std::make_unique<const CChainParams>(*chain_params);
+}
+
+void kernel_context_options_set_notifications(kernel_ContextOptions* options_, const kernel_Notifications* notifications_)
+{
+    auto options{cast_context_options(options_)};
+    auto notifications{reinterpret_cast<const KernelNotifications*>(notifications_)};
+    // Copy the notifications, so the caller can free it again
+    options->m_notifications = std::make_unique<const KernelNotifications>(*notifications);
 }
 
 void kernel_context_options_destroy(kernel_ContextOptions* options)
