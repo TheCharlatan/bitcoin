@@ -11,6 +11,7 @@
 #include <kernel/checks.h>
 #include <kernel/context.h>
 #include <kernel/notifications_interface.h>
+#include <kernel/warning.h>
 #include <logging.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
@@ -22,6 +23,7 @@
 #include <util/result.h>
 #include <util/signalinterrupt.h>
 #include <util/translation.h>
+#include <validation.h>
 
 #include <cassert>
 #include <cstddef>
@@ -35,11 +37,17 @@
 #include <utility>
 #include <vector>
 
+class CBlockIndex;
+
 // Define G_TRANSLATION_FUN symbol in libbitcoinkernel library so users of the
 // library aren't required to export this symbol
 extern const std::function<std::string(const char*)> G_TRANSLATION_FUN{nullptr};
 
 static const kernel::Context btck_context_static{};
+
+struct btck_BlockTreeEntry {
+    CBlockIndex* m_block_index;
+};
 
 namespace {
 
@@ -134,9 +142,76 @@ BCLog::LogFlags get_bclog_flag(btck_LogCategory category)
     assert(false);
 }
 
+btck_SynchronizationState cast_state(SynchronizationState state)
+{
+    switch (state) {
+    case SynchronizationState::INIT_REINDEX:
+        return btck_SynchronizationState_INIT_REINDEX;
+    case SynchronizationState::INIT_DOWNLOAD:
+        return btck_SynchronizationState_INIT_DOWNLOAD;
+    case SynchronizationState::POST_INIT:
+        return btck_SynchronizationState_POST_INIT;
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+btck_Warning cast_btck_warning(kernel::Warning warning)
+{
+    switch (warning) {
+    case kernel::Warning::UNKNOWN_NEW_RULES_ACTIVATED:
+        return btck_Warning_UNKNOWN_NEW_RULES_ACTIVATED;
+    case kernel::Warning::LARGE_WORK_INVALID_CHAIN:
+        return btck_Warning_LARGE_WORK_INVALID_CHAIN;
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+class KernelNotifications : public kernel::Notifications
+{
+private:
+    btck_NotificationInterfaceCallbacks m_cbs;
+
+public:
+    KernelNotifications(btck_NotificationInterfaceCallbacks cbs)
+        : m_cbs{cbs}
+    {
+    }
+
+    kernel::InterruptResult blockTip(SynchronizationState state, CBlockIndex& index, double verification_progress) override
+    {
+        if (m_cbs.block_tip) m_cbs.block_tip((void*)m_cbs.user_data, cast_state(state), new btck_BlockTreeEntry{&index}, verification_progress);
+        return {};
+    }
+    void headerTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
+    {
+        if (m_cbs.header_tip) m_cbs.header_tip((void*)m_cbs.user_data, cast_state(state), height, timestamp, presync ? 1 : 0);
+    }
+    void progress(const bilingual_str& title, int progress_percent, bool resume_possible) override
+    {
+        if (m_cbs.progress) m_cbs.progress((void*)m_cbs.user_data, title.original.c_str(), title.original.length(), progress_percent, resume_possible ? 1 : 0);
+    }
+    void warningSet(kernel::Warning id, const bilingual_str& message) override
+    {
+        if (m_cbs.warning_set) m_cbs.warning_set((void*)m_cbs.user_data, cast_btck_warning(id), message.original.c_str(), message.original.length());
+    }
+    void warningUnset(kernel::Warning id) override
+    {
+        if (m_cbs.warning_unset) m_cbs.warning_unset((void*)m_cbs.user_data, cast_btck_warning(id));
+    }
+    void flushError(const bilingual_str& message) override
+    {
+        if (m_cbs.flush_error) m_cbs.flush_error((void*)m_cbs.user_data, message.original.c_str(), message.original.length());
+    }
+    void fatalError(const bilingual_str& message) override
+    {
+        if (m_cbs.fatal_error) m_cbs.fatal_error((void*)m_cbs.user_data, message.original.c_str(), message.original.length());
+    }
+};
+
 struct ContextOptions {
     mutable Mutex m_mutex;
     std::unique_ptr<const CChainParams> m_chainparams GUARDED_BY(m_mutex);
+    std::unique_ptr<const KernelNotifications> m_notifications GUARDED_BY(m_mutex);
 };
 
 class Context
@@ -144,7 +219,7 @@ class Context
 public:
     std::unique_ptr<kernel::Context> m_context;
 
-    std::unique_ptr<kernel::Notifications> m_notifications;
+    std::unique_ptr<KernelNotifications> m_notifications;
 
     std::unique_ptr<util::SignalInterrupt> m_interrupt;
 
@@ -152,7 +227,6 @@ public:
 
     Context(const ContextOptions* options, bool& sane)
         : m_context{std::make_unique<kernel::Context>()},
-          m_notifications{std::make_unique<kernel::Notifications>()},
           m_interrupt{std::make_unique<util::SignalInterrupt>()}
     {
         if (options) {
@@ -160,10 +234,17 @@ public:
             if (options->m_chainparams) {
                 m_chainparams = std::make_unique<const CChainParams>(*options->m_chainparams);
             }
+            if (options->m_notifications) {
+                m_notifications = std::make_unique<KernelNotifications>(*options->m_notifications);
+            }
         }
 
         if (!m_chainparams) {
             m_chainparams = CChainParams::Main();
+        }
+        if (!m_notifications) {
+            m_notifications = std::make_unique<KernelNotifications>(btck_NotificationInterfaceCallbacks{
+                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr});
         }
 
         if (!kernel::SanityChecks(*m_context)) {
@@ -475,6 +556,13 @@ void btck_context_options_set_chainparams(btck_ContextOptions* options, const bt
     options->m_opts->m_chainparams = std::make_unique<const CChainParams>(*chain_parameters->m_params);
 }
 
+void btck_context_options_set_notifications(btck_ContextOptions* options, btck_NotificationInterfaceCallbacks notifications)
+{
+    // The KernelNotifications are copy-initialized, so the caller can free them again.
+    LOCK(options->m_opts->m_mutex);
+    options->m_opts->m_notifications = std::make_unique<const KernelNotifications>(notifications);
+}
+
 void btck_context_options_destroy(btck_ContextOptions* options)
 {
     if (!options) return;
@@ -498,4 +586,11 @@ void btck_context_destroy(btck_Context* context)
     if (!context) return;
     delete context;
     context = nullptr;
+}
+
+void btck_block_tree_entry_destroy(btck_BlockTreeEntry* block_tree_entry)
+{
+    if (!block_tree_entry) return;
+    delete block_tree_entry;
+    block_tree_entry = nullptr;
 }

@@ -57,6 +57,35 @@ public:
     }
 };
 
+class TestKernelNotifications : public KernelNotifications<TestKernelNotifications>
+{
+public:
+    void HeaderTipHandler(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
+    {
+        BOOST_CHECK_GT(timestamp, 0);
+    }
+
+    void WarningSetHandler(Warning warning, std::string_view message) override
+    {
+        std::cout << "Kernel warning is set: " << message << std::endl;
+    }
+
+    void WarningUnsetHandler(Warning warning) override
+    {
+        std::cout << "Kernel warning was unset." << std::endl;
+    }
+
+    void FlushErrorHandler(std::string_view error) override
+    {
+        std::cout << error << std::endl;
+    }
+
+    void FatalErrorHandler(std::string_view error) override
+    {
+        std::cout << error << std::endl;
+    }
+};
+
 void run_verify_test(
     const ScriptPubkey& spent_script_pubkey,
     const Transaction& spending_tx,
@@ -214,9 +243,11 @@ BOOST_AUTO_TEST_CASE(btck_context_tests)
     }
 
     { // test with context options
+        TestKernelNotifications notifications{};
         ContextOptions options{};
         ChainParams params{ChainType::MAINNET};
         options.SetChainParams(params);
+        options.SetNotifications(notifications);
         Context context{options};
     }
 }
