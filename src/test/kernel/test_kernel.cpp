@@ -193,3 +193,17 @@ BOOST_AUTO_TEST_CASE(kernel_logging_tests)
     Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
     BOOST_CHECK(logger);
 }
+
+BOOST_AUTO_TEST_CASE(kernel_context_tests)
+{
+    { // test default context
+        Context context{};
+        BOOST_CHECK(context);
+    }
+
+    { // test with context options
+        ContextOptions options{};
+        Context context{options};
+        BOOST_CHECK(context);
+    }
+}
