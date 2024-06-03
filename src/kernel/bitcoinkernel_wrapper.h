@@ -275,6 +275,24 @@ public:
     }
 };
 
+class ChainParams
+{
+private:
+    struct Deleter {
+        void operator()(btck_ChainParameters* ptr) const noexcept
+        {
+            btck_chain_parameters_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<btck_ChainParameters, Deleter> m_chain_params;
+
+public:
+    ChainParams(btck_ChainType chain_type) : m_chain_params{check(btck_chain_parameters_create(chain_type))} {}
+
+    friend class ContextOptions;
+};
+
 class ContextOptions
 {
 private:
@@ -289,6 +307,11 @@ private:
 
 public:
     ContextOptions() : m_options{check(btck_context_options_create())} {}
+
+    void SetChainParams(ChainParams& chain_params) const
+    {
+        btck_context_options_set_chainparams(m_options.get(), chain_params.m_chain_params.get());
+    }
 
     friend class Context;
 };
