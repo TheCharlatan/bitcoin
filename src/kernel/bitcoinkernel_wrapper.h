@@ -49,6 +49,19 @@ enum class ChainType : btck_ChainType
     REGTEST = btck_ChainType_REGTEST
 };
 
+enum class SynchronizationState : btck_SynchronizationState
+{
+    INIT_REINDEX = btck_SynchronizationState_INIT_REINDEX,
+    INIT_DOWNLOAD = btck_SynchronizationState_INIT_DOWNLOAD,
+    POST_INIT = btck_SynchronizationState_POST_INIT
+};
+
+enum class Warning : btck_Warning
+{
+    UNKNOWN_NEW_RULES_ACTIVATED = btck_Warning_UNKNOWN_NEW_RULES_ACTIVATED,
+    LARGE_WORK_INVALID_CHAIN = btck_Warning_LARGE_WORK_INVALID_CHAIN
+};
+
 enum class ScriptVerifyStatus : btck_ScriptVerifyStatus
 {
     OK = btck_ScriptVerifyStatus_SCRIPT_VERIFY_OK,
@@ -489,6 +502,65 @@ public:
     }
 };
 
+class BlockTreeEntry : Handle<btck_BlockTreeEntry, btck_block_tree_entry_destroy>
+{
+public:
+    BlockTreeEntry(btck_BlockTreeEntry* entry)
+        : Handle{check(entry)}
+    {
+    }
+};
+
+template <typename T>
+class KernelNotifications
+{
+private:
+    btck_NotificationInterfaceCallbacks MakeCallbacks()
+    {
+        return btck_NotificationInterfaceCallbacks{
+            .user_data = this,
+            .block_tip = [](void* user_data, btck_SynchronizationState state, btck_BlockTreeEntry* entry, double verification_progress) {
+                static_cast<T*>(user_data)->BlockTipHandler(static_cast<SynchronizationState>(state), BlockTreeEntry{entry}, verification_progress);
+            },
+            .header_tip = [](void* user_data, btck_SynchronizationState state, int64_t height, int64_t timestamp, int presync) {
+                static_cast<T*>(user_data)->HeaderTipHandler(static_cast<SynchronizationState>(state), height, timestamp, presync == 1);
+            },
+            .progress = [](void* user_data, const char* title, size_t title_len, int progress_percent, int resume_possible) {
+                static_cast<T*>(user_data)->ProgressHandler({title, title_len}, progress_percent, resume_possible == 1);
+            },
+            .warning_set = [](void* user_data, btck_Warning warning, const char* message, size_t message_len) {
+                static_cast<T*>(user_data)->WarningSetHandler(static_cast<Warning>(warning), {message, message_len});
+            },
+            .warning_unset = [](void* user_data, btck_Warning warning) { static_cast<T*>(user_data)->WarningUnsetHandler(static_cast<Warning>(warning)); },
+            .flush_error = [](void* user_data, const char* error, size_t error_len) { static_cast<T*>(user_data)->FlushErrorHandler({error, error_len}); },
+            .fatal_error = [](void* user_data, const char* error, size_t error_len) { static_cast<T*>(user_data)->FatalErrorHandler({error, error_len}); },
+        };
+    }
+
+    const btck_NotificationInterfaceCallbacks m_notifications;
+
+public:
+    KernelNotifications() : m_notifications{MakeCallbacks()} {}
+
+    virtual ~KernelNotifications() = default;
+
+    virtual void BlockTipHandler(SynchronizationState state, BlockTreeEntry entry, double verification_progress) {}
+
+    virtual void HeaderTipHandler(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {}
+
+    virtual void ProgressHandler(std::string_view title, int progress_percent, bool resume_possible) {}
+
+    virtual void WarningSetHandler(Warning warning, std::string_view message) {}
+
+    virtual void WarningUnsetHandler(Warning warning) {}
+
+    virtual void FlushErrorHandler(std::string_view error) {}
+
+    virtual void FatalErrorHandler(std::string_view error) {}
+
+    friend class ContextOptions;
+};
+
 class ChainParams : Handle<btck_ChainParameters, btck_chain_parameters_destroy>
 {
 public:
@@ -505,6 +577,12 @@ public:
     void SetChainParams(ChainParams& chain_params)
     {
         btck_context_options_set_chainparams(impl(), chain_params.impl());
+    }
+
+    template <typename T>
+    void SetNotifications(KernelNotifications<T>& notifications)
+    {
+        btck_context_options_set_notifications(impl(), notifications.m_notifications);
     }
 
     friend class Context;
