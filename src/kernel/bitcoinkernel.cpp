@@ -182,6 +182,7 @@ std::string kernel_log_category_to_string(const kernel_LogCategory category)
 }
 
 struct ContextOptions {
+    std::unique_ptr<const CChainParams> m_chainparams;
 };
 
 class Context
@@ -198,9 +199,14 @@ public:
     Context(kernel_Error* error, const ContextOptions* options)
         : m_context{std::make_unique<kernel::Context>()},
           m_notifications{std::make_unique<const kernel::Notifications>()},
-          m_interrupt{std::make_unique<util::SignalInterrupt>()},
-          m_chainparams{CChainParams::Main()}
+          m_interrupt{std::make_unique<util::SignalInterrupt>()}
     {
+        if (options && options->m_chainparams) {
+            m_chainparams = std::make_unique<const CChainParams>(*options->m_chainparams);
+        } else {
+            m_chainparams = CChainParams::Main();
+        }
+
         if (!kernel::SanityChecks(*m_context)) {
             set_error(error, kernel_ErrorCode::kernel_ERROR_INVALID_CONTEXT, "Context sanity check failed.");
         } else {
@@ -209,11 +215,28 @@ public:
     }
 };
 
-const ContextOptions* cast_const_context_options(const kernel_ContextOptions* context_opts_)
+const ContextOptions* cast_const_context_options(const kernel_ContextOptions* context_opts)
 {
-    auto context_opts{reinterpret_cast<const ContextOptions*>(context_opts_)};
     assert(context_opts);
-    return context_opts;
+    return reinterpret_cast<const ContextOptions*>(context_opts);
+}
+
+ContextOptions* cast_context_options(kernel_ContextOptions* context_opts)
+{
+    assert(context_opts);
+    return reinterpret_cast<ContextOptions*>(context_opts);
+}
+
+const CChainParams* cast_const_chain_params(const kernel_ChainParameters* chain_params)
+{
+    assert(chain_params);
+    return reinterpret_cast<const CChainParams*>(chain_params);
+}
+
+Context* cast_context(kernel_Context* context)
+{
+    assert(context);
+    return reinterpret_cast<Context*>(context);
 }
 
 } // namespace
@@ -368,15 +391,56 @@ void kernel_logging_connection_destroy(kernel_LoggingConnection* connection_)
 #endif // BUFFER_LOGS
 }
 
+const kernel_ChainParameters* kernel_chain_parameters_create(const kernel_ChainType chain_type)
+{
+    switch (chain_type) {
+    case kernel_ChainType::kernel_CHAIN_TYPE_MAINNET: {
+        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::Main().release());
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET: {
+        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::TestNet().release());
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_SIGNET: {
+        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::SigNet({}).release());
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_REGTEST: {
+        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::RegTest({}).release());
+    }
+    }
+    assert(0);
+}
+
+void kernel_chain_parameters_destroy(const kernel_ChainParameters* chain_parameters)
+{
+    if (chain_parameters) {
+        delete cast_const_chain_params(chain_parameters);
+    }
+}
+
 kernel_ContextOptions* kernel_context_options_create()
 {
     return reinterpret_cast<kernel_ContextOptions*>(new ContextOptions{});
 }
 
+void kernel_context_options_set(kernel_ContextOptions* context_opts_, const kernel_ContextOptionType n_option, const void* value, kernel_Error* error)
+{
+    auto context_opts{cast_context_options(context_opts_)};
+    switch (n_option) {
+    case kernel_ContextOptionType::kernel_CHAIN_PARAMETERS_OPTION: {
+        auto chain_params{reinterpret_cast<const CChainParams*>(value)};
+        context_opts->m_chainparams = std::make_unique<const CChainParams>(*chain_params);
+        return;
+    }
+    default: {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_UNKNOWN_CONTEXT_OPTION, "Unknown context option");
+    }
+    }
+}
+
 void kernel_context_options_destroy(kernel_ContextOptions* context_opts)
 {
     if (context_opts) {
-        delete reinterpret_cast<ContextOptions*>(context_opts);
+        delete cast_context_options(context_opts);
     }
 }
 
@@ -386,7 +450,9 @@ kernel_Context* kernel_context_create(const kernel_ContextOptions* options, kern
     return reinterpret_cast<kernel_Context*>(new Context{error, context_options});
 }
 
-void kernel_context_destroy(kernel_Context* context_)
+void kernel_context_destroy(kernel_Context* context)
 {
-    delete reinterpret_cast<Context*>(context_);
+    if (context) {
+        delete cast_context(context);
+    }
 }

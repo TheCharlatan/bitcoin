@@ -141,6 +141,10 @@ void context_test()
     kernel_Error error;
     error.code = kernel_ErrorCode::kernel_ERROR_OK;
     ContextOptions options{};
+    ChainParams params{kernel_ChainType::kernel_CHAIN_TYPE_MAINNET};
+    options.SetChainParams(params, error);
+    assert_error_ok(error);
+
     Context context{options, error};
     assert_error_ok(error);
 }
