@@ -112,6 +112,7 @@ BCLog::LogFlags get_bclog_flag(const kernel_LogCategory category)
 }
 
 struct ContextOptions {
+    std::unique_ptr<const CChainParams> m_chainparams;
 };
 
 class Context
@@ -128,9 +129,14 @@ public:
     Context(const ContextOptions* options, bool& sane)
         : m_context{std::make_unique<kernel::Context>()},
           m_notifications{std::make_unique<kernel::Notifications>()},
-          m_interrupt{std::make_unique<util::SignalInterrupt>()},
-          m_chainparams{CChainParams::Main()}
+          m_interrupt{std::make_unique<util::SignalInterrupt>()}
     {
+        if (options && options->m_chainparams) {
+            m_chainparams = std::make_unique<const CChainParams>(*options->m_chainparams);
+        } else {
+            m_chainparams = CChainParams::Main();
+        }
+
         if (!kernel::SanityChecks(*m_context)) {
             sane = false;
         }
@@ -159,6 +165,30 @@ const ContextOptions* cast_const_context_options(const kernel_ContextOptions* op
 {
     assert(options);
     return reinterpret_cast<const ContextOptions*>(options);
+}
+
+ContextOptions* cast_context_options(kernel_ContextOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<ContextOptions*>(options);
+}
+
+const CChainParams* cast_const_chain_params(const kernel_ChainParameters* chain_params)
+{
+    assert(chain_params);
+    return reinterpret_cast<const CChainParams*>(chain_params);
+}
+
+CChainParams* cast_chain_params(kernel_ChainParameters* chain_params)
+{
+    assert(chain_params);
+    return reinterpret_cast<CChainParams*>(chain_params);
+}
+
+Context* cast_context(kernel_Context* context)
+{
+    assert(context);
+    return reinterpret_cast<Context*>(context);
 }
 
 } // namespace
@@ -340,15 +370,57 @@ void kernel_logging_connection_destroy(kernel_LoggingConnection* connection_)
     }
 }
 
+kernel_ChainParameters* kernel_chain_parameters_create(const kernel_ChainType chain_type)
+{
+    switch (chain_type) {
+    case kernel_ChainType::kernel_CHAIN_TYPE_MAINNET: {
+        CChainParams* params = new CChainParams(*CChainParams::Main());
+        return reinterpret_cast<kernel_ChainParameters*>(params);
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET: {
+        CChainParams* params = new CChainParams(*CChainParams::TestNet());
+        return reinterpret_cast<kernel_ChainParameters*>(params);
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET_4: {
+        CChainParams* params = new CChainParams(*CChainParams::TestNet4());
+        return reinterpret_cast<kernel_ChainParameters*>(params);
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_SIGNET: {
+        CChainParams* params = new CChainParams(*CChainParams::SigNet({}));
+        return reinterpret_cast<kernel_ChainParameters*>(params);
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_REGTEST: {
+        CChainParams* params = new CChainParams(*CChainParams::RegTest({}));
+        return reinterpret_cast<kernel_ChainParameters*>(params);
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+void kernel_chain_parameters_destroy(kernel_ChainParameters* chain_parameters)
+{
+    if (chain_parameters) {
+        delete cast_chain_params(chain_parameters);
+    }
+}
+
 kernel_ContextOptions* kernel_context_options_create()
 {
     return reinterpret_cast<kernel_ContextOptions*>(new ContextOptions{});
 }
 
+void kernel_context_options_set_chainparams(kernel_ContextOptions* options_, const kernel_ChainParameters* chain_parameters)
+{
+    auto options{cast_context_options(options_)};
+    auto chain_params{cast_const_chain_params(chain_parameters)};
+    // Copy the chainparams, so the caller can free it again
+    options->m_chainparams = std::make_unique<const CChainParams>(*chain_params);
+}
+
 void kernel_context_options_destroy(kernel_ContextOptions* options)
 {
     if (options) {
-        delete reinterpret_cast<ContextOptions*>(options);
+        delete cast_context_options(options);
     }
 }
 
@@ -365,7 +437,9 @@ kernel_Context* kernel_context_create(const kernel_ContextOptions* options_)
     return reinterpret_cast<kernel_Context*>(context);
 }
 
-void kernel_context_destroy(kernel_Context* context_)
+void kernel_context_destroy(kernel_Context* context)
 {
-    delete reinterpret_cast<Context*>(context_);
+    if (context) {
+        delete cast_context(context);
+    }
 }
