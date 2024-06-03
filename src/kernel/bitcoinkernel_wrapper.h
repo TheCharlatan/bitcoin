@@ -480,4 +480,26 @@ public:
     }
 };
 
+class ContextOptions : Handle<btck_ContextOptions, btck_context_options_destroy>
+{
+public:
+    ContextOptions() : Handle{check(btck_context_options_create())} {}
+
+    friend class Context;
+};
+
+class Context : Handle<btck_Context, btck_context_destroy>
+{
+public:
+    Context(ContextOptions& opts)
+        : Handle{check(btck_context_create(opts.impl()))}
+    {
+    }
+
+    Context()
+        : Handle{check(btck_context_create(ContextOptions{}.impl()))}
+    {
+    }
+};
+
 #endif // BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
