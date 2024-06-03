@@ -9,6 +9,7 @@
 #include <kernel/checks.h>
 #include <kernel/context.h>
 #include <kernel/notifications_interface.h>
+#include <kernel/warning.h>
 #include <logging.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
@@ -18,6 +19,8 @@
 #include <tinyformat.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
+#include <util/translation.h>
+#include <validation.h>
 
 #include <algorithm>
 #include <cassert>
@@ -31,6 +34,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+class CBlockIndex;
 
 // By triggering StartLogging first thing we make sure that no logging messages
 // are buffered. This is required, because the buffering is currently unbounded.
@@ -181,7 +186,69 @@ std::string kernel_log_category_to_string(const kernel_LogCategory category)
     }
 }
 
+kernel_SynchronizationState cast_state(SynchronizationState state)
+{
+    switch (state) {
+    case SynchronizationState::INIT_REINDEX:
+        return kernel_SynchronizationState::kernel_INIT_REINDEX;
+    case SynchronizationState::INIT_DOWNLOAD:
+        return kernel_SynchronizationState::kernel_INIT_DOWNLOAD;
+    case SynchronizationState::POST_INIT:
+        return kernel_SynchronizationState::kernel_POST_INIT;
+    }
+    assert(false);
+}
+
+kernel_Warning cast_kernel_warning(kernel::Warning warning)
+{
+    switch (warning) {
+    case kernel::Warning::UNKNOWN_NEW_RULES_ACTIVATED:
+        return kernel_Warning::kernel_LARGE_WORK_INVALID_CHAIN;
+    case kernel::Warning::LARGE_WORK_INVALID_CHAIN:
+        return kernel_Warning::kernel_LARGE_WORK_INVALID_CHAIN;
+    }
+    assert(false);
+}
+
+class KernelNotifications : public kernel::Notifications
+{
+private:
+    std::unique_ptr<const kernel_NotificationInterfaceCallbacks> m_cbs;
+
+public:
+    KernelNotifications(std::unique_ptr<const kernel_NotificationInterfaceCallbacks> kni_cbs)
+        : m_cbs{std::move(kni_cbs)} {}
+
+    kernel::InterruptResult blockTip(SynchronizationState state, CBlockIndex& index) override
+    {
+        if (m_cbs && m_cbs->block_tip) m_cbs->block_tip(m_cbs->user_data, cast_state(state), reinterpret_cast<kernel_BlockIndex*>(&index));
+        return {};
+    }
+
+    void headerTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
+    {
+        if (m_cbs && m_cbs->header_tip) m_cbs->header_tip(m_cbs->user_data, cast_state(state), height, timestamp, presync);
+    }
+    void warningSet(kernel::Warning id, const bilingual_str& message) override
+    {
+        if (m_cbs && m_cbs->warning_set) m_cbs->warning_set(m_cbs->user_data, cast_kernel_warning(id), message.original.c_str());
+    }
+    void warningUnset(kernel::Warning id) override
+    {
+        if (m_cbs && m_cbs->warning_unset) m_cbs->warning_unset(m_cbs->user_data, cast_kernel_warning(id));
+    }
+    void flushError(const bilingual_str& message) override
+    {
+        if (m_cbs && m_cbs->flush_error) m_cbs->flush_error(m_cbs->user_data, message.original.c_str());
+    }
+    void fatalError(const bilingual_str& message) override
+    {
+        if (m_cbs && m_cbs->fatal_error) m_cbs->fatal_error(m_cbs->user_data, message.original.c_str());
+    }
+};
+
 struct ContextOptions {
+    std::unique_ptr<const kernel_NotificationInterfaceCallbacks> m_kni_cbs;
     std::unique_ptr<const CChainParams> m_chainparams;
 };
 
@@ -198,9 +265,15 @@ public:
 
     Context(kernel_Error* error, const ContextOptions* options)
         : m_context{std::make_unique<kernel::Context>()},
-          m_notifications{std::make_unique<const kernel::Notifications>()},
           m_interrupt{std::make_unique<util::SignalInterrupt>()}
     {
+        if (options && options->m_kni_cbs) {
+            m_notifications = std::make_unique<KernelNotifications>(
+                std::make_unique<const kernel_NotificationInterfaceCallbacks>(*options->m_kni_cbs));
+        } else {
+            m_notifications = std::make_unique<KernelNotifications>(nullptr);
+        }
+
         if (options && options->m_chainparams) {
             m_chainparams = std::make_unique<const CChainParams>(*options->m_chainparams);
         } else {
@@ -429,6 +502,13 @@ void kernel_context_options_set(kernel_ContextOptions* context_opts_, const kern
     case kernel_ContextOptionType::kernel_CHAIN_PARAMETERS_OPTION: {
         auto chain_params{reinterpret_cast<const CChainParams*>(value)};
         context_opts->m_chainparams = std::make_unique<const CChainParams>(*chain_params);
+        return;
+    }
+    case kernel_ContextOptionType::kernel_NOTIFICATION_INTERFACE_CALLBACKS_OPTION: {
+        auto kni_cbs{reinterpret_cast<const kernel_NotificationInterfaceCallbacks*>(value)};
+        // This copies the data, so the caller can free it again.
+        context_opts->m_kni_cbs = std::make_unique<kernel_NotificationInterfaceCallbacks>(*kni_cbs);
+        set_error_ok(error);
         return;
     }
     default: {

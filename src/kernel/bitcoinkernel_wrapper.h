@@ -72,6 +72,52 @@ public:
 
 };
 
+template <typename T>
+class KernelNotifications
+{
+private:
+    kernel_NotificationInterfaceCallbacks MakeCallbacks()
+    {
+        return kernel_NotificationInterfaceCallbacks{
+            .user_data = this,
+            .block_tip = [](void* user_data, kernel_SynchronizationState state, kernel_BlockIndex* index) {
+                static_cast<T*>(user_data)->BlockTipHandler(state, index);
+            },
+            .header_tip = [](void* user_data, kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {
+                static_cast<T*>(user_data)->HeaderTipHandler(state, height, timestamp, presync);
+            },
+            .progress = [](void* user_data, const char* title, int progress_percent, bool resume_possible) {
+                static_cast<T*>(user_data)->ProgressHandler(title, progress_percent, resume_possible);
+            },
+            .warning_set = [](void* user_data, kernel_Warning warning, const char* message) {
+                static_cast<T*>(user_data)->WarningSetHandler(warning, message);
+            },
+            .warning_unset = [](void* user_data, kernel_Warning warning) { static_cast<T*>(user_data)->WarningUnsetHandler(warning); },
+            .flush_error = [](void* user_data, const char* error) { static_cast<T*>(user_data)->FlushErrorHandler(error); },
+            .fatal_error = [](void* user_data, const char* error) { static_cast<T*>(user_data)->FatalErrorHandler(error); },
+        };
+    }
+
+public:
+    virtual ~KernelNotifications() = default;
+
+    virtual void BlockTipHandler(kernel_SynchronizationState state, kernel_BlockIndex* index) {}
+
+    virtual void HeaderTipHandler(kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {}
+
+    virtual void ProgressHandler(const char* title, int progress_percent, bool resume_possible) {}
+
+    virtual void WarningSetHandler(kernel_Warning warning, const char* message) {}
+
+    virtual void WarningUnsetHandler(kernel_Warning warning) {}
+
+    virtual void FlushErrorHandler(const char* error) {}
+
+    virtual void FatalErrorHandler(const char* error) {}
+
+    friend class ContextOptions;
+};
+
 class ChainParams
 {
 private:
@@ -113,6 +159,17 @@ public:
             m_options.get(),
             kernel_ContextOptionType::kernel_CHAIN_PARAMETERS_OPTION,
             reinterpret_cast<const void*>(chain_params.m_chain_params.get()),
+            &error);
+    }
+
+    template <typename T>
+    void SetNotificationCallbacks(KernelNotifications<T>& notifications, kernel_Error& error)
+    {
+        auto callbacks = notifications.MakeCallbacks();
+        kernel_context_options_set(
+            m_options.get(),
+            kernel_ContextOptionType::kernel_NOTIFICATION_INTERFACE_CALLBACKS_OPTION,
+            &callbacks,
             &error);
     }
 
