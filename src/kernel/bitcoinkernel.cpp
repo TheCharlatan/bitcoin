@@ -5,7 +5,10 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <consensus/amount.h>
+#include <kernel/chainparams.h>
+#include <kernel/checks.h>
 #include <kernel/context.h>
+#include <kernel/notifications_interface.h>
 #include <logging.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
@@ -13,14 +16,18 @@
 #include <serialize.h>
 #include <span.h>
 #include <tinyformat.h>
+#include <util/result.h>
+#include <util/signalinterrupt.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <exception>
 #include <functional>
 #include <iostream>
 #include <list>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -174,6 +181,41 @@ std::string kernel_log_category_to_string(const kernel_LogCategory category)
     }
 }
 
+struct ContextOptions {
+};
+
+class Context
+{
+public:
+    std::unique_ptr<kernel::Context> m_context;
+
+    std::unique_ptr<const kernel::Notifications> m_notifications;
+
+    std::unique_ptr<util::SignalInterrupt> m_interrupt;
+
+    std::unique_ptr<const CChainParams> m_chainparams;
+
+    Context(kernel_Error* error, const ContextOptions* options)
+        : m_context{std::make_unique<kernel::Context>()},
+          m_notifications{std::make_unique<const kernel::Notifications>()},
+          m_interrupt{std::make_unique<util::SignalInterrupt>()},
+          m_chainparams{CChainParams::Main()}
+    {
+        if (!kernel::SanityChecks(*m_context)) {
+            set_error(error, kernel_ErrorCode::kernel_ERROR_INVALID_CONTEXT, "Context sanity check failed.");
+        } else {
+            set_error_ok(error);
+        }
+    }
+};
+
+const ContextOptions* cast_const_context_options(const kernel_ContextOptions* context_opts_)
+{
+    auto context_opts{reinterpret_cast<const ContextOptions*>(context_opts_)};
+    assert(context_opts);
+    return context_opts;
+}
+
 } // namespace
 
 int kernel_verify_script(const unsigned char* script_pubkey, size_t script_pubkey_len,
@@ -324,4 +366,27 @@ void kernel_logging_connection_destroy(kernel_LoggingConnection* connection_)
         LogInstance().DisconnectTestLogger();
     }
 #endif // BUFFER_LOGS
+}
+
+kernel_ContextOptions* kernel_context_options_create()
+{
+    return reinterpret_cast<kernel_ContextOptions*>(new ContextOptions{});
+}
+
+void kernel_context_options_destroy(kernel_ContextOptions* context_opts)
+{
+    if (context_opts) {
+        delete reinterpret_cast<ContextOptions*>(context_opts);
+    }
+}
+
+kernel_Context* kernel_context_create(const kernel_ContextOptions* options, kernel_Error* error)
+{
+    auto context_options{cast_const_context_options(options)};
+    return reinterpret_cast<kernel_Context*>(new Context{error, context_options});
+}
+
+void kernel_context_destroy(kernel_Context* context_)
+{
+    delete reinterpret_cast<Context*>(context_);
 }

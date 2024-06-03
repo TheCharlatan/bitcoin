@@ -128,6 +128,23 @@ void verify_test(std::string spent, std::string spending, int64_t amount, unsign
     assert_is_error(error, kernel_ERROR_TX_DESERIALIZE);
 }
 
+void default_context_test()
+{
+    kernel_Error error;
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+    Context context{error};
+    assert_error_ok(error);
+}
+
+void context_test()
+{
+    kernel_Error error;
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+    ContextOptions options{};
+    Context context{options, error};
+    assert_error_ok(error);
+}
+
 int main()
 {
     // legacy transaction
@@ -163,6 +180,10 @@ int main()
     }
     Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options, error};
     assert_error_ok(error);
+
+    default_context_test();
+
+    context_test();
 
     std::cout << "Libbitcoinkernel test completed.\n";
     return 0;
