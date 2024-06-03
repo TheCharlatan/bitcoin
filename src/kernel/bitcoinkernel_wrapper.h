@@ -229,4 +229,46 @@ public:
     }
 };
 
+class ContextOptions
+{
+private:
+    struct Deleter {
+        void operator()(btck_ContextOptions* ptr) const noexcept
+        {
+            btck_context_options_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<btck_ContextOptions, Deleter> m_options;
+
+public:
+    ContextOptions() : m_options{check(btck_context_options_create())} {}
+
+    friend class Context;
+};
+
+class Context
+{
+private:
+    struct Deleter {
+        void operator()(btck_Context* ptr) const noexcept
+        {
+            btck_context_destroy(ptr);
+        }
+    };
+
+public:
+    std::unique_ptr<btck_Context, Deleter> m_context;
+
+    Context(ContextOptions& opts)
+        : m_context{check(btck_context_create(opts.m_options.get()))}
+    {
+    }
+
+    Context()
+        : m_context{check(btck_context_create(ContextOptions{}.m_options.get()))}
+    {
+    }
+};
+
 #endif // BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
