@@ -49,6 +49,9 @@ extern "C" {
  * self-checks the secp256k1 static context. It is used internally for otherwise
  * "context-free" operations.
  *
+ * The user can create their own context for passing it to state-rich validation
+ * functions and holding callbacks for kernel events.
+ *
  * ------ Error handling ------
  *
  * When passing the kernel_Error argument to a function it may either be null or
@@ -80,6 +83,29 @@ extern "C" {
  * kernel_disable_logging().
  */
 typedef struct kernel_LoggingConnection kernel_LoggingConnection;
+
+/**
+ * Opaque data structure for holding options for creating a new kernel context.
+ *
+ * Once a kernel context has been created from these options, they may be
+ * destroyed. The options hold the notification callbacks as well as the
+ * selected chain type until they are passed to the context. Their content and
+ * scope can be expanded over time.
+ */
+typedef struct kernel_ContextOptions kernel_ContextOptions;
+
+/**
+ * Opaque data structure for holding a kernel context.
+ *
+ * The kernel context is used to initialize internal state and hold the chain
+ * parameters and callbacks for handling error and validation events. Once other
+ * validation objects are instantiated from it, the context needs to be kept in
+ * memory for the duration of their lifetimes.
+ *
+ * A constructed context can be safely used from multiple threads, but functions
+ * taking it as a non-cost argument need exclusive access to it.
+ */
+typedef struct kernel_Context kernel_Context;
 
 /** Callback function types */
 
@@ -140,6 +166,7 @@ typedef enum {
     kernel_ERROR_SPENT_OUTPUTS_REQUIRED,
     kernel_ERROR_SPENT_OUTPUTS_MISMATCH,
     kernel_ERROR_LOGGING_FAILED,
+    kernel_ERROR_INVALID_CONTEXT,
 } kernel_ErrorCode;
 
 /**
@@ -263,6 +290,35 @@ kernel_LoggingConnection* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_logging_connec
  * Stop logging and destroy the logging connection.
  */
 void kernel_logging_connection_destroy(kernel_LoggingConnection* logging_connection);
+
+/**
+ * Creates an empty context options.
+ */
+kernel_ContextOptions* kernel_context_options_create();
+
+/**
+ * Destroy the context options.
+ */
+void kernel_context_options_destroy(kernel_ContextOptions* context_options);
+
+/**
+ * @brief Create a new kernel context. If the options have not been previously
+ * set, their corresponding fields will be initialized to default values; the
+ * context will assume mainnet chain parameters and won't attempt to call the
+ * kernel notification callbacks.
+ *
+ * @param[in] context_options Nullable, created with kernel_context_options_create.
+ * @param[out] error          Nullable, will contain an error/success code for the operation.
+ * @return                    The allocated kernel context, or null on error.
+ */
+kernel_Context* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_context_create(
+    const kernel_ContextOptions* context_options,
+    kernel_Error* error);
+
+/**
+ * Destroy the context.
+ */
+void kernel_context_destroy(kernel_Context* context);
 
 #ifdef __cplusplus
 } // extern "C"
