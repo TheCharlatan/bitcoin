@@ -955,12 +955,52 @@ btck_BlockIndex* btck_block_index_get_tip(btck_ChainstateManager* chainman)
     return reinterpret_cast<btck_BlockIndex*>(WITH_LOCK(chainman->m_chainman->GetMutex(), return chainman->m_chainman->ActiveChain().Tip()));
 }
 
+btck_BlockIndex* btck_block_index_get_genesis(btck_ChainstateManager* chainman)
+{
+    return reinterpret_cast<btck_BlockIndex*>(WITH_LOCK(chainman->m_chainman->GetMutex(), return chainman->m_chainman->ActiveChain().Genesis()));
+}
+
+btck_BlockIndex* btck_block_index_get_by_hash(btck_ChainstateManager* chainman, btck_BlockHash* block_hash)
+{
+    auto hash = uint256{std::span<const unsigned char>{(*block_hash).hash, 32}};
+    auto block_index = WITH_LOCK(chainman->m_chainman->GetMutex(), return chainman->m_chainman->m_blockman.LookupBlockIndex(hash));
+    if (!block_index) {
+        LogDebug(BCLog::KERNEL, "A block with the given hash is not indexed.");
+        return nullptr;
+    }
+    return reinterpret_cast<btck_BlockIndex*>(block_index);
+}
+
+btck_BlockIndex* btck_block_index_get_by_height(btck_ChainstateManager* chainman, int height)
+{
+    LOCK(chainman->m_chainman->GetMutex());
+
+    if (height < 0 || height > chainman->m_chainman->ActiveChain().Height()) {
+        LogDebug(BCLog::KERNEL, "Block height is out of range.");
+        return nullptr;
+    }
+    return reinterpret_cast<btck_BlockIndex*>(chainman->m_chainman->ActiveChain()[height]);
+}
+
+btck_BlockIndex* btck_block_index_get_next(btck_ChainstateManager* chainman, const btck_BlockIndex* block_index_)
+{
+    const auto block_index{cast_const_block_index(block_index_)};
+
+    auto next_block_index{WITH_LOCK(chainman->m_chainman->GetMutex(), return chainman->m_chainman->ActiveChain().Next(block_index))};
+
+    if (!next_block_index) {
+        LogTrace(BCLog::KERNEL, "The block index is the tip of the current chain, it does not have a next.");
+    }
+
+    return reinterpret_cast<btck_BlockIndex*>(next_block_index);
+}
+
 btck_BlockIndex* btck_block_index_get_previous(const btck_BlockIndex* block_index_)
 {
     const CBlockIndex* block_index{cast_const_block_index(block_index_)};
 
     if (!block_index->pprev) {
-        LogInfo("Genesis block has no previous.");
+        LogTrace(BCLog::KERNEL, "The block index is the genesis, it has no previous.");
         return nullptr;
     }
 
@@ -1062,6 +1102,29 @@ btck_Coin* btck_transaction_spent_outputs_get_coin_at(const btck_TransactionSpen
 btck_Coin* btck_coin_copy(const btck_Coin* coin)
 {
     return new btck_Coin{new Coin{*coin->m_coin}, true};
+}
+
+int32_t btck_block_index_get_height(const btck_BlockIndex* block_index_)
+{
+    auto block_index{cast_const_block_index(block_index_)};
+    return block_index->nHeight;
+}
+
+btck_BlockHash* btck_block_index_get_block_hash(const btck_BlockIndex* block_index_)
+{
+    auto block_index{cast_const_block_index(block_index_)};
+    if (block_index->phashBlock == nullptr) {
+        return nullptr;
+    }
+    auto block_hash = new btck_BlockHash{};
+    std::memcpy(block_hash->hash, block_index->phashBlock->begin(), sizeof(*block_index->phashBlock));
+    return block_hash;
+}
+
+void btck_block_hash_destroy(btck_BlockHash* hash)
+{
+    if (hash) delete hash;
+    hash = nullptr;
 }
 
 uint32_t btck_coin_confirmation_height(const btck_Coin* coin)
