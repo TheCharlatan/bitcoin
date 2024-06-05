@@ -654,6 +654,11 @@ btck_Context* btck_context_copy(const btck_Context* context)
     return btck_Context::ref(new std::shared_ptr<const Context>(btck_Context::get(context)));
 }
 
+int btck_context_interrupt(btck_Context* context)
+{
+    return (*btck_Context::get(context)->m_interrupt)() ? 0 : -1;
+}
+
 void btck_context_destroy(btck_Context* context)
 {
     if (!context) return;
