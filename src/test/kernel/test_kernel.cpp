@@ -454,6 +454,33 @@ void chainman_reindex_test(TestDirectory& test_directory)
 
     std::vector<std::string> import_files;
     BOOST_CHECK(chainman->ImportBlocks(import_files));
+
+    // Sanity check some block retrievals
+    auto chain{chainman->GetChain()};
+    auto genesis_index{chain.Get().GetGenesis()};
+    auto genesis_block_raw{chainman->ReadBlock(genesis_index).value().ToBytes()};
+    auto first_index{chain.Get().GetByHeight(0).value()};
+    auto first_block_raw{chainman->ReadBlock(genesis_index).value().ToBytes()};
+    check_equal(genesis_block_raw, first_block_raw);
+    auto height{first_index.GetHeight()};
+    BOOST_CHECK_EQUAL(height, 0);
+
+    auto next_index{chain.Get().GetNextBlockTreeEntry(first_index).value()};
+    BOOST_CHECK(chain.Get().Contains(next_index));
+    auto next_block_data{chainman->ReadBlock(next_index).value().ToBytes()};
+    auto tip_index{chain.Get().GetTip()};
+    auto tip_block_data{chainman->ReadBlock(tip_index).value().ToBytes()};
+    auto second_index{chain.Get().GetByHeight(1).value()};
+    auto second_block_data{chainman->ReadBlock(second_index).value().ToBytes()};
+    auto second_height{second_index.GetHeight()};
+    BOOST_CHECK_EQUAL(second_height, 1);
+    check_equal(next_block_data, tip_block_data);
+    check_equal(next_block_data, second_block_data);
+
+    auto hash{second_index.GetHash()};
+    auto another_second_index{chainman->GetBlockTreeEntry(hash.get())};
+    auto another_second_height{another_second_index.GetHeight()};
+    BOOST_CHECK_EQUAL(second_height, another_second_height);
 }
 
 void chainman_reindex_chainstate_test(TestDirectory& test_directory)

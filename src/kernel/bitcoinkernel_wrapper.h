@@ -285,6 +285,13 @@ public:
     }
 };
 
+struct BlockHashDeleter {
+    void operator()(btck_BlockHash* ptr) const
+    {
+        btck_block_hash_destroy(ptr);
+    }
+};
+
 class BlockTreeEntry
 {
 private:
@@ -313,7 +320,24 @@ public:
         return entry;
     }
 
+    int32_t GetHeight() const
+    {
+        if (!m_block_tree_entry) {
+            return -1;
+        }
+        return btck_block_tree_entry_get_height(m_block_tree_entry.get());
+    }
+
+    std::unique_ptr<btck_BlockHash, BlockHashDeleter> GetHash() const
+    {
+        if (!m_block_tree_entry) {
+            return nullptr;
+        }
+        return std::unique_ptr<btck_BlockHash, BlockHashDeleter>(btck_block_tree_entry_get_block_hash(m_block_tree_entry.get()));
+    }
+
     friend class ChainMan;
+    friend class Chain;
 };
 
 template <typename T>
@@ -718,6 +742,7 @@ public:
     }
 };
 
+
 class Chain
 {
 private:
@@ -736,6 +761,30 @@ public:
     BlockTreeEntry GetTip() const
     {
         return btck_chain_get_tip(m_chain.get());
+    }
+
+    BlockTreeEntry GetGenesis() const
+    {
+        return btck_chain_get_genesis(m_chain.get());
+    }
+
+    std::optional<BlockTreeEntry> GetByHeight(int height) const
+    {
+        auto index{btck_chain_get_by_height(m_chain.get(), height)};
+        if (!index) return std::nullopt;
+        return index;
+    }
+
+    std::optional<BlockTreeEntry> GetNextBlockTreeEntry(BlockTreeEntry& block_index) const
+    {
+        auto index{btck_chain_get_next_block_tree_entry(m_chain.get(), block_index.m_block_tree_entry.get())};
+        if (!index) return std::nullopt;
+        return index;
+    }
+
+    bool Contains(BlockTreeEntry& entry) const
+    {
+        return btck_chain_contains(m_chain.get(), entry.m_block_tree_entry.get());
     }
 };
 
@@ -778,6 +827,11 @@ public:
     RefWrapper<Chain> GetChain() const
     {
         return Chain{btck_chainstate_manager_get_active_chain(m_chainman)};
+    }
+
+    BlockTreeEntry GetBlockTreeEntry(btck_BlockHash* block_hash) const
+    {
+        return btck_chainstate_manager_get_block_tree_entry_by_hash(m_chainman, block_hash);
     }
 
     std::optional<Block> ReadBlock(BlockTreeEntry& entry) const
