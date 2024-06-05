@@ -7,6 +7,7 @@
 
 #include <kernel/bitcoinkernel.h>
 
+#include <array>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -527,6 +528,23 @@ bool ScriptPubkeyApi<Derived>::Verify(int64_t amount,
     return result == 1;
 }
 
+class BlockHash : public Handle<btck_BlockHash, btck_block_hash_copy, btck_block_hash_destroy>
+{
+public:
+    explicit BlockHash(const std::array<std::byte, 32>& hash)
+        : Handle{btck_block_hash_create(reinterpret_cast<const unsigned char*>(hash.data()))} {}
+
+    explicit BlockHash(btck_BlockHash* hash)
+        : Handle{hash} {}
+
+    std::array<std::byte, 32> Bytes() const
+    {
+        std::array<std::byte, 32> hash;
+        btck_block_hash_to_bytes(get(), reinterpret_cast<unsigned char*>(hash.data()));
+        return hash;
+    }
+};
+
 class Block : public Handle<btck_Block, btck_block_copy, btck_block_destroy>
 {
 public:
@@ -599,7 +617,7 @@ public:
     }
 };
 
-class BlockTreeEntry : View<btck_BlockTreeEntry>
+class BlockTreeEntry : public View<btck_BlockTreeEntry>
 {
 public:
     BlockTreeEntry(const btck_BlockTreeEntry* entry)
@@ -614,7 +632,18 @@ public:
         return entry;
     }
 
+    int32_t GetHeight() const
+    {
+        return btck_block_tree_entry_get_height(get());
+    }
+
+    BlockHash GetHash() const
+    {
+        return BlockHash{btck_block_tree_entry_get_block_hash(get())};
+    }
+
     friend class ChainMan;
+    friend class Chain;
 };
 
 template <typename T>
@@ -790,6 +819,28 @@ public:
     {
         return btck_chain_get_height(get());
     }
+
+    BlockTreeEntry Genesis() const
+    {
+        return btck_chain_get_genesis(get());
+    }
+
+    BlockTreeEntry GetByHeight(int height) const
+    {
+        auto index{btck_chain_get_by_height(get(), height)};
+        if (!index) throw std::runtime_error("No entry in the chain at the provided height");
+        return index;
+    }
+
+    bool Contains(BlockTreeEntry& entry) const
+    {
+        return btck_chain_contains(get(), entry.get());
+    }
+
+    auto Entries() const
+    {
+        return Range<ChainView, &ChainView::Height, &ChainView::GetByHeight>{*this};
+    }
 };
 
 template <typename Derived>
@@ -930,6 +981,11 @@ public:
     ChainView GetChain() const
     {
         return ChainView{btck_chainstate_manager_get_active_chain(get())};
+    }
+
+    BlockTreeEntry GetBlockTreeEntry(const btck_BlockHash* block_hash) const
+    {
+        return btck_chainstate_manager_get_block_tree_entry_by_hash(get(), block_hash);
     }
 
     std::optional<Block> ReadBlock(const BlockTreeEntry& entry) const
