@@ -655,6 +655,11 @@ public:
 
     Context()
         : Handle{btck_context_create(ContextOptions{}.get())} {}
+
+    bool interrupt()
+    {
+        return btck_context_interrupt(get()) == 0;
+    }
 };
 
 class ChainstateManagerOptions : UniqueHandle<btck_ChainstateManagerOptions, btck_chainstate_manager_options_destroy>
