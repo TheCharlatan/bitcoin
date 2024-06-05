@@ -659,6 +659,13 @@ public:
     }
 };
 
+struct BlockHashDeleter {
+    void operator()(btck_BlockHash* ptr) const
+    {
+        btck_block_hash_destroy(ptr);
+    }
+};
+
 class BlockIndex
 {
 private:
@@ -682,6 +689,22 @@ public:
         auto index{btck_block_index_get_previous(m_block_index.get())};
         if (!index) return std::nullopt;
         return index;
+    }
+
+    int32_t GetHeight() const
+    {
+        if (!m_block_index) {
+            return -1;
+        }
+        return btck_block_index_get_height(m_block_index.get());
+    }
+
+    std::unique_ptr<btck_BlockHash, BlockHashDeleter> GetHash() const
+    {
+        if (!m_block_index) {
+            return nullptr;
+        }
+        return std::unique_ptr<btck_BlockHash, BlockHashDeleter>(btck_block_index_get_block_hash(m_block_index.get()));
     }
 
     friend class ChainMan;
@@ -723,6 +746,30 @@ public:
     BlockIndex GetBlockIndexFromTip() const
     {
         return btck_block_index_get_tip(m_chainman);
+    }
+
+    BlockIndex GetBlockIndexFromGenesis() const
+    {
+        return btck_block_index_get_genesis(m_chainman);
+    }
+
+    BlockIndex GetBlockIndexByHash(btck_BlockHash* block_hash) const
+    {
+        return btck_block_index_get_by_hash(m_chainman, block_hash);
+    }
+
+    std::optional<BlockIndex> GetBlockIndexByHeight(int height) const
+    {
+        auto index{btck_block_index_get_by_height(m_chainman, height)};
+        if (!index) return std::nullopt;
+        return index;
+    }
+
+    std::optional<BlockIndex> GetNextBlockIndex(BlockIndex& block_index) const
+    {
+        auto index{btck_block_index_get_next(m_chainman, block_index.m_block_index.get())};
+        if (!index) return std::nullopt;
+        return index;
     }
 
     std::optional<Block> ReadBlock(BlockIndex& block_index) const
