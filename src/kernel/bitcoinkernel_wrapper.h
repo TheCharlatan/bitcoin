@@ -528,6 +528,14 @@ public:
     }
 };
 
+struct BlockHashDeleter {
+    void operator()(btck_BlockHash* ptr) const
+    {
+        btck_block_hash_destroy(ptr);
+    }
+};
+
+
 class BlockTreeEntry : Handle<btck_BlockTreeEntry, btck_block_tree_entry_destroy>
 {
 public:
@@ -543,7 +551,18 @@ public:
         return entry;
     }
 
+    int32_t GetHeight() const
+    {
+        return btck_block_tree_entry_get_height(impl());
+    }
+
+    std::unique_ptr<btck_BlockHash, BlockHashDeleter> GetHash() const
+    {
+        return std::unique_ptr<btck_BlockHash, BlockHashDeleter>(btck_block_tree_entry_get_block_hash(impl()));
+    }
+
     friend class ChainMan;
+    friend class Chain;
 };
 
 template <typename T>
@@ -889,6 +908,32 @@ public:
     {
         return btck_chain_get_tip(impl());
     }
+
+    BlockTreeEntry GetGenesis() const
+    {
+        return btck_chain_get_genesis(impl());
+    }
+
+    size_t CurrentHeight() const
+    {
+        return GetTip().GetHeight();
+    }
+
+    BlockTreeEntry GetByHeight(int height) const
+    {
+        auto index{btck_chain_get_by_height(impl(), height)};
+        return index;
+    }
+
+    bool Contains(BlockTreeEntry& entry) const
+    {
+        return btck_chain_contains(impl(), entry.impl());
+    }
+
+    auto Entries() const
+    {
+        return Range<Chain, &Chain::CurrentHeight, &Chain::GetByHeight>{*this};
+    }
 };
 
 class ChainMan : Handle<btck_ChainstateManager, btck_chainstate_manager_destroy>
@@ -924,6 +969,11 @@ public:
     RefWrapper<Chain> GetChain() const
     {
         return Chain{btck_chainstate_manager_get_active_chain(impl())};
+    }
+
+    BlockTreeEntry GetBlockTreeEntry(btck_BlockHash* block_hash) const
+    {
+        return btck_chainstate_manager_get_block_tree_entry_by_hash(impl(), block_hash);
     }
 
     std::optional<Block> ReadBlock(BlockTreeEntry& entry) const
