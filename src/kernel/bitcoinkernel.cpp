@@ -594,6 +594,11 @@ btck_Context* btck_context_create(const btck_ContextOptions* options)
     return new btck_Context{std::move(context)};
 }
 
+bool btck_context_interrupt(btck_Context* context)
+{
+    return (*context->m_context->m_interrupt)();
+}
+
 void btck_context_destroy(btck_Context* context)
 {
     if (!context) return;
