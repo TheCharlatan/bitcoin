@@ -481,6 +481,16 @@ void kernel_context_options_destroy(kernel_ContextOptions* context_options);
 kernel_Context* kernel_context_create(const kernel_ContextOptions* context_options, kernel_Error* error);
 
 /**
+ * @brief Interrupt can be used to halt long-running validation functions like
+ * when importing or processing blocks.
+ *
+ * @param[in] context  Non-null.
+ * @param[out] error   Nullable, will contain an error/success code for the operation.
+ * @return             True if the interrupt was successful.
+ */
+bool kernel_context_interrupt(kernel_Context* context, kernel_Error* error);
+
+/**
  * Destroy the context.
  */
 void kernel_context_destroy(kernel_Context* context);

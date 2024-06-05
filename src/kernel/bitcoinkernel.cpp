@@ -385,6 +385,15 @@ const Context* cast_const_context(const kernel_Context* context, kernel_Error* e
     return reinterpret_cast<const Context*>(context);
 }
 
+Context* cast_context(kernel_Context* context, kernel_Error* error)
+{
+    if (!context) {
+        set_error_invalid_pointer(error, "Invalid kernel_Context pointer.");
+        return nullptr;
+    }
+    return reinterpret_cast<Context*>(context);
+}
+
 ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman, kernel_Error* error)
 {
     if (!chainman) {
@@ -598,6 +607,16 @@ kernel_Context* kernel_context_create(const kernel_ContextOptions* options, kern
 {
     auto context_options{reinterpret_cast<const ContextOptions*>(options)};
     return reinterpret_cast<kernel_Context*>(new Context{error, context_options});
+}
+
+bool kernel_context_interrupt(kernel_Context* context_, kernel_Error* error)
+{
+    auto context{cast_context(context_, error)};
+    if (!context) {
+        return false;
+    }
+
+    return (*context->m_interrupt)();
 }
 
 void kernel_context_destroy(kernel_Context* context_)
