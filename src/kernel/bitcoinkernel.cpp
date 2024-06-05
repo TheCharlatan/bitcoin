@@ -1123,6 +1123,88 @@ kernel_BlockIndex* kernel_get_block_index_from_tip(const kernel_Context* context
     return reinterpret_cast<kernel_BlockIndex*>(WITH_LOCK(::cs_main, return chainman->ActiveChain().Tip()));
 }
 
+kernel_BlockIndex* kernel_get_block_index_from_genesis(const kernel_Context* context_, kernel_ChainstateManager* chainman_, kernel_Error* error)
+{
+    auto context{cast_const_context(context_, error)};
+    if (!context) {
+        return nullptr;
+    }
+
+    auto chainman{cast_chainstate_manager(chainman_, error)};
+    if (!chainman) {
+        return nullptr;
+    }
+
+    return reinterpret_cast<kernel_BlockIndex*>(WITH_LOCK(::cs_main, return chainman->ActiveChain().Genesis()));
+}
+
+kernel_BlockIndex* kernel_get_block_index_by_hash(const kernel_Context* context_, kernel_ChainstateManager* chainman_, kernel_BlockHash* block_hash, kernel_Error* error)
+{
+    auto context{cast_const_context(context_, error)};
+    if (!context) {
+        return nullptr;
+    }
+
+    auto chainman{cast_chainstate_manager(chainman_, error)};
+    if (!chainman) {
+        return nullptr;
+    }
+
+    auto hash = uint256{Span<const unsigned char>{(*block_hash).hash, 32}};
+    auto block_index = WITH_LOCK(::cs_main, return chainman->m_blockman.LookupBlockIndex(hash));
+    if (!block_index) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "A block with the given hash is not indexed.");
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_BlockIndex*>(block_index);
+}
+
+kernel_BlockIndex* kernel_get_block_index_by_height(const kernel_Context* context_, kernel_ChainstateManager* chainman_, int height, kernel_Error* error)
+{
+    auto context{cast_const_context(context_, error)};
+    if (!context) {
+        return nullptr;
+    }
+
+    auto chainman{cast_chainstate_manager(chainman_, error)};
+    if (!chainman) {
+        return nullptr;
+    }
+
+    LOCK(cs_main);
+
+    if (height < 0 || height > chainman->ActiveChain().Height()) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_OUT_OF_BOUNDS, "Block height is out of range.");
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_BlockIndex*>(chainman->ActiveChain()[height]);
+}
+
+kernel_BlockIndex* kernel_get_next_block_index(const kernel_Context* context_, kernel_BlockIndex* block_index_, kernel_ChainstateManager* chainman_, kernel_Error* error)
+{
+    auto context{cast_const_context(context_, error)};
+    if (!context) {
+        return nullptr;
+    }
+
+    auto block_index{cast_block_index(block_index_, error)};
+    if (!block_index) {
+        return nullptr;
+    }
+    auto chainman{cast_chainstate_manager(chainman_, error)};
+    if (!chainman) {
+        return nullptr;
+    }
+
+    auto next_block_index{WITH_LOCK(::cs_main, return chainman->ActiveChain().Next(block_index))};
+
+    if (!next_block_index) {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_OUT_OF_BOUNDS, "Block index is the tip of the current chain.");
+    }
+
+    return reinterpret_cast<kernel_BlockIndex*>(next_block_index);
+}
+
 kernel_BlockIndex* kernel_get_previous_block_index(kernel_BlockIndex* block_index_, kernel_Error* error)
 {
     CBlockIndex* block_index{cast_block_index(block_index_, error)};

@@ -449,6 +449,10 @@ typedef enum {
     kernel_CHAIN_TYPE_REGTEST,
 } kernel_ChainType;
 
+typedef struct {
+    unsigned char hash[32];
+} kernel_BlockHash;
+
 /**
  * Convenience struct for holding serialized data.
  */
@@ -866,7 +870,8 @@ kernel_ValidationMode kernel_get_validation_mode_from_block_validation_state(con
 kernel_BlockValidationResult kernel_get_block_validation_result_from_block_validation_state(const kernel_BlockValidationState* block_validation_state);
 
 /**
- * @brief Get the block index entry of the current chain tip.
+ * @brief Get the block index entry of the current chain tip. Once returned,
+ * there is no guarantee that it remains in the active chain.
  *
  * @param[in] context            Non-null.
  * @param[in] chainstate_manager Non-null.
@@ -874,6 +879,61 @@ kernel_BlockValidationResult kernel_get_block_validation_result_from_block_valid
  * @return                       The block index of the current tip, or null on error.
  */
 kernel_BlockIndex* kernel_get_block_index_from_tip(const kernel_Context* context, kernel_ChainstateManager* chainstate_manager, kernel_Error* error);
+
+/**
+ * @brief Get the block index entry of the genesis block.
+ *
+ * @param[in] context            Non-null.
+ * @param[in] chainstate_manager Non-null.
+ * @param[out] error             Nullable, will contain an error/success code for the operation.
+ * @return                       The block index of the genesis block, or null on error.
+ */
+kernel_BlockIndex* kernel_get_block_index_from_genesis(const kernel_Context* context, kernel_ChainstateManager* chainstate_manager, kernel_Error* error);
+
+/**
+ * @brief Retrieve a block index by its block hash.
+ *
+ * @param[in] context            Non-null.
+ * @param[in] chainstate_manager Non-null.
+ * @param[in] block_hash         Non-null.
+ * @param[out] error             Nullable, will contain an error/success code for the operation.
+ * @return                       The block index of the block with the passed in hash, or null on error.
+ */
+kernel_BlockIndex* kernel_get_block_index_by_hash(const kernel_Context* context,
+                                                  kernel_ChainstateManager* chainstate_manager,
+                                                  kernel_BlockHash* block_hash,
+                                                  kernel_Error* error);
+
+/**
+ * @brief Retrieve a block index by its height in the currently active chain.
+ * Once retrieved there is no guarantee that it remains in the active chain.
+ *
+ * @param[in] context            Non-null.
+ * @param[in] chainstate_manager Non-null.
+ * @param[in] block_height       Height in the chain of the to be retrieved block index.
+ * @param[out] error             Nullable, will contain an error/success code for the operation.
+ * @return                       The block index at a certain height in the currently active chain, or null on error.
+ */
+kernel_BlockIndex* kernel_get_block_index_by_height(const kernel_Context* context,
+                                                    kernel_ChainstateManager* chainstate_manager,
+                                                    int block_height,
+                                                    kernel_Error* error);
+
+/**
+ * @brief Return the next block index in the currently active chain, or null if
+ * the current block index is the tip, or is not in the currently active
+ * chain.
+ *
+ * @param[in] context            Non-null.
+ * @param[in] block_index        Non-null.
+ * @param[in] chainstate_manager Non-null.
+ * @param[out] error             Nullable, will contain an error/success code for the operation.
+ * @return                       The next block index in the currently active chain, or null on error.
+ */
+kernel_BlockIndex* kernel_get_next_block_index(const kernel_Context* context,
+                                               kernel_BlockIndex* block_index,
+                                               kernel_ChainstateManager* chainstate_manager,
+                                               kernel_Error* error);
 
 /**
  * @brief Returns the previous block index in the chain, or null if the current

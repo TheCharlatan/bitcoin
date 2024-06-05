@@ -667,6 +667,21 @@ public:
         return kernel_get_block_index_from_tip(m_context.m_context, m_chainman, &error);
     }
 
+    BlockIndex GetBlockIndexFromGenesis(kernel_Error& error)
+    {
+        return kernel_get_block_index_from_genesis(m_context.m_context, m_chainman, &error);
+    }
+
+    BlockIndex GetBlockIndexByHeight(int height, kernel_Error& error)
+    {
+        return kernel_get_block_index_by_height(m_context.m_context, m_chainman, height, &error);
+    }
+
+    BlockIndex GetNextBlockIndex(BlockIndex& block_index, kernel_Error& error)
+    {
+        return kernel_get_next_block_index(m_context.m_context, block_index.m_block_index, m_chainman, &error);
+    }
+
     Block ReadBlock(BlockIndex& block_index, kernel_Error& error)
     {
         return Block{kernel_read_block_from_disk(m_context.m_context, m_chainman, block_index.m_block_index, &error)};
@@ -850,6 +865,32 @@ void chainman_reindex_test(std::filesystem::path path_root)
     std::vector<std::filesystem::path> import_files;
     chainman->ImportBlocks(import_files, error);
     assert_error_ok(error);
+
+    // Sanity check some block retrievals
+    auto genesis_index{chainman->GetBlockIndexFromGenesis(error)};
+    assert_error_ok(error);
+    auto genesis_block_string{chainman->ReadBlock(genesis_index, error).ToHexString(error)};
+    assert_error_ok(error);
+    auto first_index{chainman->GetBlockIndexByHeight(0, error)};
+    assert_error_ok(error);
+    auto first_block_string{chainman->ReadBlock(genesis_index, error).ToHexString(error)};
+    assert_error_ok(error);
+    assert(genesis_block_string == first_block_string);
+
+    auto next_index{chainman->GetNextBlockIndex(first_index, error)};
+    assert_error_ok(error);
+    auto next_block_string{chainman->ReadBlock(next_index, error).ToHexString(error)};
+    assert_error_ok(error);
+    auto tip_index{chainman->GetBlockIndexFromTip(error)};
+    assert_error_ok(error);
+    auto tip_block_string{chainman->ReadBlock(tip_index, error).ToHexString(error)};
+    assert_error_ok(error);
+    auto second_index{chainman->GetBlockIndexByHeight(1, error)};
+    assert_error_ok(error);
+    auto second_block_string{chainman->ReadBlock(second_index, error).ToHexString(error)};
+    assert_error_ok(error);
+    assert(next_block_string == tip_block_string);
+    assert(next_block_string == second_block_string);
 }
 
 void chainman_reindex_chainstate_test(std::filesystem::path path_root)
