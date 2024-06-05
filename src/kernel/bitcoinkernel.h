@@ -427,6 +427,13 @@ typedef enum {
     btck_CHAIN_TYPE_REGTEST,
 } btck_ChainType;
 
+/**
+ * A type-safe block identifier.
+ */
+typedef struct {
+    unsigned char hash[32];
+} btck_BlockHash;
+
 /** @name Transaction
  * Functions for working with transactions.
  */
@@ -846,6 +853,16 @@ BITCOINKERNEL_API btck_BlockTreeEntry* BITCOINKERNEL_WARN_UNUSED_RESULT btck_blo
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
+ * @brief Return the height of a certain block tree entry.
+ *
+ * @param[in] block_tree_entry Non-null.
+ * @return                     The block height.
+ */
+BITCOINKERNEL_API int32_t BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_tree_entry_get_height(
+    const btck_BlockTreeEntry* block_tree_entry
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * @brief Destroy the block tree entry.
  */
 BITCOINKERNEL_API void btck_block_tree_entry_destroy(btck_BlockTreeEntry* block_tree_entry);
@@ -980,7 +997,7 @@ BITCOINKERNEL_API bool btck_chainstate_manager_import_blocks( btck_ChainstateMan
  */
 BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT btck_chainstate_manager_process_block(
     btck_ChainstateManager* chainstate_manager,
-    btck_Block* block,
+    const btck_Block* block,
     bool* new_block
 ) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
 
@@ -998,6 +1015,19 @@ BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT btck_chainstate_manager_
 BITCOINKERNEL_API btck_Chain* BITCOINKERNEL_WARN_UNUSED_RESULT btck_chainstate_manager_get_active_chain(
     const btck_ChainstateManager* chainstate_manager
 ) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Retrieve a block tree entry by its block hash.
+ *
+ * @param[in] chainstate_manager Non-null.
+ * @param[in] block_hash         Non-null.
+ * @return                       The block tree entry of the block with the passed in hash, or null if
+ *                               the block hash is not found.
+ */
+BITCOINKERNEL_API btck_BlockTreeEntry* BITCOINKERNEL_WARN_UNUSED_RESULT btck_chainstate_manager_get_block_tree_entry_by_hash(
+    const btck_ChainstateManager* chainstate_manager,
+    const btck_BlockHash* block_hash
+) BITCOINKERNEL_ARG_NONNULL(1, 2);
 
 /**
  * Destroy the chainstate manager.
@@ -1144,6 +1174,58 @@ BITCOINKERNEL_API btck_BlockTreeEntry* BITCOINKERNEL_WARN_UNUSED_RESULT btck_cha
     const btck_Chain* chain
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
+/*
+ * @brief Get the block tree entry of the genesis block.
+ *
+ * @param[in] chain Non-null.
+ * @return          The block tree entry of the genesis block, or null if the chain is empty.
+ */
+BITCOINKERNEL_API btck_BlockTreeEntry* BITCOINKERNEL_WARN_UNUSED_RESULT btck_chain_get_genesis(
+    const btck_Chain* chain
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Retrieve a block tree entry by its height in the currently active chain.
+ * Once retrieved there is no guarantee that it remains in the active chain.
+ *
+ * @param[in] chain        Non-null.
+ * @param[in] block_height Height in the chain of the to be retrieved block tree entry.
+ * @return                 The block tree entry at a certain height in the currently active chain,
+ *                         or null if the height is out of bounds.
+ */
+BITCOINKERNEL_API btck_BlockTreeEntry* BITCOINKERNEL_WARN_UNUSED_RESULT btck_chain_get_by_height(
+    const btck_Chain* chain,
+    int block_height
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Return the next block index in the currently active chain, or null if
+ * the current block index is the tip, or is not in the currently active
+ * chain.
+ *
+ * @param[in] chain            Non-null.
+ * @param[in] block_tree_entry Non-null.
+ * @return                     The next block index in the currently active chain, or null if
+ *                             the block_index is the chain tip, or not in the chain.
+ */
+BITCOINKERNEL_API btck_BlockTreeEntry* BITCOINKERNEL_WARN_UNUSED_RESULT btck_chain_get_next_block_index(
+    const btck_Chain* chain,
+    const btck_BlockTreeEntry* block_tree_entry
+) BITCOINKERNEL_ARG_NONNULL(1, 2);
+
+/**
+ * @brief Return true if the passed in chain contains the block tree entry.
+ *
+ * @param[in] chain            Non-null.
+ * @param[in] block_tree_entry Non-null.
+ * @return                     True if the block_tree_entry is in the chain.
+ *
+ */
+BITCOINKERNEL_API bool btck_chain_contains(
+    const btck_Chain* chain,
+    const btck_BlockTreeEntry* block_tree_entry
+) BITCOINKERNEL_ARG_NONNULL(1, 2);
+
 /**
  * @brief Destroy the chain.
  */
@@ -1157,7 +1239,7 @@ BITCOINKERNEL_API void btck_chain_destroy(btck_Chain* chain);
 ///@{
 
 /**
- * @brief Reads the block spent coins data the passed in block index points to from
+ * @brief Reads the block spent coins data the passed in block tree entry points to from
  * disk and returns it.
  *
  * @param[in] chainstate_manager Non-null.
@@ -1307,6 +1389,28 @@ BITCOINKERNEL_API btck_TransactionOutput* BITCOINKERNEL_WARN_UNUSED_RESULT btck_
  * Destroy the coin.
  */
 BITCOINKERNEL_API void btck_coin_destroy(btck_Coin* coin);
+
+///@}
+
+/** @name BlockHash
+ * Functions for working with block hashes.
+ */
+///@{
+
+/**
+ * @brief Return the block hash associated with a block tree entry.
+ *
+ * @param[in] block_tree_entry Non-null.
+ * @return                     The block hash.
+ */
+BITCOINKERNEL_API btck_BlockHash* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_tree_entry_get_block_hash(
+    const btck_BlockTreeEntry* block_tree_entry
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * Destroy the block hash.
+ */
+BITCOINKERNEL_API void btck_block_hash_destroy(btck_BlockHash* block_hash);
 
 ///@}
 
