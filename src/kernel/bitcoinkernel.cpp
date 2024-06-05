@@ -855,6 +855,17 @@ btck_ChainstateManager* btck_chainstate_manager_create(
     return new btck_ChainstateManager{std::move(chainman), chainman_opts->m_opts->m_context};
 }
 
+btck_BlockTreeEntry* btck_chainstate_manager_get_block_tree_entry_by_hash(const btck_ChainstateManager* chainman, const btck_BlockHash* block_hash)
+{
+    auto hash = uint256{std::span<const unsigned char>{(*block_hash).hash, 32}};
+    auto block_index = WITH_LOCK(chainman->m_chainman->GetMutex(), return chainman->m_chainman->m_blockman.LookupBlockIndex(hash));
+    if (!block_index) {
+        LogDebug(BCLog::KERNEL, "A block with the given hash is not indexed.");
+        return nullptr;
+    }
+    return new btck_BlockTreeEntry{block_index};
+}
+
 void btck_chainstate_manager_destroy(btck_ChainstateManager* chainman)
 {
     if (!chainman) return;
@@ -983,6 +994,27 @@ btck_Block* btck_block_read(const btck_ChainstateManager* chainman, const btck_B
     return new btck_Block{block};
 }
 
+int32_t btck_block_tree_entry_get_height(const btck_BlockTreeEntry* entry)
+{
+    return entry->m_block_index->nHeight;
+}
+
+btck_BlockHash* btck_block_tree_entry_get_block_hash(const btck_BlockTreeEntry* entry)
+{
+    if (entry->m_block_index->phashBlock == nullptr) {
+        return nullptr;
+    }
+    auto block_hash = new btck_BlockHash{};
+    std::memcpy(block_hash->hash, entry->m_block_index->phashBlock->begin(), sizeof(*entry->m_block_index->phashBlock));
+    return block_hash;
+}
+
+void btck_block_hash_destroy(btck_BlockHash* hash)
+{
+    if (hash) delete hash;
+    hash = nullptr;
+}
+
 btck_BlockSpentOutputs* btck_block_spent_outputs_read(const btck_ChainstateManager* chainman, const btck_BlockTreeEntry* entry)
 {
     if (entry->m_block_index->nHeight < 1) {
@@ -1081,7 +1113,7 @@ void btck_coin_destroy(btck_Coin* coin)
 
 bool btck_chainstate_manager_process_block(
     btck_ChainstateManager* chainman,
-    btck_Block* block,
+    const btck_Block* block,
     bool* new_block)
 {
     return chainman->m_chainman->ProcessNewBlock(block->m_block, /*force_processing=*/true, /*min_pow_checked=*/true, /*new_block=*/new_block);
@@ -1095,6 +1127,38 @@ btck_Chain* btck_chainstate_manager_get_active_chain(const btck_ChainstateManage
 btck_BlockTreeEntry* btck_chain_get_tip(const btck_Chain* chain)
 {
     return new btck_BlockTreeEntry{chain->m_chain->Tip()};
+}
+
+btck_BlockTreeEntry* btck_chain_get_genesis(const btck_Chain* chain)
+{
+    return new btck_BlockTreeEntry{chain->m_chain->Genesis()};
+}
+
+btck_BlockTreeEntry* btck_chain_get_by_height(const btck_Chain* chain, int height)
+{
+    LOCK(::cs_main);
+    if (height < 0 || height > chain->m_chain->Height()) {
+        LogDebug(BCLog::KERNEL, "Block height is out of range.");
+        return nullptr;
+    }
+    return new btck_BlockTreeEntry{(*chain->m_chain)[height]};
+}
+
+btck_BlockTreeEntry* btck_chain_get_next_block_index(const btck_Chain* chain, const btck_BlockTreeEntry* entry)
+{
+    auto next_block_index{chain->m_chain->Next(entry->m_block_index)};
+
+    if (!next_block_index) {
+        LogTrace(BCLog::KERNEL, "The block index is the tip of the current chain, it does not have a next.");
+    }
+
+    return new btck_BlockTreeEntry{next_block_index};
+}
+
+bool btck_chain_contains(const btck_Chain* chain, const btck_BlockTreeEntry* entry)
+{
+    LOCK(::cs_main);
+    return chain->m_chain->Contains(entry->m_block_index);
 }
 
 void btck_chain_destroy(btck_Chain* chain)
