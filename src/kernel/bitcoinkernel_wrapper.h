@@ -500,6 +500,13 @@ public:
     }
 };
 
+struct BlockIndexInfoDeleter {
+    void operator()(kernel_BlockIndexInfo* ptr) const
+    {
+        kernel_block_index_info_destroy(ptr);
+    }
+};
+
 class BlockIndex
 {
 private:
@@ -521,6 +528,14 @@ public:
             return BlockIndex{nullptr};
         }
         return kernel_get_previous_block_index(m_block_index.get(), &error);
+    }
+
+    std::unique_ptr<kernel_BlockIndexInfo, BlockIndexInfoDeleter> GetInfo()
+    {
+        if (!m_block_index) {
+            return nullptr;
+        }
+        return std::unique_ptr<kernel_BlockIndexInfo, BlockIndexInfoDeleter>(kernel_get_block_index_info(m_block_index.get()));
     }
 
     operator bool() const
@@ -571,6 +586,21 @@ public:
     BlockIndex GetBlockIndexFromTip()
     {
         return kernel_get_block_index_from_tip(m_context.m_context.get(), m_chainman);
+    }
+
+    BlockIndex GetBlockIndexFromGenesis()
+    {
+        return kernel_get_block_index_from_genesis(m_context.m_context.get(), m_chainman);
+    }
+
+    BlockIndex GetBlockIndexByHeight(int height, kernel_Error& error)
+    {
+        return kernel_get_block_index_by_height(m_context.m_context.get(), m_chainman, height, &error);
+    }
+
+    BlockIndex GetNextBlockIndex(BlockIndex& block_index, kernel_Error& error)
+    {
+        return kernel_get_next_block_index(m_context.m_context.get(), block_index.m_block_index.get(), m_chainman, &error);
     }
 
     Block ReadBlock(BlockIndex& block_index, kernel_Error& error)
