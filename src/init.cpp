@@ -1670,7 +1670,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // if pruning, perform the initial blockstore prune
     // after any wallet rescanning has taken place.
     if (chainman.m_blockman.IsPruneMode()) {
-        if (!chainman.m_blockman.m_reindexing) {
+        if (chainman.m_blockman.m_blockfiles_indexed) {
             LOCK(cs_main);
             for (Chainstate* chainstate : chainman.GetAll()) {
                 uiInterface.InitMessage(_("Pruning blockstore…").translated);
@@ -1696,7 +1696,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     int chain_active_height = WITH_LOCK(cs_main, return chainman.ActiveChain().Height());
 
     // On first startup, warn on low block storage space
-    if (!chainman.m_blockman.m_reindexing && !do_reindex_chainstate && chain_active_height <= 1) {
+    if (!chainman.m_blockman.m_blockfiles_indexed && !do_reindex_chainstate && chain_active_height <= 1) {
         uint64_t assumed_chain_bytes{chainparams.AssumedBlockchainSize() * 1024 * 1024 * 1024};
         uint64_t additional_bytes_needed{
             chainman.m_blockman.IsPruneMode() ?
