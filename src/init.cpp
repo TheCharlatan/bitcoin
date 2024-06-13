@@ -9,7 +9,6 @@
 
 #include <kernel/checks.h>
 #include <kernel/mempool_persist.h>
-#include <kernel/validation_cache_sizes.h>
 
 #include <addrman.h>
 #include <banman.h>
@@ -53,7 +52,6 @@
 #include <node/mempool_persist_args.h>
 #include <node/miner.h>
 #include <node/peerman_args.h>
-#include <node/validation_cache_args.h>
 #include <policy/feerate.h>
 #include <policy/fees.h>
 #include <policy/fees_args.h>
@@ -117,7 +115,6 @@
 
 using kernel::DumpMempool;
 using kernel::LoadMempool;
-using kernel::ValidationCacheSizes;
 
 using node::ApplyArgsManOptions;
 using node::BlockManager;
@@ -1145,14 +1142,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                   args.GetArg("-datadir", ""), fs::PathToString(fs::current_path()));
     }
 
-    ValidationCacheSizes validation_cache_sizes{};
-    ApplyArgsManOptions(args, validation_cache_sizes);
-    if (!InitSignatureCache(validation_cache_sizes.signature_cache_bytes)
-        || !InitScriptExecutionCache(validation_cache_sizes.script_execution_cache_bytes))
-    {
-        return InitError(strprintf(_("Unable to allocate memory for -maxsigcachesize: '%s' MiB"), args.GetIntArg("-maxsigcachesize", DEFAULT_MAX_SIG_CACHE_BYTES >> 20)));
-    }
-
     assert(!node.scheduler);
     node.scheduler = std::make_unique<CScheduler>();
     auto& scheduler = *node.scheduler;
@@ -1534,7 +1523,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
         LogPrintf("* Using %.1f MiB for in-memory UTXO set (plus up to %.1f MiB of unused mempool space)\n", cache_sizes.coins * (1.0 / 1024 / 1024), mempool_opts.max_size_bytes * (1.0 / 1024 / 1024));
 
-        node.chainman = std::make_unique<ChainstateManager>(*Assert(node.shutdown), chainman_opts, blockman_opts);
+        bilingual_str err{};
+        node.chainman = std::make_unique<ChainstateManager>(*Assert(node.shutdown), chainman_opts, blockman_opts, err);
+        if (!err.empty()) {
+            return InitError(err);
+        }
         ChainstateManager& chainman = *node.chainman;
 
         // This is defined and set here instead of inline in validation.h to avoid a hard

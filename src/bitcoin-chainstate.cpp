@@ -15,7 +15,6 @@
 #include <kernel/chainstatemanager_opts.h>
 #include <kernel/checks.h>
 #include <kernel/context.h>
-#include <kernel/validation_cache_sizes.h>
 
 #include <consensus/validation.h>
 #include <core_io.h>
@@ -60,13 +59,6 @@ int main(int argc, char* argv[])
     // things instantiated so far requires running the epilogue to be torn down
     // properly
     assert(kernel::SanityChecks(kernel_context));
-
-    // Necessary for CheckInputScripts (eventually called by ProcessNewBlock),
-    // which will try the script cache first and fall back to actually
-    // performing the check with the signature cache.
-    kernel::ValidationCacheSizes validation_cache_sizes{};
-    Assert(InitSignatureCache(validation_cache_sizes.signature_cache_bytes));
-    Assert(InitScriptExecutionCache(validation_cache_sizes.script_execution_cache_bytes));
 
     ValidationSignals validation_signals{std::make_unique<util::ImmediateTaskRunner>()};
 
@@ -116,7 +108,9 @@ int main(int argc, char* argv[])
         .notifications = chainman_opts.notifications,
     };
     util::SignalInterrupt interrupt;
-    ChainstateManager chainman{interrupt, chainman_opts, blockman_opts};
+    bilingual_str err;
+    ChainstateManager chainman{interrupt, chainman_opts, blockman_opts, err};
+    Assert(err.empty());
 
     node::CacheSizes cache_sizes;
     cache_sizes.block_tree_db = 2 << 20;

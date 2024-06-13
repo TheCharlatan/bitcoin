@@ -10,9 +10,10 @@
 #include <attributes.h>
 #include <chain.h>
 #include <checkqueue.h>
-#include <kernel/chain.h>
 #include <consensus/amount.h>
+#include <cuckoocache.h>
 #include <deploymentstatus.h>
+#include <kernel/chain.h>
 #include <kernel/chainparams.h>
 #include <kernel/chainstatemanager_opts.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
@@ -21,6 +22,7 @@
 #include <policy/packages.h>
 #include <policy/policy.h>
 #include <script/script_error.h>
+#include <script/sigcache.h>
 #include <sync.h>
 #include <txdb.h>
 #include <txmempool.h> // For CTxMemPool::cs
@@ -87,6 +89,8 @@ extern GlobalMutex g_best_block_mutex;
 extern std::condition_variable g_best_block_cv;
 /** Used to notify getblocktemplate RPC of new tips. */
 extern uint256 g_best_block;
+
+using ScriptCache = CuckooCache::cache<uint256, SignatureCacheHasher>;
 
 /** Documentation for argument 'checklevel'. */
 extern const std::vector<std::string> CHECKLEVEL_DOC;
@@ -340,10 +344,11 @@ private:
     bool cacheStore;
     ScriptError error{SCRIPT_ERR_UNKNOWN_ERROR};
     PrecomputedTransactionData *txdata;
+    CSignatureCache* m_signature_cache;
 
 public:
-    CScriptCheck(const CTxOut& outIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
-        m_tx_out(outIn), ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), txdata(txdataIn) { }
+    CScriptCheck(const CTxOut& outIn, const CTransaction& txToIn, CSignatureCache& signature_cache, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
+        m_tx_out(outIn), ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), txdata(txdataIn), m_signature_cache(&signature_cache) { }
 
     CScriptCheck(const CScriptCheck&) = delete;
     CScriptCheck& operator=(const CScriptCheck&) = delete;
@@ -361,7 +366,7 @@ static_assert(std::is_nothrow_move_constructible_v<CScriptCheck>);
 static_assert(std::is_nothrow_destructible_v<CScriptCheck>);
 
 /** Initializes the script-execution cache */
-[[nodiscard]] bool InitScriptExecutionCache(size_t max_size_bytes);
+[[nodiscard]] bool InitScriptExecutionCache(size_t max_size_bytes, ScriptCache& script_execution_cache, CSHA256& script_execution_cache_hasher);
 
 /** Functions for validating blocks and updating the block tree */
 
@@ -796,6 +801,11 @@ private:
     friend ChainstateManager;
 };
 
+struct ValidationCache {
+    ScriptCache m_script_execution_cache;
+    CSHA256 m_script_execution_cache_hasher;
+    CSignatureCache m_signature_cache;
+};
 
 enum class SnapshotCompletionResult {
     SUCCESS,
@@ -930,7 +940,7 @@ private:
 public:
     using Options = kernel::ChainstateManagerOpts;
 
-    explicit ChainstateManager(const util::SignalInterrupt& interrupt, Options options, node::BlockManager::Options blockman_options);
+    explicit ChainstateManager(const util::SignalInterrupt& interrupt, Options options, node::BlockManager::Options blockman_options, bilingual_str& error);
 
     //! Function to restart active indexes; set dynamically to avoid a circular
     //! dependency on `base/index.cpp`.
@@ -969,6 +979,8 @@ public:
     //! A single BlockManager instance is shared across each constructed
     //! chainstate to avoid duplicating block metadata.
     node::BlockManager m_blockman;
+
+    ValidationCache m_validation_cache;
 
     /**
      * Whether initial block download has ended and IsInitialBlockDownload

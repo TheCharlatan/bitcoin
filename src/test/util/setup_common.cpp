@@ -6,8 +6,6 @@
 
 #include <test/util/setup_common.h>
 
-#include <kernel/validation_cache_sizes.h>
-
 #include <addrman.h>
 #include <banman.h>
 #include <chainparams.h>
@@ -30,7 +28,6 @@
 #include <node/mempool_args.h>
 #include <node/miner.h>
 #include <node/peerman_args.h>
-#include <node/validation_cache_args.h>
 #include <noui.h>
 #include <policy/fees.h>
 #include <policy/fees_args.h>
@@ -67,7 +64,6 @@
 #include <stdexcept>
 
 using kernel::BlockTreeDB;
-using kernel::ValidationCacheSizes;
 using node::ApplyArgsManOptions;
 using node::BlockAssembler;
 using node::BlockManager;
@@ -186,11 +182,6 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
     m_node.ecc_context = std::make_unique<ECC_Context>();
     SetupEnvironment();
 
-    ValidationCacheSizes validation_cache_sizes{};
-    ApplyArgsManOptions(*m_node.args, validation_cache_sizes);
-    Assert(InitSignatureCache(validation_cache_sizes.signature_cache_bytes));
-    Assert(InitScriptExecutionCache(validation_cache_sizes.script_execution_cache_bytes));
-
     m_node.chain = interfaces::MakeChain(m_node);
     static bool noui_connected = false;
     if (!noui_connected) {
@@ -248,7 +239,9 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
         .blocks_dir = m_args.GetBlocksDirPath(),
         .notifications = chainman_opts.notifications,
     };
-    m_node.chainman = std::make_unique<ChainstateManager>(*Assert(m_node.shutdown), chainman_opts, blockman_opts);
+    bilingual_str error;
+    m_node.chainman = std::make_unique<ChainstateManager>(*Assert(m_node.shutdown), chainman_opts, blockman_opts, error);
+    Assert(error.empty());
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<BlockTreeDB>(DBParams{
         .path = m_args.GetDataDirNet() / "blocks" / "index",
         .cache_bytes = static_cast<size_t>(m_cache_sizes.block_tree_db),

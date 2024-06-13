@@ -16,6 +16,7 @@ AM_LIBTOOLFLAGS = --preserve-dup-deps
 PTHREAD_FLAGS = $(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
 EXTRA_LIBRARIES =
 
+include_HEADERS =
 lib_LTLIBRARIES =
 noinst_LTLIBRARIES =
 
@@ -110,6 +111,7 @@ endif
 
 if BUILD_BITCOIN_CHAINSTATE
   bin_PROGRAMS += bitcoin-chainstate
+  bin_PROGRAMS += bitcoin-chainstate_c
 endif
 
 .PHONY: FORCE check-symbols check-security
@@ -124,6 +126,7 @@ BITCOIN_CORE_H = \
   base58.h \
   bech32.h \
   bip324.h \
+  bitcoinkernel.h \
   blockencodings.h \
   blockfilter.h \
   chain.h \
@@ -192,7 +195,6 @@ BITCOIN_CORE_H = \
   kernel/mempool_removal_reason.h \
   kernel/messagestartchars.h \
   kernel/notifications_interface.h \
-  kernel/validation_cache_sizes.h \
   key.h \
   key_io.h \
   logging.h \
@@ -234,7 +236,6 @@ BITCOIN_CORE_H = \
   node/transaction.h \
   node/txreconciliation.h \
   node/utxo_snapshot.h \
-  node/validation_cache_args.h \
   noui.h \
   outputtype.h \
   policy/v3_policy.h \
@@ -441,7 +442,6 @@ libbitcoin_node_a_SOURCES = \
   node/transaction.cpp \
   node/txreconciliation.cpp \
   node/utxo_snapshot.cpp \
-  node/validation_cache_args.cpp \
   noui.cpp \
   policy/v3_policy.cpp \
   policy/fees.cpp \
@@ -892,6 +892,13 @@ bitcoin_util_LDADD = \
   $(LIBSECP256K1)
 #
 
+# bitcoin-chainstate C binary #
+bitcoin_chainstate_c_SOURCES = bitcoin-chainstate.c
+bitcoin_chainstate_c_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
+bitcoin_chainstate_c_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+bitcoin_chainstate_c_LDFLAGS = $(RELDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)
+bitcoin_chainstate_c_LDADD = $(LIBBITCOINKERNEL)
+
 # bitcoin-chainstate binary #
 bitcoin_chainstate_SOURCES = bitcoin-chainstate.cpp
 bitcoin_chainstate_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
@@ -908,6 +915,7 @@ bitcoin_chainstate_LDADD += $(LIBSECP256K1)
 # bitcoinkernel library #
 if BUILD_BITCOIN_KERNEL_LIB
 lib_LTLIBRARIES += $(LIBBITCOINKERNEL)
+include_HEADERS += bitcoinkernel.h
 
 libbitcoinkernel_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(PTHREAD_FLAGS)
 libbitcoinkernel_la_LIBADD = $(LIBBITCOIN_CRYPTO) $(LIBLEVELDB) $(LIBMEMENV) $(LIBSECP256K1)
@@ -949,6 +957,7 @@ libbitcoinkernel_la_SOURCES = \
   kernel/disconnected_transactions.cpp \
   kernel/mempool_persist.cpp \
   kernel/mempool_removal_reason.cpp \
+  bitcoin-chainstate-wrapper.cpp \
   logging.cpp \
   node/blockstorage.cpp \
   node/chainstate.cpp \
