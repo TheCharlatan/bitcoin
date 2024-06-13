@@ -1,0 +1,543 @@
+// Copyright (c) 2024-present The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#include <kernel/bitcoinkernel.h>
+
+#include <cassert>
+#include <memory>
+#include <string>
+#include <vector>
+
+int verify_script(std::vector<unsigned char>& script_pubkey,
+                  int64_t amount,
+                  std::vector<unsigned char>& tx_to,
+                  std::vector<kernel_TransactionOutput> spent_outputs,
+                  unsigned int input_index,
+                  unsigned int flags,
+                  kernel_Error* error)
+{
+    return kernel_verify_script_with_spent_outputs(
+        script_pubkey.data(), script_pubkey.size(),
+        amount,
+        tx_to.data(), tx_to.size(),
+        spent_outputs.data(), spent_outputs.size(),
+        input_index,
+        flags,
+        error);
+}
+
+template<typename T>
+class Logger
+{
+private:
+    struct Deleter {
+        void operator()(kernel_LoggingConnection* ptr) const
+        {
+            kernel_logging_connection_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_LoggingConnection, Deleter> m_connection;
+
+public:
+    Logger(kernel_LoggingOptions& logging_options, kernel_Error& error)
+        : m_connection{kernel_logging_connection_create(
+              [](void* user_data, const char* message) { static_cast<T*>(user_data)->LogMessage(message); },
+              this,
+              logging_options,
+              &error)}
+    {
+    }
+
+    virtual ~Logger() = default;
+
+    Logger() = delete;
+    Logger(Logger const&) = delete;
+    Logger& operator=(Logger const&) = delete;
+
+    static void EnableLogCategory(kernel_LogCategory category)
+    {
+        kernel_enable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION);
+    }
+
+    virtual void LogMessage(const char* message) {}
+};
+
+template<typename T>
+class KernelNotifications
+{
+private:
+    kernel_NotificationInterfaceCallbacks MakeCallbacks()
+    {
+        return kernel_NotificationInterfaceCallbacks{
+            .user_data = this,
+            .block_tip = [](void* user_data, kernel_SynchronizationState state, kernel_BlockIndex* index) {
+                static_cast<T*>(user_data)->BlockTipHandler(state, index);
+            },
+            .header_tip = [](void* user_data, kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {
+                static_cast<T*>(user_data)->HeaderTipHandler(state, height, timestamp, presync);
+            },
+            .progress = [](void* user_data, const char* title, int progress_percent, bool resume_possible) {
+                static_cast<T*>(user_data)->ProgressHandler(title, progress_percent, resume_possible);
+            },
+            .warning = [](void* user_data, const char* warning) { static_cast<T*>(user_data)->WarningHandler(warning); },
+            .flush_error = [](void* user_data, const char* error) { static_cast<T*>(user_data)->FlushErrorHandler(error); },
+            .fatal_error = [](void* user_data, const char* error) { static_cast<T*>(user_data)->FatalErrorHandler(error); },
+        };
+    }
+
+public:
+    virtual ~KernelNotifications() = default;
+
+    virtual void BlockTipHandler(kernel_SynchronizationState state, kernel_BlockIndex* index) {}
+
+    virtual void HeaderTipHandler(kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {}
+
+    virtual void ProgressHandler(const char* title, int progress_percent, bool resum_possible) {}
+
+    virtual void WarningHandler(const char* warning) {}
+
+    virtual void FlushErrorHandler(const char* error) {}
+
+    virtual void FatalErrorHandler(const char* error) {}
+
+    friend class ContextOptions;
+};
+
+class ChainParams
+{
+private:
+    struct Deleter {
+        void operator()(const kernel_ChainParameters* ptr) const
+        {
+            kernel_chain_parameters_destroy(ptr);
+        }
+    };
+
+public:
+    std::unique_ptr<const kernel_ChainParameters, Deleter> m_chain_params;
+
+    ChainParams(kernel_ChainType chain_type) : m_chain_params{kernel_chain_parameters_create(chain_type)} {}
+
+    ChainParams() = delete;
+
+    friend class ContextOptions;
+};
+
+template<typename T>
+class TaskRunner
+{
+protected:
+    virtual void insert(kernel_ValidationEvent* event, kernel_Error* error)
+    {
+        kernel_execute_event_and_destroy(event, nullptr);
+    }
+
+    virtual void flush() {}
+
+    virtual size_t size() { return 0; }
+
+public:
+    virtual ~TaskRunner() = default;
+
+    kernel_TaskRunnerCallbacks MakeCallbacks()
+    {
+        return kernel_TaskRunnerCallbacks{
+            .user_data = this,
+            .insert = [](void* user_data, kernel_ValidationEvent* event) { static_cast<T*>(user_data)->insert(event, nullptr); },
+            .flush = [](void* user_data) { static_cast<T*>(user_data)->flush(); },
+            .size = [](void* user_data) -> unsigned int { return static_cast<T*>(user_data)->size(); },
+        };
+    }
+};
+
+class ContextOptions
+{
+private:
+    struct Deleter {
+        void operator()(kernel_ContextOptions* ptr) const
+        {
+            kernel_context_options_destroy(ptr);
+        }
+    };
+
+public:
+    std::unique_ptr<kernel_ContextOptions, Deleter> m_options;
+
+    ContextOptions() : m_options{kernel_context_options_create()} {}
+
+    void SetChainParams(ChainParams& chain_params, kernel_Error& error)
+    {
+        kernel_context_options_set(
+            m_options.get(),
+            kernel_ContextOptionType::kernel_CHAIN_PARAMETERS_OPTION,
+            reinterpret_cast<const void*>(chain_params.m_chain_params.get()),
+            &error);
+    }
+
+    template<typename T>
+    void SetNotificationCallbacks(KernelNotifications<T>& notifications, kernel_Error& error)
+    {
+        auto callbacks = notifications.MakeCallbacks();
+        kernel_context_options_set(
+            m_options.get(),
+            kernel_ContextOptionType::kernel_NOTIFICATION_INTERFACE_CALLBACKS_OPTION,
+            &callbacks,
+            &error);
+    }
+
+    template<typename T>
+    void SetTaskRunnerCallbacks(TaskRunner<T>& task_runner, kernel_Error& error)
+    {
+        auto callbacks = task_runner.MakeCallbacks();
+        kernel_context_options_set(m_options.get(), kernel_ContextOptionType::kernel_TASK_RUNNER_CALLBACKS_OPTION, &callbacks, &error);
+    }
+
+    friend class Context;
+};
+
+class Context
+{
+private:
+    struct Deleter {
+        void operator()(kernel_Context* ptr) const
+        {
+            kernel_context_destroy(ptr);
+        }
+    };
+
+public:
+    std::unique_ptr<kernel_Context, Deleter> m_context;
+
+    Context(ContextOptions& opts, kernel_Error& error)
+        : m_context{kernel_context_create(opts.m_options.get(), &error)}
+    {
+    }
+
+    Context() = delete;
+};
+
+class UnownedBlock
+{
+private:
+    const kernel_BlockPointer* m_block;
+
+public:
+    UnownedBlock(const kernel_BlockPointer* block) : m_block{block} {}
+
+    UnownedBlock() = delete;
+    UnownedBlock(const UnownedBlock&) = delete;
+    UnownedBlock& operator=(const UnownedBlock&) = delete;
+
+    std::vector<unsigned char> GetBlockData(kernel_Error& error) const
+    {
+        auto serialized_block{kernel_copy_block_pointer_data(m_block, &error)};
+        if (error.code != kernel_ErrorCode::kernel_ERROR_OK) {
+            return {};
+        }
+        std::vector<unsigned char> vec{serialized_block->data, serialized_block->data + serialized_block->size};
+        kernel_byte_array_destroy(serialized_block);
+        return vec;
+    }
+};
+
+template<typename T>
+class ValidationInterface
+{
+private:
+    struct Deleter {
+        void operator()(kernel_ValidationInterface* ptr) const
+        {
+            kernel_validation_interface_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_ValidationInterface, Deleter> m_validation_interface;
+
+public:
+    ValidationInterface() : m_validation_interface{kernel_validation_interface_create(kernel_ValidationInterfaceCallbacks{
+                                .user_data = this,
+                                .block_checked = [](void* user_data, const kernel_BlockPointer* block, const kernel_BlockValidationState* state) {
+                                    static_cast<T*>(user_data)->BlockChecked(UnownedBlock{block}, state);
+                                },
+                            })}
+    {
+    }
+
+    virtual ~ValidationInterface() = default;
+
+    virtual void BlockChecked(UnownedBlock block, const kernel_BlockValidationState* state) {}
+
+    virtual void Register(Context& context, kernel_Error& error)
+    {
+        kernel_validation_interface_register(context.m_context.get(), m_validation_interface.get(), &error);
+    }
+
+    virtual void Unregister(Context& context, kernel_Error& error)
+    {
+        kernel_validation_interface_unregister(context.m_context.get(), m_validation_interface.get(), &error);
+    }
+};
+
+class ChainstateManagerOptions
+{
+private:
+    struct Deleter {
+        void operator()(kernel_ChainstateManagerOptions* ptr) const
+        {
+            kernel_chainstate_manager_options_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_ChainstateManagerOptions, Deleter> m_options;
+
+public:
+    ChainstateManagerOptions(Context& context, const std::string& data_dir, kernel_Error& error)
+        : m_options{kernel_chainstate_manager_options_create(context.m_context.get(), data_dir.c_str(), &error)}
+    {
+    }
+
+    ChainstateManagerOptions() = delete;
+
+    friend class ChainMan;
+};
+
+class BlockManagerOptions
+{
+private:
+    struct Deleter {
+        void operator()(kernel_BlockManagerOptions* ptr) const
+        {
+            kernel_block_manager_options_destroy(ptr);
+        }
+    };
+
+public:
+    std::unique_ptr<kernel_BlockManagerOptions, Deleter> m_options;
+
+    BlockManagerOptions(Context& context, const std::string& data_dir, kernel_Error& error)
+        : m_options{kernel_block_manager_options_create(context.m_context.get(), data_dir.c_str(), &error)}
+    {
+    }
+
+    BlockManagerOptions() = delete;
+
+    friend class ChainMan;
+};
+
+class ChainstateLoadOptions
+{
+private:
+    struct Deleter {
+        void operator()(kernel_ChainstateLoadOptions* ptr) const
+        {
+            kernel_chainstate_load_options_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_ChainstateLoadOptions, Deleter> m_options;
+
+public:
+    ChainstateLoadOptions()
+        : m_options{kernel_chainstate_load_options_create()}
+    {
+    }
+
+    void SetWipeBlockTreeDb(bool wipe_block_tree, kernel_Error& error)
+    {
+        kernel_chainstate_load_options_set(m_options.get(),
+                                           kernel_ChainstateLoadOptionType::kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION,
+                                           &wipe_block_tree,
+                                           &error);
+    }
+
+    void SetWipeChainstateDb(bool wipe_chainstate, kernel_Error& error)
+    {
+        kernel_chainstate_load_options_set(m_options.get(),
+                                           kernel_ChainstateLoadOptionType::kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION,
+                                           &wipe_chainstate,
+                                           &error);
+    }
+
+    friend class ChainMan;
+};
+
+class Block
+{
+private:
+    struct Deleter {
+        void operator()(kernel_Block* ptr) const
+        {
+            kernel_block_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_Block, Deleter> m_block;
+
+public:
+    Block(std::string& block_str, kernel_Error& error)
+        : m_block{kernel_block_from_string(block_str.c_str(), &error)}
+    {
+    }
+
+    Block(kernel_Block* block) : m_block{block} {}
+
+    Block() = delete;
+
+    std::vector<unsigned char> ToCharVec(kernel_Error& error)
+    {
+        auto serialized_block{kernel_copy_block_data(m_block.get(), &error)};
+        if (error.code != kernel_ErrorCode::kernel_ERROR_OK) {
+            return {};
+        }
+        std::vector<unsigned char> vec{serialized_block->data, serialized_block->data + serialized_block->size};
+        kernel_byte_array_destroy(serialized_block);
+        return vec;
+    }
+
+    friend class ChainMan;
+};
+
+class BlockIndex
+{
+private:
+    struct Deleter {
+        void operator()(kernel_BlockIndex* ptr) const
+        {
+            kernel_block_index_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_BlockIndex, Deleter> m_block_index;
+
+public:
+    BlockIndex(kernel_BlockIndex* block_index) : m_block_index{block_index} {}
+
+    BlockIndex() = delete;
+    BlockIndex(const BlockIndex&) = delete;
+    BlockIndex& operator=(const BlockIndex&) = delete;
+
+    BlockIndex GetPreviousBlockIndex(kernel_Error& error)
+    {
+        return kernel_get_previous_block_index(m_block_index.get(), &error);
+    }
+
+    bool IsNull()
+    {
+        return m_block_index == nullptr;
+    }
+
+    friend class ChainMan;
+};
+
+class BlockUndo
+{
+private:
+    struct Deleter {
+        void operator()(kernel_BlockUndo* ptr) const
+        {
+            kernel_block_undo_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_BlockUndo, Deleter> m_block_undo;
+
+public:
+    uint64_t m_size;
+
+    BlockUndo(kernel_BlockUndo* block_undo, kernel_Error& error) : m_block_undo{block_undo}
+    {
+        m_size = kernel_block_undo_size(block_undo, &error);
+    }
+
+    BlockUndo() = delete;
+    BlockUndo(const BlockUndo&) = delete;
+    BlockUndo& operator=(const BlockUndo&) = delete;
+
+    uint64_t GetTxOutSize(uint64_t index, kernel_Error& error)
+    {
+        return kernel_get_transaction_undo_size(m_block_undo.get(), index, &error);
+    }
+
+    kernel_TransactionOutput* GetTxUndoPrevoutByIndex(uint64_t tx_undo_index, uint64_t tx_prevout_index, kernel_Error& error)
+    {
+        return kernel_get_undo_output_by_index(m_block_undo.get(), tx_undo_index, tx_prevout_index, &error);
+    }
+};
+
+class ChainMan
+{
+private:
+    kernel_ChainstateManager* m_chainman;
+    Context& m_context;
+
+public:
+    ChainMan(Context& context, ChainstateManagerOptions& chainman_opts, BlockManagerOptions& blockman_opts, kernel_Error& error)
+        : m_chainman{kernel_chainstate_manager_create(chainman_opts.m_options.get(), blockman_opts.m_options.get(), context.m_context.get(), &error)},
+          m_context{context}
+    {
+    }
+
+    ChainMan() = delete;
+    ChainMan(const ChainMan&) = delete;
+    ChainMan& operator=(const ChainMan&) = delete;
+
+    void LoadChainstate(ChainstateLoadOptions& chainstate_load_opts, kernel_Error& error)
+    {
+        kernel_chainstate_manager_load_chainstate(m_context.m_context.get(), chainstate_load_opts.m_options.get(), m_chainman, &error);
+    }
+
+    void ImportBlocks(std::vector<std::string> paths, kernel_Error& error)
+    {
+        std::vector<const char*> c_paths;
+        c_paths.reserve(paths.size());
+        for (const auto& path : paths) {
+            c_paths.push_back(path.c_str());
+        }
+
+        kernel_import_blocks(m_context.m_context.get(), m_chainman, c_paths.data(), c_paths.size(), &error);
+    }
+
+    BlockIndex GetBlockIndexFromTip(kernel_Error& error)
+    {
+        return kernel_get_block_index_from_tip(m_context.m_context.get(), m_chainman, &error);
+    }
+
+    BlockIndex GetBlockIndexFromGenesis(kernel_Error& error)
+    {
+        return kernel_get_block_index_from_genesis(m_context.m_context.get(), m_chainman, &error);
+    }
+
+    BlockIndex GetBlockIndexByHeight(int height, kernel_Error& error)
+    {
+        return kernel_get_block_index_by_height(m_context.m_context.get(), m_chainman, height, &error);
+    }
+
+    BlockIndex GetNextBlockIndex(BlockIndex& block_index, kernel_Error& error)
+    {
+        return kernel_get_next_block_index(m_context.m_context.get(), block_index.m_block_index.get(), m_chainman, &error);
+    }
+
+    Block ReadBlock(BlockIndex& block_index, kernel_Error& error)
+    {
+        return Block{kernel_read_block_from_disk(m_context.m_context.get(), m_chainman, block_index.m_block_index.get(), &error)};
+    }
+
+    BlockUndo ReadBlockUndo(BlockIndex& block_index, kernel_Error& error)
+    {
+        return BlockUndo{kernel_read_block_undo_from_disk(m_context.m_context.get(), m_chainman, block_index.m_block_index.get(), &error), error};
+    }
+
+    bool ValidateBlock(Block& block, kernel_Error& error)
+    {
+        return kernel_chainstate_manager_process_block(m_context.m_context.get(), m_chainman, block.m_block.get(), &error);
+    }
+
+    ~ChainMan()
+    {
+        kernel_Error error;
+        kernel_chainstate_manager_destroy(m_chainman, m_context.m_context.get(), &error);
+        assert(error.code == kernel_ERROR_OK);
+    }
+};

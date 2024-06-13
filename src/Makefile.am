@@ -915,6 +915,7 @@ bitcoin_chainstate_LDADD += $(LIBSECP256K1)
 if BUILD_BITCOIN_KERNEL_LIB
 lib_LTLIBRARIES += $(LIBBITCOINKERNEL)
 include_HEADERS += kernel/bitcoinkernel.h
+include_HEADERS += kernel/bitcoinkernel_wrapper.h
 
 libbitcoinkernel_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(PTHREAD_FLAGS)
 libbitcoinkernel_la_LIBADD = $(LIBBITCOIN_CRYPTO) $(LIBLEVELDB) $(LIBMEMENV) $(LIBSECP256K1)
