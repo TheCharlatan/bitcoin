@@ -9,7 +9,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <memory>
 #include <random>
 #include <string>
 #include <vector>
@@ -43,6 +45,23 @@ std::vector<unsigned char> hex_string_to_char_vec(const std::string& hex)
     }
 
     return bytes;
+}
+
+std::vector<std::vector<unsigned char>> read_blocks(const std::string& file_path)
+{
+    std::vector<std::vector<unsigned char>> lines;
+    std::ifstream file{file_path};
+
+    if (!file.is_open()) {
+        return lines;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        lines.push_back(hex_string_to_char_vec(line));
+    }
+    file.close();
+    return lines;
 }
 
 void assert_is_error(kernel_Error& error, kernel_ErrorCode code)
@@ -208,18 +227,17 @@ Context create_context(TestKernelNotifications& notifications, kernel_Error& err
     return Context{options, error};
 }
 
-void chainman_test()
+std::unique_ptr<ChainMan> create_chainman(std::filesystem::path path_root,
+                                          bool reindex,
+                                          bool wipe_chainstate,
+                                          kernel_Error& error,
+                                          Context& context)
 {
-    kernel_Error error{};
-    error.code = kernel_ErrorCode::kernel_ERROR_OK;
-
-    TestKernelNotifications notifications{};
-    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    ChainstateManagerOptions chainman_opts{context, path_root, error};
     assert_error_ok(error);
-
-    const auto rand_str{random_string(16)};
-    auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
-    std::filesystem::create_directories(path_root);
+    BlockManagerOptions blockman_opts{context, path_root / "blocks", error};
+    assert_error_ok(error);
+    assert_error_ok(error);
 
     // Check that creating invalid options gives us an error
     {
@@ -234,16 +252,96 @@ void chainman_test()
         assert_is_error(opts_error, kernel_ERROR_INTERNAL);
     }
 
-    ChainstateManagerOptions chainman_opts{context, path_root, error};
-    assert_error_ok(error);
-    BlockManagerOptions blockman_opts{context, path_root / "blocks", error};
-    assert_error_ok(error);
-
-    ChainMan chainman{context, chainman_opts, blockman_opts, error};
+    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts, error)};
     assert_error_ok(error);
 
     ChainstateLoadOptions chainstate_load_opts{};
-    chainman.LoadChainstate(chainstate_load_opts, error);
+    chainman->LoadChainstate(chainstate_load_opts, error);
+    assert_error_ok(error);
+
+    return chainman;
+}
+
+void chainman_mainnet_validation_test(std::filesystem::path path_root)
+{
+    kernel_Error error{};
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    assert_error_ok(error);
+    auto chainman{create_chainman(path_root, false, false, error, context)};
+    assert_error_ok(error);
+
+    {
+        // Process an invalid block
+        auto raw_block = hex_string_to_char_vec("012300");
+        Block block{raw_block, error};
+        assert_is_error(error, kernel_ERROR_INTERNAL);
+        error.code = kernel_ERROR_OK;
+    }
+    {
+        // Process an empty block
+        auto raw_block = hex_string_to_char_vec("");
+        Block block{raw_block, error};
+        assert_is_error(error, kernel_ERROR_INTERNAL);
+        error.code = kernel_ERROR_OK;
+    }
+
+    auto raw_block = hex_string_to_char_vec("010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e362990101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000");
+    Block block{raw_block, error};
+    chainman->ProcessBlock(block, error);
+    assert_error_ok(error);
+
+    // If we try to validate it again, it should be a duplicate
+    assert(!chainman->ProcessBlock(block, error));
+    assert_is_error(error, kernel_ERROR_DUPLICATE_BLOCK);
+}
+
+void chainman_regtest_validation_test()
+{
+    const auto rand_str{random_string(16)};
+    auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
+    std::filesystem::create_directories(path_root);
+    kernel_Error error;
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_REGTEST)};
+    assert_error_ok(error);
+    auto chainman{create_chainman(path_root, false, false, error, context)};
+    assert_error_ok(error);
+
+    auto blocks{read_blocks("block_data.txt")};
+    for (auto& raw_block: blocks) {
+        Block block{raw_block, error};
+        assert_error_ok(error);
+        chainman->ProcessBlock(block, error);
+        assert_error_ok(error);
+    }
+}
+
+void chainman_reindex_test(std::filesystem::path path_root)
+{
+    kernel_Error error{};
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    assert_error_ok(error);
+    auto chainman{create_chainman(path_root, true, false, error, context)};
+    assert_error_ok(error);
+}
+
+void chainman_reindex_chainstate_test(std::filesystem::path path_root)
+{
+    kernel_Error error{};
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    assert_error_ok(error);
+    auto chainman{create_chainman(path_root, false, true, error, context)};
     assert_error_ok(error);
 }
 
@@ -285,7 +383,17 @@ int main()
 
     default_context_test();
 
-    chainman_test();
+    const auto rand_str{random_string(16)};
+    auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
+    std::filesystem::create_directories(path_root);
+
+    chainman_mainnet_validation_test(path_root);
+
+    chainman_regtest_validation_test();
+
+    chainman_reindex_test(path_root);
+
+    chainman_reindex_chainstate_test(path_root);
 
     std::cout << "Libbitcoinkernel test completed.\n";
     return 0;

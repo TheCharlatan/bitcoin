@@ -269,6 +269,31 @@ public:
     friend class ChainMan;
 };
 
+class Block
+{
+private:
+    struct Deleter {
+        void operator()(kernel_Block* ptr) const
+        {
+            kernel_block_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_Block, Deleter> m_block;
+
+public:
+    Block(std::vector<unsigned char>& raw_block, kernel_Error& error)
+        : m_block{kernel_block_create(raw_block.data(), raw_block.size(), &error)}
+    {
+    }
+
+    Block(kernel_Block* block) : m_block{block} {}
+
+    Block() = delete;
+
+    friend class ChainMan;
+};
+
 class ChainMan
 {
 private:
@@ -289,6 +314,11 @@ public:
     void LoadChainstate(ChainstateLoadOptions& chainstate_load_opts, kernel_Error& error)
     {
         kernel_chainstate_manager_load_chainstate(m_context.m_context.get(), chainstate_load_opts.m_options.get(), m_chainman, &error);
+    }
+
+    bool ProcessBlock(Block& block, kernel_Error& error)
+    {
+        return kernel_chainstate_manager_process_block(m_context.m_context.get(), m_chainman, block.m_block.get(), &error);
     }
 
     ~ChainMan()
