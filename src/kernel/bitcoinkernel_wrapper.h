@@ -198,6 +198,11 @@ public:
         return *this;
     }
 
+    Transaction(btck_Transaction* transaction)
+        : m_transaction{check(transaction)}
+    {
+    }
+
     uint64_t CountOutputs()
     {
         return btck_transaction_count_outputs(m_transaction.get());
@@ -443,6 +448,50 @@ public:
     friend class ChainMan;
 };
 
+class Block
+{
+private:
+    struct Deleter {
+        void operator()(btck_Block* ptr) const noexcept
+        {
+            btck_block_destroy(ptr);
+        }
+    };
+
+public:
+    std::unique_ptr<btck_Block, Deleter> m_block;
+
+    Block(const std::span<const std::byte> raw_block)
+        : m_block{check(btck_block_create(raw_block.data(), raw_block.size()))}
+    {
+    }
+
+    Block(btck_Block* block) : m_block{check(block)} {}
+
+    // Copy constructor and assignment
+    Block(const Block& other)
+        : m_block{check(btck_block_copy(other.m_block.get()))} {}
+    Block& operator=(const Block& other)
+    {
+        if (this != &other) {
+            m_block.reset(check(btck_block_copy(other.m_block.get())));
+        }
+        return *this;
+    }
+
+    uint64_t CountOutputs()
+    {
+        return btck_block_count_transactions(m_block.get());
+    }
+
+    Transaction GetTransaction(uint64_t index)
+    {
+        return Transaction{btck_block_get_transaction_at(m_block.get(), index)};
+    }
+
+    friend class ChainMan;
+};
+
 class ChainMan
 {
 private:
@@ -456,6 +505,14 @@ public:
 
     ChainMan(const ChainMan&) = delete;
     ChainMan& operator=(const ChainMan&) = delete;
+
+    bool ProcessBlock(const Block& block, bool* new_block) const
+    {
+        int _new_block;
+        int res = btck_chainstate_manager_process_block(m_chainman, block.m_block.get(), &_new_block);
+        if (new_block) *new_block = _new_block == 1;
+        return res == 0;
+    }
 
     ~ChainMan()
     {
