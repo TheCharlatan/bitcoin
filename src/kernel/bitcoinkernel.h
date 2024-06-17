@@ -671,6 +671,28 @@ void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* block_mana
 kernel_ChainstateLoadOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_load_options_create();
 
 /**
+ * @brief Sets wipe block tree db in the chainstate load options.
+ *
+ * @param[in] chainstate_load_options Non-null, created by @ref kernel_chainstate_load_options_create.
+ * @param[in] wipe_block_tree_db      Set wipe block tree db.
+ */
+void kernel_chainstate_load_options_set_wipe_block_tree_db(
+    kernel_ChainstateLoadOptions* chainstate_load_options,
+    bool wipe_block_tree_db
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Sets wipe chainstate db in the chainstate load options.
+ *
+ * @param[in] chainstate_load_options Non-null, created by @ref kernel_chainstate_load_options_create.
+ * @param[in] wipe_chainstate_db      Set wipe chainstate db.
+ */
+void kernel_chainstate_load_options_set_wipe_chainstate_db(
+    kernel_ChainstateLoadOptions* chainstate_load_options,
+    bool wipe_chainstate_db
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * Destroy the chainstate load options
  */
 void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_options);
