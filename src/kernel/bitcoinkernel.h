@@ -177,6 +177,11 @@ typedef struct kernel_ChainstateManager kernel_ChainstateManager;
  */
 typedef struct kernel_ChainstateLoadOptions kernel_ChainstateLoadOptions;
 
+/**
+ * Opaque data structure for holding a block.
+ */
+typedef struct kernel_Block kernel_Block;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -310,6 +315,17 @@ typedef enum
                                                      kernel_SCRIPT_FLAGS_VERIFY_WITNESS |
                                                      kernel_SCRIPT_FLAGS_VERIFY_TAPROOT
 } kernel_ScriptFlags;
+
+/**
+ * Process block statuses.
+ */
+typedef enum {
+    kernel_PROCESS_BLOCK_OK = 0,
+    kernel_PROCESS_BLOCK_INVALID,           //!< The block failed processing.
+    kernel_PROCESS_BLOCK_ERROR_NO_COINBASE, //!< To process a block, a coinbase transaction has to be part of it.
+    kernel_PROCESS_BLOCK_DUPLICATE,         //!< The block has been processed before.
+    kernel_PROCESS_BLOCK_INVALID_DUPLICATE, //!< The block has been process before, and it was invalid.
+} kernel_ProcessBlockStatus;
 
 /**
  * A helper struct for a single transaction output.
@@ -579,6 +595,40 @@ bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_load_chainstate(
     kernel_ChainstateLoadOptions* chainstate_load_options,
     kernel_ChainstateManager* chainstate_manager
 ) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
+
+/**
+ * @brief Process and validate the passed in block with the chainstate manager.
+ * If processing failed, some information can be retrieved through the status
+ * enumeration.
+ *
+ * @param[in] context            Non-null.
+ * @param[in] chainstate_manager Non-null.
+ * @param[in] block              Non-null, block to be validated.
+ * @param[out] status            Nullable, will contain an error/success code for the operation.
+ * @return                       True if processing the block was successful.
+ */
+bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_process_block(
+    const kernel_Context* context,
+    kernel_ChainstateManager* chainstate_manager,
+    kernel_Block* block,
+    kernel_ProcessBlockStatus* status
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
+
+/**
+ * @brief Parse a serialized raw block into a new block object.
+ *
+ * @param[in] raw_block     Non-null, serialized block.
+ * @param[in] raw_block_len Length of the serialized block.
+ * @return                  The allocated block, or null on error.
+ */
+kernel_Block* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_create(
+    const unsigned char* raw_block, size_t raw_block_len
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * Destroy the block.
+ */
+void kernel_block_destroy(kernel_Block* block);
 
 #ifdef __cplusplus
 } // extern "C"
