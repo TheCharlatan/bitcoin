@@ -623,6 +623,11 @@ public:
         btck_chainstate_manager_options_set_worker_threads_num(impl(), worker_threads);
     }
 
+    bool SetWipeDbs(bool wipe_block_tree, bool wipe_chainstate)
+    {
+        return btck_chainstate_manager_options_set_wipe_dbs(impl(), wipe_block_tree, wipe_chainstate);
+    }
+
     friend class ChainMan;
 };
 
