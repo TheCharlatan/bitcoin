@@ -181,6 +181,11 @@ typedef struct btck_ChainstateManagerOptions btck_ChainstateManagerOptions;
  */
 typedef struct btck_ChainstateManager btck_ChainstateManager;
 
+/**
+ * Opaque data structure for holding a block.
+ */
+typedef struct btck_Block btck_Block;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     btck_INIT_REINDEX,
@@ -720,9 +725,79 @@ BITCOINKERNEL_API btck_ChainstateManager* BITCOINKERNEL_WARN_UNUSED_RESULT btck_
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
+ * @brief Process and validate the passed in block with the chainstate manager.
+ *
+ * @param[in] chainstate_manager Non-null.
+ * @param[in] block              Non-null, block to be validated.
+ * @param[out] new_block         Nullable, will be set to true if this block was not processed before, and false otherwise.
+ * @return                       True if processing the block was successful. Will also return true for valid, but duplicate blocks.
+ */
+BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT btck_chainstate_manager_process_block(
+    btck_ChainstateManager* chainstate_manager,
+    btck_Block* block,
+    bool* new_block
+) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
+
+/**
  * Destroy the chainstate manager.
  */
 BITCOINKERNEL_API void btck_chainstate_manager_destroy(btck_ChainstateManager* chainstate_manager);
+
+///@}
+
+/** @name Block
+ * Functions for working with blocks.
+ */
+///@{
+
+/**
+ * @brief Parse a serialized raw block into a new block object.
+ *
+ * @param[in] raw_block     Non-null, serialized block.
+ * @param[in] raw_block_len Length of the serialized block.
+ * @return                  The allocated block, or null on error.
+ */
+BITCOINKERNEL_API btck_Block* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_create(
+    const unsigned char* raw_block, size_t raw_block_len
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Copy a block. Blocks are reference counted, so this just increments
+ * the reference count.
+ *
+ * @param[in] block Non-null.
+ * @return          The copied block.
+ */
+BITCOINKERNEL_API btck_Block* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_copy(
+    const btck_Block* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Count the number of transactions contained in a block.
+ *
+ * @param[in] block Non-null.
+ * @return          The number of transactions in the block.
+ */
+BITCOINKERNEL_API uint64_t BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_count_transactions(
+    const btck_Block* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Get the transaction at the provided index. The returned transaction
+ * is owned and does not depend on the lifetime of the block.
+ *
+ * @param[in] block             Non-null.
+ * @param[in] transaction_index The index of the transaction to be retrieved.
+ * @return                      The transaction.
+ */
+BITCOINKERNEL_API btck_Transaction* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_get_transaction_at(
+    const btck_Block* block, uint64_t transaction_index
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * Destroy the block.
+ */
+BITCOINKERNEL_API void btck_block_destroy(btck_Block* block);
 
 ///@}
 
