@@ -405,6 +405,11 @@ public:
         return *this;
     }
 
+    Transaction(btck_Transaction* transaction)
+        : Handle{check(transaction)}
+    {
+    }
+
     size_t CountOutputs() const
     {
         return btck_transaction_count_outputs(impl());
@@ -621,6 +626,46 @@ public:
     friend class ChainMan;
 };
 
+class Block : Handle<btck_Block, btck_block_destroy>
+{
+public:
+
+    Block(const std::span<const std::byte> raw_block)
+        : Handle{check(btck_block_create(raw_block.data(), raw_block.size()))}
+    {
+    }
+
+    Block(btck_Block* block) : Handle{check(block)} {}
+
+    // Copy constructor and assignment
+    Block(const Block& other)
+        : Handle{check(btck_block_copy(other.impl()))} {}
+    Block& operator=(const Block& other)
+    {
+        if (this != &other) {
+            reset(check(btck_block_copy(other.impl())));
+        }
+        return *this;
+    }
+
+    size_t CountTransactions() const
+    {
+        return btck_block_count_transactions(impl());
+    }
+
+    Transaction GetTransaction(size_t index) const
+    {
+        return Transaction{btck_block_get_transaction_at(impl(), index)};
+    }
+
+    auto Transactions() const
+    {
+        return Range<Block, &Block::CountTransactions, &Block::GetTransaction>{*this};
+    }
+
+    friend class ChainMan;
+};
+
 class ChainMan : Handle<btck_ChainstateManager, btck_chainstate_manager_destroy>
 {
 public:
@@ -629,8 +674,13 @@ public:
     {
     }
 
-    ChainMan(const ChainMan&) = delete;
-    ChainMan& operator=(const ChainMan&) = delete;
+    bool ProcessBlock(const Block& block, bool* new_block)
+    {
+        int _new_block;
+        int res = btck_chainstate_manager_process_block(impl(), block.impl(), &_new_block);
+        if (new_block) *new_block = _new_block == 1;
+        return res == 0;
+    }
 };
 
 #endif // BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
