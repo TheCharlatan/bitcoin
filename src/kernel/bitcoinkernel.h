@@ -226,6 +226,16 @@ typedef enum {
 } kernel_ContextOptionType;
 
 /**
+ * Available types of chainstate load options. Passed with a corresponding value
+ * to kernel_chainstate_load_options_set(..).
+ */
+typedef enum {
+    kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION = 0, //! Set the wipe block tree db option, default is false.
+                                                          //! Should only be set in combination with wiping the chainstate db.
+    kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION,     //! Set the wipe chainstate option, default is false.
+} kernel_ChainstateLoadOptionType;
+
+/**
  * A struct for holding the kernel notification callbacks. The user data pointer
  * may be used to point to user-defined structures to make processing the
  * notifications easier.
@@ -575,6 +585,20 @@ void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainstate_mana
  * Create options for loading the chainstate.
  */
 kernel_ChainstateLoadOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_load_options_create();
+
+/**
+ * @brief Sets a single, specific field in the chainstate load options. The
+ * option type has to match the option value.
+ *
+ * @param[in] chainstate_load_options Non-null, created with kernel_chainstate_load_options_create.
+ * @param[in] n_option                Describes the option field that should be set with the value.
+ * @param[in] value                   Single value setting the field selected by n_option.
+ */
+void kernel_chainstate_load_options_set(
+    kernel_ChainstateLoadOptions* chainstate_load_options,
+    kernel_ChainstateLoadOptionType n_option,
+    bool value
+) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
  * Destroy the chainstate load options

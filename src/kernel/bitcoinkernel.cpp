@@ -681,6 +681,26 @@ kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()
     return reinterpret_cast<kernel_ChainstateLoadOptions*>(new node::ChainstateLoadOptions);
 }
 
+void kernel_chainstate_load_options_set(
+    kernel_ChainstateLoadOptions* chainstate_load_opts_,
+    kernel_ChainstateLoadOptionType n_option,
+    bool value)
+{
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
+
+    switch (n_option) {
+    case kernel_ChainstateLoadOptionType::kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION: {
+        chainstate_load_opts->wipe_block_tree_db = value;
+        return;
+    }
+    case kernel_ChainstateLoadOptionType::kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION: {
+        chainstate_load_opts->wipe_chainstate_db = value;
+        return;
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
 void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_opts)
 {
     if (chainstate_load_opts) {
@@ -695,6 +715,11 @@ bool kernel_chainstate_manager_load_chainstate(const kernel_Context* context_,
     try {
         auto& chainstate_load_opts{*cast_chainstate_load_options(chainstate_load_opts_)};
         auto& chainman{*cast_chainstate_manager(chainman_)};
+
+        if (chainstate_load_opts.wipe_block_tree_db && !chainstate_load_opts.wipe_chainstate_db) {
+            LogError("Wiping the block tree db without also wiping the chainstate db is currently unsupported.\n");
+            return false;
+        }
 
         node::CacheSizes cache_sizes;
         cache_sizes.block_tree_db = 2 << 20;
