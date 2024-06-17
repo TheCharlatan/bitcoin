@@ -717,6 +717,20 @@ BITCOINKERNEL_API void btck_chainstate_manager_options_set_worker_threads_num(
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
+ * @brief Sets wipe db in the options.
+ *
+ * @param[in] chainstate_manager_options Non-null, created by @ref btck_chainstate_manager_options_create.
+ * @param[in] wipe_block_tree_db         Set wipe block tree db. Should only be True if wipe_chainstate_db is True too.
+ * @param[in] wipe_chainstate_db         Set wipe chainstate db.
+ * @return                               True if the set was successful, False if the set failed.
+ */
+BITCOINKERNEL_API bool btck_chainstate_manager_options_set_wipe_dbs(
+    btck_ChainstateManagerOptions* chainstate_manager_options,
+    bool wipe_block_tree_db,
+    bool wipe_chainstate_db
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * Destroy the chainstate manager options.
  */
 BITCOINKERNEL_API void btck_chainstate_manager_options_destroy(btck_ChainstateManagerOptions* chainstate_manager_options);

@@ -643,6 +643,18 @@ void btck_chainstate_manager_options_destroy(btck_ChainstateManagerOptions* opti
     options = nullptr;
 }
 
+bool btck_chainstate_manager_options_set_wipe_dbs(btck_ChainstateManagerOptions* chainman_opts, bool wipe_block_tree_db, bool wipe_chainstate_db)
+{
+    if (wipe_block_tree_db && !wipe_chainstate_db) {
+        LogError("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
+        return false;
+    }
+    LOCK(chainman_opts->m_opts->m_mutex);
+    chainman_opts->m_opts->m_blockman_options.block_tree_db_params.wipe_data = wipe_block_tree_db;
+    chainman_opts->m_opts->m_chainstate_load_options.wipe_chainstate_db = wipe_chainstate_db;
+    return true;
+}
+
 btck_ChainstateManager* btck_chainstate_manager_create(
     const btck_ChainstateManagerOptions* chainman_opts)
 {
