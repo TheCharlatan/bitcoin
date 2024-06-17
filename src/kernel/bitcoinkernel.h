@@ -176,6 +176,11 @@ typedef struct kernel_ChainstateManager kernel_ChainstateManager;
  */
 typedef struct kernel_ChainstateLoadOptions kernel_ChainstateLoadOptions;
 
+/**
+ * Opaque data structure for holding a block.
+ */
+typedef struct kernel_Block kernel_Block;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -289,6 +294,8 @@ typedef enum {
     kernel_ERROR_INVALID_CONTEXT,
     kernel_ERROR_INVALID_CONTEXT_OPTION,
     kernel_ERROR_INTERNAL,
+    kernel_ERROR_DUPLICATE_BLOCK,
+    kernel_ERROR_BLOCK_WITHOUT_COINBASE,
 } kernel_ErrorCode;
 
 /**
@@ -591,6 +598,40 @@ void kernel_chainstate_manager_load_chainstate(
     kernel_ChainstateManager* chainstate_manager,
     kernel_Error* error
 ) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
+
+/**
+ * @brief Process and validate the passed in block with the chainstate manager.
+ *
+ * @param[in] context            Non-null.
+ * @param[in] chainstate_manager Non-null.
+ * @param[in] block              Non-null, block to be validated.
+ * @param[out] error             Nullable, will contain an error/success code for the operation.
+ * @return                       True if processing the block was successful.
+ */
+bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_process_block(
+    const kernel_Context* context,
+    kernel_ChainstateManager* chainstate_manager,
+    kernel_Block* block,
+    kernel_Error* error
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
+
+/**
+ * @brief Parse a serialized raw block into a new block object.
+ *
+ * @param[in] raw_block     Non-null, serialized block.
+ * @param[in] raw_block_len Length of the serialized block.
+ * @param[out] error        Nullable, will contain an error/success code for the operation.
+ * @return                  The allocated block, or null on error.
+ */
+kernel_Block* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_create(
+    const unsigned char* raw_block, size_t raw_block_len,
+    kernel_Error* error
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * Destroy the block.
+ */
+void kernel_block_destroy(kernel_Block* block);
 
 #ifdef __cplusplus
 } // extern "C"
