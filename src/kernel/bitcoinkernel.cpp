@@ -297,10 +297,22 @@ const node::BlockManager::Options* cast_const_block_manager_options(const kernel
     return reinterpret_cast<const node::BlockManager::Options*>(options);
 }
 
+node::BlockManager::Options* cast_block_manager_options(kernel_BlockManagerOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<node::BlockManager::Options*>(options);
+}
+
 ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman)
 {
     assert(chainman);
     return reinterpret_cast<ChainstateManager*>(chainman);
+}
+
+node::ChainstateLoadOptions* cast_chainstate_load_options(kernel_ChainstateLoadOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<node::ChainstateLoadOptions*>(options);
 }
 
 const node::ChainstateLoadOptions* cast_const_chainstate_load_options(const kernel_ChainstateLoadOptions* options)
@@ -638,6 +650,23 @@ kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()
     return reinterpret_cast<kernel_ChainstateLoadOptions*>(new node::ChainstateLoadOptions);
 }
 
+
+void kernel_block_manager_options_set_wipe_block_tree_db(
+    kernel_BlockManagerOptions* block_manager_options_,
+    bool wipe_block_tree_db)
+{
+    auto block_manager_options{cast_block_manager_options(block_manager_options_)};
+    block_manager_options->block_tree_db_params.wipe_data = wipe_block_tree_db;
+}
+
+void kernel_chainstate_load_options_set_wipe_chainstate_db(
+    kernel_ChainstateLoadOptions* chainstate_load_opts_,
+    bool wipe_chainstate_db)
+{
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
+    chainstate_load_opts->wipe_chainstate_db = wipe_chainstate_db;
+}
+
 void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_opts)
 {
     if (chainstate_load_opts) {
@@ -666,6 +695,12 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
 
     try {
         const auto& chainstate_load_opts{*cast_const_chainstate_load_options(chainstate_load_opts_)};
+
+        if (blockman_opts->block_tree_db_params.wipe_data && !chainstate_load_opts.wipe_chainstate_db) {
+            LogWarning("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
+            kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+            return nullptr;
+        }
 
         kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
         auto [status, chainstate_err]{node::LoadChainstate(*chainman, cache_sizes, chainstate_load_opts)};

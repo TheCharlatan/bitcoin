@@ -308,6 +308,11 @@ public:
     {
     }
 
+    void SetWipeBlockTreeDb(bool wipe_block_tree) const noexcept
+    {
+        kernel_block_manager_options_set_wipe_block_tree_db(m_options.get(), wipe_block_tree);
+    }
+
     /** Check whether this BlockManagerOptions object is valid. */
     explicit operator bool() const noexcept { return bool{m_options}; }
 
@@ -330,6 +335,11 @@ public:
     ChainstateLoadOptions() noexcept
         : m_options{kernel_chainstate_load_options_create()}
     {
+    }
+
+    void SetWipeChainstateDb(bool wipe_chainstate) const noexcept
+    {
+        kernel_chainstate_load_options_set_wipe_chainstate_db(m_options.get(), wipe_chainstate);
     }
 
     friend class ChainMan;
