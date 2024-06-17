@@ -6,6 +6,7 @@
 
 #include <kernel/bitcoinkernel.h>
 
+#include <chain.h>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
 #include <kernel/caches.h>
@@ -17,6 +18,7 @@
 #include <logging.h>
 #include <node/blockstorage.h>
 #include <node/chainstate.h>
+#include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
@@ -24,6 +26,7 @@
 #include <streams.h>
 #include <sync.h>
 #include <tinyformat.h>
+#include <uint256.h>
 #include <util/fs.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
@@ -42,8 +45,6 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-
-class CBlockIndex;
 
 // Define G_TRANSLATION_FUN symbol in libbitcoinkernel library so users of the
 // library aren't required to export this symbol
@@ -313,6 +314,11 @@ struct btck_ChainstateManager
 {
     std::unique_ptr<ChainstateManager> m_chainman;
     std::shared_ptr<Context> m_context;
+};
+
+struct btck_Block
+{
+    std::shared_ptr<CBlock> m_block;
 };
 
 btck_Transaction* btck_transaction_create(const unsigned char* raw_transaction, size_t raw_transaction_len)
@@ -696,4 +702,51 @@ void btck_chainstate_manager_destroy(btck_ChainstateManager* chainman)
 
     delete chainman;
     chainman = nullptr;
+}
+
+btck_Block* btck_block_create(const unsigned char* raw_block, size_t raw_block_length)
+{
+    auto block{std::make_shared<CBlock>()};
+
+    DataStream stream{std::span{raw_block, raw_block_length}};
+
+    try {
+        stream >> TX_WITH_WITNESS(*block);
+    } catch (const std::exception&) {
+        LogDebug(BCLog::KERNEL, "Block decode failed.");
+        return nullptr;
+    }
+
+    return new btck_Block{std::move(block)};
+}
+
+btck_Block* btck_block_copy(const btck_Block* block)
+{
+    return new btck_Block{block->m_block};
+}
+
+uint64_t btck_block_count_transactions(const btck_Block* block)
+{
+    return block->m_block->vtx.size();
+}
+
+btck_Transaction* btck_block_get_transaction_at(const btck_Block* block, uint64_t index)
+{
+    assert(index < block->m_block->vtx.size());
+    return new btck_Transaction{block->m_block->vtx[index]};
+}
+
+void btck_block_destroy(btck_Block* block)
+{
+    if (!block) return;
+    delete block;
+    block = nullptr;
+}
+
+bool btck_chainstate_manager_process_block(
+    btck_ChainstateManager* chainman,
+    btck_Block* block,
+    bool* new_block)
+{
+    return chainman->m_chainman->ProcessNewBlock(block->m_block, /*force_processing=*/true, /*min_pow_checked=*/true, /*new_block=*/new_block);
 }
