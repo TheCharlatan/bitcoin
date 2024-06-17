@@ -5,6 +5,8 @@
 #include <kernel/bitcoinkernel.h>
 #include <kernel/bitcoinkernel_wrapper.h>
 
+#include <test/kernel/block_data.h>
+
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
@@ -320,6 +322,88 @@ void chainman_test()
     assert(chainman.LoadChainstate(chainstate_load_opts));
 }
 
+std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
+                                          Context& context)
+{
+    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory};
+    BlockManagerOptions blockman_opts{context, test_directory.m_directory / "blocks"};
+
+    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts)};
+
+    ChainstateLoadOptions chainstate_load_opts{};
+    chainman->LoadChainstate(chainstate_load_opts);
+
+    return chainman;
+}
+
+void chainman_mainnet_validation_test()
+{
+    auto mainnet_test_directory{TestDirectory{"mainnet_test_bitcoin_kernel"}};
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    auto chainman{create_chainman(mainnet_test_directory, context)};
+
+    {
+        // Process an invalid block
+        auto raw_block = hex_string_to_char_vec("012300");
+        Block block{raw_block};
+        assert(!block);
+    }
+    {
+        // Process an empty block
+        auto raw_block = hex_string_to_char_vec("");
+        Block block{raw_block};
+        assert(!block);
+    }
+
+    // mainnet block 1
+    auto raw_block = hex_string_to_char_vec("010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e362990101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000");
+    Block block{raw_block};
+    assert(block);
+    auto status{kernel_ProcessBlockStatus::kernel_PROCESS_BLOCK_OK};
+    assert(chainman->ProcessBlock(block, status));
+    assert(status == kernel_PROCESS_BLOCK_OK);
+
+    // If we try to validate it again, it should be a duplicate
+    assert(!chainman->ProcessBlock(block, status));
+    assert(status == kernel_PROCESS_BLOCK_DUPLICATE);
+}
+
+void chainman_regtest_validation_test()
+{
+    auto test_directory{TestDirectory{"regtest_test_bitcoin_kernel"}};
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_REGTEST)};
+
+    // Validate 206 regtest blocks in total.
+    // Stop halfway to check that it is possible to continue validating starting
+    // from prior state.
+    const size_t mid{REGTEST_BLOCK_DATA.size() / 2};
+
+    {
+        auto chainman{create_chainman(test_directory, context)};
+        for (size_t i{0}; i < mid; i++) {
+            Block block{REGTEST_BLOCK_DATA[i]};
+            assert(block);
+            auto status{kernel_ProcessBlockStatus::kernel_PROCESS_BLOCK_OK};
+            assert(chainman->ProcessBlock(block, status));
+            assert(status == kernel_PROCESS_BLOCK_OK);
+        }
+    }
+
+    auto chainman{create_chainman(test_directory, context)};
+
+    for (size_t i{mid}; i < REGTEST_BLOCK_DATA.size(); i++) {
+        Block block{REGTEST_BLOCK_DATA[i]};
+        assert(block);
+        auto status{kernel_ProcessBlockStatus::kernel_PROCESS_BLOCK_OK};
+        assert(chainman->ProcessBlock(block, status));
+        assert(status == kernel_PROCESS_BLOCK_OK);
+    }
+}
+
 int main()
 {
     transaction_test();
@@ -338,6 +422,9 @@ int main()
     context_test();
 
     chainman_test();
+
+    chainman_mainnet_validation_test();
+    chainman_regtest_validation_test();
 
     std::cout << "Libbitcoinkernel test completed." << std::endl;
     return 0;
