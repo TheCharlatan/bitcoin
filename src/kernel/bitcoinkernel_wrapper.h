@@ -402,12 +402,14 @@ public:
     }
 };
 
-class TransactionOutputView : public View<btck_TransactionOutput>, public TransactionOutputApi<TransactionOutputView> {
+class TransactionOutputView : public View<btck_TransactionOutput>, public TransactionOutputApi<TransactionOutputView>
+{
 public:
     explicit TransactionOutputView(const btck_TransactionOutput* ptr) : View{ptr} {}
 };
 
-class TransactionOutput : public Handle<btck_TransactionOutput, btck_transaction_output_copy, btck_transaction_output_destroy>, public TransactionOutputApi<TransactionOutput> {
+class TransactionOutput : public Handle<btck_TransactionOutput, btck_transaction_output_copy, btck_transaction_output_destroy>, public TransactionOutputApi<TransactionOutput>
+{
 public:
     explicit TransactionOutput(const ScriptPubkey& script_pubkey, int64_t amount)
         : Handle{btck_transaction_output_create(script_pubkey.get(), amount)} {}
@@ -417,7 +419,8 @@ public:
 };
 
 template <typename Derived>
-class TransactionApi {
+class TransactionApi
+{
 private:
     auto impl() const {
         return static_cast<const Derived*>(this)->get();
@@ -446,10 +449,20 @@ public:
     }
 };
 
-class Transaction : public Handle<btck_Transaction, btck_transaction_copy, btck_transaction_destroy>, public TransactionApi<Transaction> {
+class TransactionView : public View<btck_Transaction>, public TransactionApi<TransactionView>
+{
+public:
+    explicit TransactionView(const btck_Transaction* ptr) : View{ptr} {}
+};
+
+class Transaction : public Handle<btck_Transaction, btck_transaction_copy, btck_transaction_destroy>, public TransactionApi<Transaction>
+{
 public:
     explicit Transaction(std::span<const std::byte> raw_transaction)
         : Handle{btck_transaction_create(raw_transaction.data(), raw_transaction.size())} {}
+
+    Transaction(const TransactionView& view)
+        : Handle{view} {}
 };
 
 template <typename Derived>
@@ -480,6 +493,35 @@ bool ScriptPubkeyApi<Derived>::Verify(int64_t amount,
         reinterpret_cast<btck_ScriptVerifyStatus*>(&status));
     return result == 1;
 }
+
+class Block : public Handle<btck_Block, btck_block_copy, btck_block_destroy>
+{
+public:
+
+    Block(const std::span<const std::byte> raw_block)
+        : Handle{check(btck_block_create(raw_block.data(), raw_block.size()))}
+    {
+    }
+
+    Block(btck_Block* block) : Handle{check(block)} {}
+
+    size_t CountTransactions() const
+    {
+        return btck_block_count_transactions(get());
+    }
+
+    TransactionView GetTransaction(size_t index) const
+    {
+        return TransactionView{btck_block_get_transaction_at(get(), index)};
+    }
+
+    auto Transactions() const
+    {
+        return Range<Block, &Block::CountTransactions, &Block::GetTransaction>{*this};
+    }
+
+    friend class ChainMan;
+};
 
 void logging_disable()
 {
@@ -636,6 +678,14 @@ public:
     ChainMan(const Context& context, const ChainstateManagerOptions& chainman_opts)
         : UniqueHandle{check(btck_chainstate_manager_create(chainman_opts.get()))}
     {
+    }
+
+    bool ProcessBlock(const Block& block, bool* new_block)
+    {
+        int _new_block;
+        int res = btck_chainstate_manager_process_block(get(), block.get(), &_new_block);
+        if (new_block) *new_block = _new_block == 1;
+        return res == 0;
     }
 };
 
