@@ -8,6 +8,8 @@
 #define BOOST_TEST_MODULE Bitcoin Kernel Test Suite
 #include <boost/test/included/unit_test.hpp>
 
+#include <test/kernel/block_data.h>
+
 #include <charconv>
 #include <cstdint>
 #include <cstdlib>
@@ -53,6 +55,11 @@ std::vector<std::byte> hex_string_to_byte_vec(std::string_view hex)
         bytes.push_back(static_cast<std::byte>(byte_value));
     }
     return bytes;
+}
+
+std::span<const std::byte> as_bytes(std::vector<unsigned char> data)
+{
+    return std::span{reinterpret_cast<const std::byte*>(data.data()), data.size()};
 }
 
 constexpr auto VERIFY_ALL_PRE_SEGWIT{btck_SCRIPT_FLAGS_VERIFY_P2SH | btck_SCRIPT_FLAGS_VERIFY_DERSIG |
@@ -338,4 +345,85 @@ BOOST_AUTO_TEST_CASE(btck_chainman_tests)
     ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     chainman_opts.SetWorkerThreads(4);
     ChainMan chainman{context, chainman_opts};
+}
+
+std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
+                                          Context& context)
+{
+    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+    auto chainman{std::make_unique<ChainMan>(context, chainman_opts)};
+    return chainman;
+}
+
+BOOST_AUTO_TEST_CASE(btck_chainman_mainnet_tests)
+{
+    btck_LoggingOptions logging_options = {
+        .log_timestamps = true,
+        .log_time_micros = true,
+        .log_threadnames = false,
+        .log_sourcelocations = false,
+        .always_print_category_levels = true,
+    };
+    Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
+
+    auto mainnet_test_directory{TestDirectory{"mainnet_test_bitcoin_kernel"}};
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, btck_ChainType::btck_CHAIN_TYPE_MAINNET)};
+    auto chainman{create_chainman(mainnet_test_directory, context)};
+
+    {
+        // Process an invalid block
+        auto raw_block = hex_string_to_byte_vec("012300");
+        BOOST_CHECK_THROW(Block{raw_block}, std::runtime_error);
+    }
+    {
+        // Process an empty block
+        auto raw_block = hex_string_to_byte_vec("");
+        BOOST_CHECK_THROW(Block{raw_block}, std::runtime_error);
+    }
+
+    // mainnet block 1
+    auto raw_block = hex_string_to_byte_vec("010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e362990101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000");
+    Block block{raw_block};
+    Transaction tx{block.GetTransaction(block.CountOutputs() - 1)};
+    bool new_block = false;
+    BOOST_CHECK(chainman->ProcessBlock(block, &new_block));
+    BOOST_CHECK(new_block);
+
+    // If we try to validate it again, it should be a duplicate
+    BOOST_CHECK(chainman->ProcessBlock(block, &new_block));
+    BOOST_CHECK(!new_block);
+}
+
+BOOST_AUTO_TEST_CASE(btck_chainman_regtest_tests)
+{
+    auto test_directory{TestDirectory{"regtest_test_bitcoin_kernel"}};
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, btck_ChainType::btck_CHAIN_TYPE_REGTEST)};
+
+    // Validate 206 regtest blocks in total.
+    // Stop halfway to check that it is possible to continue validating starting
+    // from prior state.
+    const size_t mid{REGTEST_BLOCK_DATA.size() / 2};
+
+    {
+        auto chainman{create_chainman(test_directory, context)};
+        for (size_t i{0}; i < mid; i++) {
+            Block block{as_bytes(REGTEST_BLOCK_DATA[i])};
+            bool new_block{false};
+            BOOST_CHECK(chainman->ProcessBlock(block, &new_block));
+            BOOST_CHECK(new_block);
+        }
+    }
+
+    auto chainman{create_chainman(test_directory, context)};
+
+    for (size_t i{mid}; i < REGTEST_BLOCK_DATA.size(); i++) {
+        Block block{as_bytes(REGTEST_BLOCK_DATA[i])};
+        bool new_block{false};
+        BOOST_CHECK(chainman->ProcessBlock(block, &new_block));
+        BOOST_CHECK(new_block);
+    }
 }
