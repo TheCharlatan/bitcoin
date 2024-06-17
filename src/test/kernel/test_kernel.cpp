@@ -332,36 +332,53 @@ BOOST_AUTO_TEST_CASE(kernel_chainman_tests)
     ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     BOOST_REQUIRE(chainman_opts);
     chainman_opts.SetWorkerThreads(4);
+    BOOST_CHECK(chainman_opts.SetWipeDbs(/*wipe_block_tree=*/false, /*wipe_chainstate=*/false));
+    BOOST_CHECK(!chainman_opts.SetWipeDbs(/*wipe_block_tree=*/true, /*wipe_chainstate=*/false));
     ChainMan chainman{context, chainman_opts};
     BOOST_REQUIRE(chainman);
 }
 
 std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
+                                          bool reindex,
+                                          bool wipe_chainstate,
                                           Context& context)
 {
+    auto mainnet_test_directory{TestDirectory{"mainnet_test_bitcoin_kernel"}};
+
     ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     BOOST_REQUIRE(chainman_opts);
+
+    if (reindex) {
+        chainman_opts.SetWipeDbs(/*wipe_block_tree=*/reindex, /*wipe_chainstate=*/reindex);
+    }
+    if (wipe_chainstate) {
+        chainman_opts.SetWipeDbs(/*wipe_block_tree=*/false, /*wipe_chainstate=*/wipe_chainstate);
+    }
+
     auto chainman{std::make_unique<ChainMan>(context, chainman_opts)};
     BOOST_REQUIRE(chainman);
     return chainman;
 }
 
-BOOST_AUTO_TEST_CASE(kernel_chainman_mainnet_tests)
+void chainman_reindex_test(TestDirectory& test_directory)
 {
-    kernel_LoggingOptions logging_options = {
-        .log_timestamps = true,
-        .log_time_micros = true,
-        .log_threadnames = false,
-        .log_sourcelocations = false,
-        .always_print_category_levels = true,
-    };
-    Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
-
-    auto mainnet_test_directory{TestDirectory{"mainnet_test_bitcoin_kernel"}};
-
     TestKernelNotifications notifications{};
     auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
-    auto chainman{create_chainman(mainnet_test_directory, context)};
+    auto chainman{create_chainman(test_directory, true, false, context)};
+}
+
+void chainman_reindex_chainstate_test(TestDirectory& test_directory)
+{
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    auto chainman{create_chainman(test_directory, false, true, context)};
+}
+
+void chainman_mainnet_validation_test(TestDirectory& test_directory)
+{
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    auto chainman{create_chainman(test_directory, false, false, context)};
 
     {
         // Process an invalid block
@@ -389,6 +406,23 @@ BOOST_AUTO_TEST_CASE(kernel_chainman_mainnet_tests)
     BOOST_CHECK(!new_block);
 }
 
+BOOST_AUTO_TEST_CASE(kernel_chainman_mainnet_tests)
+{
+    kernel_LoggingOptions logging_options = {
+        .log_timestamps = true,
+        .log_time_micros = true,
+        .log_threadnames = false,
+        .log_sourcelocations = false,
+        .always_print_category_levels = true,
+    };
+    Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
+
+    auto test_directory{TestDirectory{"mainnet_test_bitcoin_kernel"}};
+    chainman_mainnet_validation_test(test_directory);
+    chainman_reindex_test(test_directory);
+    chainman_reindex_chainstate_test(test_directory);
+}
+
 BOOST_AUTO_TEST_CASE(kernel_chainman_regtest_tests)
 {
     auto test_directory{TestDirectory{"regtest_test_bitcoin_kernel"}};
@@ -402,7 +436,7 @@ BOOST_AUTO_TEST_CASE(kernel_chainman_regtest_tests)
     const size_t mid{REGTEST_BLOCK_DATA.size() / 2};
 
     {
-        auto chainman{create_chainman(test_directory, context)};
+        auto chainman{create_chainman(test_directory, false, false, context)};
         for (size_t i{0}; i < mid; i++) {
             Block block{REGTEST_BLOCK_DATA[i]};
             BOOST_REQUIRE(block);
@@ -412,7 +446,7 @@ BOOST_AUTO_TEST_CASE(kernel_chainman_regtest_tests)
         }
     }
 
-    auto chainman{create_chainman(test_directory, context)};
+    auto chainman{create_chainman(test_directory, false, false, context)};
 
     for (size_t i{mid}; i < REGTEST_BLOCK_DATA.size(); i++) {
         Block block{REGTEST_BLOCK_DATA[i]};
