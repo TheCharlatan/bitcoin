@@ -266,6 +266,22 @@ public:
     {
     }
 
+    void SetWipeBlockTreeDb(bool wipe_block_tree, kernel_Error& error)
+    {
+        kernel_chainstate_load_options_set(m_options.get(),
+                                           kernel_ChainstateLoadOptionType::kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION,
+                                           &wipe_block_tree,
+                                           &error);
+    }
+
+    void SetWipeChainstateDb(bool wipe_chainstate, kernel_Error& error)
+    {
+        kernel_chainstate_load_options_set(m_options.get(),
+                                           kernel_ChainstateLoadOptionType::kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION,
+                                           &wipe_chainstate,
+                                           &error);
+    }
+
     friend class ChainMan;
 };
 

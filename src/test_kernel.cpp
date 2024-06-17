@@ -256,6 +256,16 @@ std::unique_ptr<ChainMan> create_chainman(std::filesystem::path path_root,
     assert_error_ok(error);
 
     ChainstateLoadOptions chainstate_load_opts{};
+    if (reindex) {
+        chainstate_load_opts.SetWipeBlockTreeDb(reindex, error);
+        assert_error_ok(error);
+        chainstate_load_opts.SetWipeChainstateDb(reindex, error);
+        assert_error_ok(error);
+    }
+    if (wipe_chainstate) {
+        chainstate_load_opts.SetWipeChainstateDb(wipe_chainstate, error);
+    }
+    assert_error_ok(error);
     chainman->LoadChainstate(chainstate_load_opts, error);
     assert_error_ok(error);
 

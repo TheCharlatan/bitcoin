@@ -655,6 +655,31 @@ kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()
     return reinterpret_cast<kernel_ChainstateLoadOptions*>(new node::ChainstateLoadOptions);
 }
 
+void kernel_chainstate_load_options_set(
+    kernel_ChainstateLoadOptions* chainstate_load_opts_,
+    kernel_ChainstateLoadOptionType n_option,
+    void* value,
+    kernel_Error* error)
+{
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
+
+    switch (n_option) {
+    case kernel_ChainstateLoadOptionType::kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION: {
+        auto reindex{reinterpret_cast<bool*>(value)};
+        chainstate_load_opts->wipe_block_tree_db = *reindex;
+        return;
+    }
+    case kernel_ChainstateLoadOptionType::kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION: {
+        auto reindex_chainstate{reinterpret_cast<bool*>(value)};
+        chainstate_load_opts->wipe_chainstate_db = *reindex_chainstate;
+        return;
+    }
+    default: {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_UNKNOWN_CHAINSTATE_LOAD_OPTION, "Unknown chainstate load option");
+    }
+    }
+}
+
 void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_opts)
 {
     if (chainstate_load_opts) {
@@ -670,6 +695,10 @@ void kernel_chainstate_manager_load_chainstate(const kernel_Context* context_,
     try {
         auto& chainstate_load_opts{*cast_chainstate_load_options(chainstate_load_opts_)};
         auto& chainman{*cast_chainstate_manager(chainman_)};
+
+        if (chainstate_load_opts.wipe_block_tree_db && !chainstate_load_opts.wipe_chainstate_db) {
+            set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
+        }
 
         node::CacheSizes cache_sizes;
         cache_sizes.block_tree_db = 2 << 20;
@@ -689,6 +718,17 @@ void kernel_chainstate_manager_load_chainstate(const kernel_Context* context_,
             BlockValidationState state;
             if (!chainstate->ActivateBestChain(state, nullptr)) {
                 set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "Failed to connect best block. " + state.ToString());
+            }
+            std::tie(status, chainstate_err) = node::VerifyLoadedChainstate(chainman, chainstate_load_opts);
+            if (status != node::ChainstateLoadStatus::SUCCESS) {
+                set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "Failed to verify loaded chain state from your datadir. " + chainstate_err.original);
+            }
+
+            for (Chainstate* chainstate : WITH_LOCK(::cs_main, return chainman.GetAll())) {
+                BlockValidationState state;
+                if (!chainstate->ActivateBestChain(state, nullptr)) {
+                    set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "Failed to connect best block. " + state.ToString());
+                }
             }
         }
     } catch (const std::exception& e) {

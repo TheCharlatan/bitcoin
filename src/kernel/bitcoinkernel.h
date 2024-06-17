@@ -215,6 +215,25 @@ typedef enum {
 } kernel_ContextOptionType;
 
 /**
+ * Available types of block manager options. Passed with a corresponding value
+ * to kernel_block_manager_options_set(..).
+ */
+typedef enum {
+    kernel_REINDEX_BLOCK_MANAGER_OPTION = 0, //!< Set the reindex option, value should be a bool.
+} kernel_BlockManagerOptionType;
+
+/**
+ * Available types of chainstate load options. Passed with a corresponding value
+ * to kernel_chainstate_load_options_set(..).
+ */
+typedef enum {
+    kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION = 0, //! Set the wipe block tree db option, value should be a bool.
+                                                          //! Should only be set in combination with wiping the chainstate db.
+                                                          //! Will trigger a reindex once ImportBlocks is called.
+    kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION,     //! Set the wipe chainstate option, value should be a bool.
+} kernel_ChainstateLoadOptionType;
+
+/**
  * A struct for holding the kernel notification callbacks. The user data pointer
  * may be used to point to user-defined structures to make processing the
  * notifications easier.
@@ -286,6 +305,7 @@ typedef enum {
     kernel_ERROR_INTERNAL,
     kernel_ERROR_DUPLICATE_BLOCK,
     kernel_ERROR_BLOCK_WITHOUT_COINBASE,
+    kernel_ERROR_UNKNOWN_CHAINSTATE_LOAD_OPTION,
 } kernel_ErrorCode;
 
 /**
@@ -516,6 +536,21 @@ kernel_BlockManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_manage
 ) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2);
 
 /**
+ * @brief Sets a single, specific field in the block manager options. The option
+ * type has to match the option value.
+ *
+ * @param[in] block_manager_options Non-null, created with kernel_block_manager_options_create.
+ * @param[in] n_option              Describes the option field that should be set with the value.
+ * @param[in] value                 Non-null, single value setting the field selected by n_option.
+ * @param[out] error                Nullable, will contain an error/success code for the operation.
+ */
+void kernel_block_manager_options_set(
+    kernel_BlockManagerOptions* block_manager_options,
+    kernel_BlockManagerOptionType n_option,
+    void* value,
+    kernel_Error* error);
+
+/**
  * Destroy the block manager options.
  */
 void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* block_manager_options);
@@ -548,6 +583,22 @@ void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainstate_mana
  * Create options for loading the chainstate.
  */
 kernel_ChainstateLoadOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_load_options_create();
+
+/**
+ * @brief Sets a single, specific field in the chainstate load options. The
+ * option type has to match the option value.
+ *
+ * @param[in] chainstate_load_options Non-null, created with kernel_chainstate_load_options_create.
+ * @param[in] n_option                Describes the option field that should be set with the value.
+ * @param[in] value                   Non-null, single value setting the field selected by n_option.
+ * @param[out] error                  Nullable, will contain an error/success code for the operation.
+ */
+void kernel_chainstate_load_options_set(
+    kernel_ChainstateLoadOptions* chainstate_load_options,
+    kernel_ChainstateLoadOptionType n_option,
+    void* value,
+    kernel_Error* error
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(3);
 
 /**
  * Destroy the chainstate load options
