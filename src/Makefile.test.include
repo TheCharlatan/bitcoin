@@ -423,7 +423,7 @@ CLEANFILES += $(CLEAN_BITCOIN_TEST)
 
 # test-kernel binary #
 if ENABLE_KERNEL_TESTS
-test_kernel_test_kernel_SOURCES = test/kernel/test_kernel.cpp
+test_kernel_test_kernel_SOURCES = test/kernel/block_data.h test/kernel/test_kernel.cpp
 test_kernel_test_kernel_CPPFLAGS = $(AM_CPPFLAGS)
 test_kernel_test_kernel_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 test_kernel_test_kernel_LDFLAGS = $(RELDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)

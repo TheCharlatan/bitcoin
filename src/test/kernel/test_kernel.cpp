@@ -5,6 +5,8 @@
 #include <kernel/bitcoinkernel.h>
 #include <kernel/bitcoinkernel_wrapper.h>
 
+#include <test/kernel/block_data.h>
+
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
@@ -322,7 +324,6 @@ void chainman_test()
 
     TestKernelNotifications notifications{};
     auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
-    assert_error_ok(error);
 
     // Check that creating invalid options gives us an error
     {
@@ -350,6 +351,100 @@ void chainman_test()
     assert_error_ok(error);
 }
 
+std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
+                                          kernel_Error& error,
+                                          Context& context)
+{
+    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory, error};
+    assert_error_ok(error);
+    BlockManagerOptions blockman_opts{context, test_directory.m_directory / "blocks", error};
+    assert_error_ok(error);
+
+    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts, error)};
+    assert_error_ok(error);
+
+    ChainstateLoadOptions chainstate_load_opts{};
+    chainman->LoadChainstate(chainstate_load_opts, error);
+    assert_error_ok(error);
+
+    return chainman;
+}
+
+void chainman_mainnet_validation_test()
+{
+    auto mainnet_test_directory{TestDirectory{"mainnet_test_bitcoin_kernel"}};
+    kernel_Error error{};
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    assert_error_ok(error);
+    auto chainman{create_chainman(mainnet_test_directory, error, context)};
+    assert_error_ok(error);
+
+    {
+        // Process an invalid block
+        auto raw_block = hex_string_to_char_vec("012300");
+        Block block{raw_block, error};
+        assert_is_error(error, kernel_ERROR_INTERNAL);
+        error.code = kernel_ERROR_OK;
+    }
+    {
+        // Process an empty block
+        auto raw_block = hex_string_to_char_vec("");
+        Block block{raw_block, error};
+        assert_is_error(error, kernel_ERROR_INTERNAL);
+        error.code = kernel_ERROR_OK;
+    }
+
+    // mainnet block 1
+    auto raw_block = hex_string_to_char_vec("010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e362990101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000");
+    Block block{raw_block, error};
+    assert(chainman->ProcessBlock(block, error));
+    assert_error_ok(error);
+
+    // If we try to validate it again, it should be a duplicate
+    assert(!chainman->ProcessBlock(block, error));
+    assert_is_error(error, kernel_ERROR_DUPLICATE_BLOCK);
+}
+
+void chainman_regtest_validation_test()
+{
+    auto test_directory{TestDirectory{"regtest_test_bitcoin_kernel"}};
+    kernel_Error error;
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_REGTEST)};
+    assert_error_ok(error);
+
+    // Validate 206 regtest blocks in total.
+    // Stop halfway to check that it is possible to continue validating starting
+    // from prior state.
+    const size_t mid{REGTEST_BLOCK_DATA.size() / 2};
+
+    {
+        auto chainman{create_chainman(test_directory, error, context)};
+        assert_error_ok(error);
+        for (size_t i{0}; i < mid; i++) {
+            Block block{REGTEST_BLOCK_DATA[i], error};
+            assert_error_ok(error);
+            chainman->ProcessBlock(block, error);
+            assert_error_ok(error);
+        }
+    }
+
+    auto chainman{create_chainman(test_directory, error, context)};
+    assert_error_ok(error);
+
+    for (size_t i{mid}; i < REGTEST_BLOCK_DATA.size(); i++) {
+        Block block{REGTEST_BLOCK_DATA[i], error};
+        assert_error_ok(error);
+        chainman->ProcessBlock(block, error);
+        assert_error_ok(error);
+    }
+}
+
 int main()
 {
     script_verify_test();
@@ -371,6 +466,9 @@ int main()
     context_test();
 
     chainman_test();
+
+    chainman_mainnet_validation_test();
+    chainman_regtest_validation_test();
 
     std::cout << "Libbitcoinkernel test completed." << std::endl;
     return 0;
