@@ -301,6 +301,12 @@ ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman)
     return reinterpret_cast<ChainstateManager*>(chainman);
 }
 
+node::ChainstateLoadOptions* cast_chainstate_load_options(kernel_ChainstateLoadOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<node::ChainstateLoadOptions*>(options);
+}
+
 const node::ChainstateLoadOptions* cast_const_chainstate_load_options(const kernel_ChainstateLoadOptions* options)
 {
     assert(options);
@@ -629,6 +635,23 @@ kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()
     return reinterpret_cast<kernel_ChainstateLoadOptions*>(new node::ChainstateLoadOptions);
 }
 
+
+void kernel_chainstate_load_options_set_wipe_block_tree_db(
+    kernel_ChainstateLoadOptions* chainstate_load_opts_,
+    bool wipe_block_tree_db)
+{
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
+    chainstate_load_opts->wipe_block_tree_db = wipe_block_tree_db;
+}
+
+void kernel_chainstate_load_options_set_wipe_chainstate_db(
+    kernel_ChainstateLoadOptions* chainstate_load_opts_,
+    bool wipe_chainstate_db)
+{
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
+    chainstate_load_opts->wipe_chainstate_db = wipe_chainstate_db;
+}
+
 void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_opts)
 {
     if (chainstate_load_opts) {
@@ -657,6 +680,12 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
 
     try {
         const auto& chainstate_load_opts{*cast_const_chainstate_load_options(chainstate_load_opts_)};
+
+        if (chainstate_load_opts.wipe_block_tree_db && !chainstate_load_opts.wipe_chainstate_db) {
+            LogWarning("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
+            kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+            return nullptr;
+        }
 
         node::CacheSizes cache_sizes;
         cache_sizes.block_tree_db = 2 << 20;
