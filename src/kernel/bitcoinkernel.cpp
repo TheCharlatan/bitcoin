@@ -649,6 +649,23 @@ kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()
     return reinterpret_cast<kernel_ChainstateLoadOptions*>(new node::ChainstateLoadOptions);
 }
 
+
+void kernel_chainstate_load_options_set_wipe_block_tree_db(
+    kernel_ChainstateLoadOptions* chainstate_load_opts_,
+    bool wipe_block_tree_db)
+{
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
+    chainstate_load_opts->wipe_block_tree_db = wipe_block_tree_db;
+}
+
+void kernel_chainstate_load_options_set_wipe_chainstate_db(
+    kernel_ChainstateLoadOptions* chainstate_load_opts_,
+    bool wipe_chainstate_db)
+{
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
+    chainstate_load_opts->wipe_chainstate_db = wipe_chainstate_db;
+}
+
 void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_opts)
 {
     if (chainstate_load_opts) {
@@ -663,6 +680,11 @@ bool kernel_chainstate_manager_load_chainstate(const kernel_Context* context_,
     try {
         auto& chainstate_load_opts{*cast_chainstate_load_options(chainstate_load_opts_)};
         auto& chainman{*cast_chainstate_manager(chainman_)};
+
+        if (chainstate_load_opts.wipe_block_tree_db && !chainstate_load_opts.wipe_chainstate_db) {
+            LogError("Wiping the block tree db without also wiping the chainstate db is currently unsupported.\n");
+            return false;
+        }
 
         node::CacheSizes cache_sizes;
         cache_sizes.block_tree_db = 2 << 20;
