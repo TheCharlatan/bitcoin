@@ -333,6 +333,16 @@ public:
     {
     }
 
+    void SetWipeBlockTreeDb(bool wipe_block_tree) const noexcept
+    {
+        kernel_chainstate_load_options_set_wipe_block_tree_db(m_options.get(), wipe_block_tree);
+    }
+
+    void SetWipeChainstateDb(bool wipe_chainstate) const noexcept
+    {
+        kernel_chainstate_load_options_set_wipe_chainstate_db(m_options.get(), wipe_chainstate);
+    }
+
     friend class ChainMan;
 };
 
