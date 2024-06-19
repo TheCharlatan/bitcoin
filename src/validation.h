@@ -999,6 +999,19 @@ public:
         nBlockReverseSequenceId = -1;
     }
 
+    SteadyClock::duration time_check{};
+    SteadyClock::duration time_forks{};
+    SteadyClock::duration time_connect{};
+    SteadyClock::duration time_verify{};
+    SteadyClock::duration time_undo{};
+    SteadyClock::duration time_index{};
+    SteadyClock::duration time_total{};
+    int64_t num_blocks_total = 0;
+
+    SteadyClock::duration time_connect_total{};
+    SteadyClock::duration time_flush{};
+    SteadyClock::duration time_chainstate{};
+    SteadyClock::duration time_post_connect{};
 
     /**
      * In order to efficiently track invalidity of headers, we keep the set of
