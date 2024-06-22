@@ -342,6 +342,16 @@ public:
         kernel_chainstate_load_options_set_wipe_chainstate_db(m_options.get(), wipe_chainstate);
     }
 
+    void SetChainstateDbInMemory(bool chainstate_db_in_memory) const noexcept
+    {
+        kernel_chainstate_load_options_set_chainstate_db_in_memory(m_options.get(), chainstate_db_in_memory);
+    }
+
+    void SetBlockTreeDbInMemory(bool block_tree_db_in_memory) const noexcept
+    {
+        kernel_chainstate_load_options_set_block_tree_db_in_memory(m_options.get(), block_tree_db_in_memory);
+    }
+
     friend class ChainMan;
 };
 
@@ -393,7 +403,6 @@ public:
 
     ChainMan(const ChainMan&) = delete;
     ChainMan& operator=(const ChainMan&) = delete;
-
 
     bool ProcessBlock(const Block& block, bool* new_block) const noexcept
     {
