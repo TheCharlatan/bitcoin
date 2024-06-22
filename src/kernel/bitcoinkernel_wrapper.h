@@ -271,6 +271,20 @@ public:
                                            wipe_chainstate);
     }
 
+    void SetChainstateDbInMemory(bool chainstate_db_in_memory)
+    {
+        kernel_chainstate_load_options_set(m_options.get(),
+                                           kernel_ChainstateLoadOptionType::kernel_CHAINSTATE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION,
+                                           chainstate_db_in_memory);
+    }
+
+    void SetBlockTreeDbInMemory(bool block_tree_db_in_memory)
+    {
+        kernel_chainstate_load_options_set(m_options.get(),
+                                           kernel_ChainstateLoadOptionType::kernel_BLOCK_TREE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION,
+                                           block_tree_db_in_memory);
+    }
+
     friend class ChainMan;
 };
 
