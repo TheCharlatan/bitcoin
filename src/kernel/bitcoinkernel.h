@@ -230,6 +230,21 @@ typedef void (*kernel_NotifyFlushError)(void* user_data, const char* message);
 typedef void (*kernel_NotifyFatalError)(void* user_data, const char* message);
 
 /**
+<<<<<<< HEAD
+=======
+ * Available types of chainstate load options. Passed with a corresponding value
+ * to kernel_chainstate_load_options_set(..).
+ */
+typedef enum {
+    kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION = 0,  //! Set the wipe block tree db option, default is false.
+                                                           //! Should only be set in combination with wiping the chainstate db.
+    kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION,      //! Set the wipe chainstate option, default is false.
+    kernel_BLOCK_TREE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION, //! Set the block tree db in memory option, default is false.
+    kernel_CHAINSTATE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION, //! Set the coins db in memory option, default is false.
+} kernel_ChainstateLoadOptionType;
+
+/**
+>>>>>>> f39ad34518 (kernel: Add chainstate load options for in-memory dbs in C header)
  * A struct for holding the kernel notification callbacks. The user data pointer
  * may be used to point to user-defined structures to make processing the
  * notifications easier.
@@ -642,6 +657,28 @@ void kernel_chainstate_load_options_set_wipe_block_tree_db(
 void kernel_chainstate_load_options_set_wipe_chainstate_db(
     kernel_ChainstateLoadOptions* chainstate_load_options,
     bool wipe_chainstate_db
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Sets block tree db in memory in the chainstate load options.
+ *
+ * @param[in] chainstate_load_options Non-null, created with kernel_chainstate_load_options_create.
+ * @param[in] block_tree_db_in_memory Set block tree db in memory.
+ */
+void kernel_chainstate_load_options_set_block_tree_db_in_memory(
+    kernel_ChainstateLoadOptions* chainstate_load_options,
+    bool block_tree_db_in_memory
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Sets chainstate db in memory in the chainstate load options.
+ *
+ * @param[in] chainstate_load_options Non-null, created with kernel_chainstate_load_options_create.
+ * @param[in] chainstate_db_in_memory Set chainstate db in memory.
+ */
+void kernel_chainstate_load_options_set_chainstate_db_in_memory(
+    kernel_ChainstateLoadOptions* chainstate_load_options,
+    bool chainstate_db_in_memory
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
