@@ -646,6 +646,28 @@ void kernel_chainstate_load_options_set_wipe_chainstate_db(
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
+ * @brief Sets block tree db in memory in the chainstate load options.
+ *
+ * @param[in] chainstate_load_options Non-null, created with kernel_chainstate_load_options_create.
+ * @param[in] block_tree_db_in_memory Set block tree db in memory.
+ */
+void kernel_chainstate_load_options_set_block_tree_db_in_memory(
+    kernel_ChainstateLoadOptions* chainstate_load_options,
+    bool block_tree_db_in_memory
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Sets chainstate db in memory in the chainstate load options.
+ *
+ * @param[in] chainstate_load_options Non-null, created with kernel_chainstate_load_options_create.
+ * @param[in] chainstate_db_in_memory Set chainstate db in memory.
+ */
+void kernel_chainstate_load_options_set_chainstate_db_in_memory(
+    kernel_ChainstateLoadOptions* chainstate_load_options,
+    bool chainstate_db_in_memory
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * Destroy the chainstate load options
  */
 void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_options);
