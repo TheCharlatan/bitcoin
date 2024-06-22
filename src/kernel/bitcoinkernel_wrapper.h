@@ -313,6 +313,11 @@ public:
         kernel_block_manager_options_set_wipe_block_tree_db(m_options.get(), wipe_block_tree);
     }
 
+    void SetBlockTreeDbInMemory(bool block_tree_db_in_memory) const noexcept
+    {
+        kernel_block_manager_options_set_block_tree_db_in_memory(m_options.get(), block_tree_db_in_memory);
+    }
+
     /** Check whether this BlockManagerOptions object is valid. */
     explicit operator bool() const noexcept { return bool{m_options}; }
 
@@ -340,6 +345,11 @@ public:
     void SetWipeChainstateDb(bool wipe_chainstate) const noexcept
     {
         kernel_chainstate_load_options_set_wipe_chainstate_db(m_options.get(), wipe_chainstate);
+    }
+
+    void SetChainstateDbInMemory(bool chainstate_db_in_memory) const noexcept
+    {
+        kernel_chainstate_load_options_set_chainstate_db_in_memory(m_options.get(), chainstate_db_in_memory);
     }
 
     friend class ChainMan;
@@ -393,7 +403,6 @@ public:
 
     ChainMan(const ChainMan&) = delete;
     ChainMan& operator=(const ChainMan&) = delete;
-
 
     bool ProcessBlock(const Block& block, bool* new_block) const noexcept
     {

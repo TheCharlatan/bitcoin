@@ -683,6 +683,17 @@ BITCOINKERNEL_API void kernel_block_manager_options_set_wipe_block_tree_db(
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
+ * @brief Sets block tree db in memory in the block manager options.
+ *
+ * @param[in] block_manager_options   Non-null, created by @ref kernel_block_manager_options_create.
+ * @param[in] block_tree_db_in_memory Set block tree db in memory.
+ */
+BITCOINKERNEL_API void kernel_block_manager_options_set_block_tree_db_in_memory(
+    kernel_BlockManagerOptions* block_manager_options,
+    bool block_tree_db_in_memory
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * Destroy the block manager options.
  */
 BITCOINKERNEL_API void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* block_manager_options);
@@ -708,6 +719,17 @@ BITCOINKERNEL_API kernel_ChainstateLoadOptions* BITCOINKERNEL_WARN_UNUSED_RESULT
 BITCOINKERNEL_API void kernel_chainstate_load_options_set_wipe_chainstate_db(
     kernel_ChainstateLoadOptions* chainstate_load_options,
     bool wipe_chainstate_db
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Sets chainstate db in memory in the chainstate load options.
+ *
+ * @param[in] chainstate_load_options Non-null, created by @ref kernel_chainstate_load_options_create.
+ * @param[in] chainstate_db_in_memory Set chainstate db in memory.
+ */
+BITCOINKERNEL_API void kernel_chainstate_load_options_set_chainstate_db_in_memory(
+    kernel_ChainstateLoadOptions* chainstate_load_options,
+    bool chainstate_db_in_memory
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**

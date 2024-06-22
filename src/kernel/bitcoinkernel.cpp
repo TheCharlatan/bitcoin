@@ -667,6 +667,22 @@ void kernel_chainstate_load_options_set_wipe_chainstate_db(
     chainstate_load_opts->wipe_chainstate_db = wipe_chainstate_db;
 }
 
+void kernel_block_manager_options_set_block_tree_db_in_memory(
+    kernel_BlockManagerOptions* chainstate_load_opts_,
+    bool block_tree_db_in_memory)
+{
+    auto block_manager_options{cast_block_manager_options(chainstate_load_opts_)};
+    block_manager_options->block_tree_db_params.memory_only = block_tree_db_in_memory;
+}
+
+void kernel_chainstate_load_options_set_chainstate_db_in_memory(
+    kernel_ChainstateLoadOptions* chainstate_load_opts_,
+    bool chainstate_db_in_memory)
+{
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
+    chainstate_load_opts->coins_db_in_memory = chainstate_db_in_memory;
+}
+
 void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_opts)
 {
     if (chainstate_load_opts) {
