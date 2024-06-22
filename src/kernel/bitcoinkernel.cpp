@@ -697,6 +697,14 @@ void kernel_chainstate_load_options_set(
         chainstate_load_opts->wipe_chainstate_db = value;
         return;
     }
+    case kernel_ChainstateLoadOptionType::kernel_BLOCK_TREE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION: {
+        chainstate_load_opts->block_tree_db_in_memory = value;
+        return;
+    }
+    case kernel_ChainstateLoadOptionType::kernel_CHAINSTATE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION: {
+        chainstate_load_opts->coins_db_in_memory = value;
+        return;
+    }
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }
