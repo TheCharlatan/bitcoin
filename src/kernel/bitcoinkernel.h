@@ -227,10 +227,12 @@ typedef enum {
  * to kernel_chainstate_load_options_set(..).
  */
 typedef enum {
-    kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION = 0, //! Set the wipe block tree db option, value should be a bool.
-                                                          //! Should only be set in combination with wiping the chainstate db.
-                                                          //! Will trigger a reindex once ImportBlocks is called.
-    kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION,     //! Set the wipe chainstate option, value should be a bool.
+    kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION = 0,  //! Set the wipe block tree db option, value should be a bool, default is false.
+                                                           //! Should only be set in combination with wiping the chainstate db.
+                                                           //! Will trigger a reindex once ImportBlocks is called.
+    kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION,      //! Set the wipe chainstate option, value should be a bool, default is false.
+    kernel_BLOCK_TREE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION, //! Set the block tree db in memory option, value should be a bool, default is false.
+    kernel_CHAINSTATE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION, //! Set the coins db in memory option, value should be a bool, default is false.
 } kernel_ChainstateLoadOptionType;
 
 /**

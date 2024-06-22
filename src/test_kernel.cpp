@@ -230,6 +230,8 @@ Context create_context(TestKernelNotifications& notifications, kernel_Error& err
 std::unique_ptr<ChainMan> create_chainman(std::filesystem::path path_root,
                                           bool reindex,
                                           bool wipe_chainstate,
+                                          bool block_tree_db_in_memory,
+                                          bool chainstate_db_in_memory,
                                           kernel_Error& error,
                                           Context& context)
 {
@@ -264,12 +266,46 @@ std::unique_ptr<ChainMan> create_chainman(std::filesystem::path path_root,
     }
     if (wipe_chainstate) {
         chainstate_load_opts.SetWipeChainstateDb(wipe_chainstate, error);
+        assert_error_ok(error);
     }
-    assert_error_ok(error);
+    if (block_tree_db_in_memory) {
+        chainstate_load_opts.SetBlockTreeDbInMemory(block_tree_db_in_memory, error);
+        assert_error_ok(error);
+    }
+    if (chainstate_db_in_memory) {
+        chainstate_load_opts.SetChainstateDbInMemory(chainstate_db_in_memory, error);
+        assert_error_ok(error);
+    }
     chainman->LoadChainstate(chainstate_load_opts, error);
     assert_error_ok(error);
 
     return chainman;
+}
+
+void chainman_in_memory_test()
+{
+    const auto rand_str{random_string(16)};
+    auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
+    std::filesystem::create_directories(path_root);
+    kernel_Error error;
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_REGTEST)};
+    assert_error_ok(error);
+    std::cout << "What is going on here?" << std::endl;
+    auto chainman{create_chainman(path_root, false, false, true, true, error, context)};
+
+    auto blocks{read_blocks("block_data.txt")};
+    for (auto& raw_block: blocks) {
+        Block block{raw_block, error};
+        assert_error_ok(error);
+        chainman->ProcessBlock(block, error);
+        assert_error_ok(error);
+    }
+
+    assert(!std::filesystem::exists(path_root / "blocks" / "index"));
+    assert(!std::filesystem::exists(path_root / "chainstate"));
 }
 
 void chainman_mainnet_validation_test(std::filesystem::path path_root)
@@ -280,7 +316,7 @@ void chainman_mainnet_validation_test(std::filesystem::path path_root)
     TestKernelNotifications notifications{};
     auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
     assert_error_ok(error);
-    auto chainman{create_chainman(path_root, false, false, error, context)};
+    auto chainman{create_chainman(path_root, false, false, false, false, error, context)};
     assert_error_ok(error);
 
     {
@@ -319,7 +355,7 @@ void chainman_regtest_validation_test()
     TestKernelNotifications notifications{};
     auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_REGTEST)};
     assert_error_ok(error);
-    auto chainman{create_chainman(path_root, false, false, error, context)};
+    auto chainman{create_chainman(path_root, false, false, false, false, error, context)};
     assert_error_ok(error);
 
     auto blocks{read_blocks("block_data.txt")};
@@ -339,7 +375,7 @@ void chainman_reindex_test(std::filesystem::path path_root)
     TestKernelNotifications notifications{};
     auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
     assert_error_ok(error);
-    auto chainman{create_chainman(path_root, true, false, error, context)};
+    auto chainman{create_chainman(path_root, true, false, false, false, error, context)};
     assert_error_ok(error);
 }
 
@@ -351,7 +387,7 @@ void chainman_reindex_chainstate_test(std::filesystem::path path_root)
     TestKernelNotifications notifications{};
     auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
     assert_error_ok(error);
-    auto chainman{create_chainman(path_root, false, true, error, context)};
+    auto chainman{create_chainman(path_root, false, true, false, false, error, context)};
     assert_error_ok(error);
 }
 
@@ -396,6 +432,8 @@ int main()
     const auto rand_str{random_string(16)};
     auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
     std::filesystem::create_directories(path_root);
+
+    chainman_in_memory_test();
 
     chainman_mainnet_validation_test(path_root);
 

@@ -665,13 +665,23 @@ void kernel_chainstate_load_options_set(
 
     switch (n_option) {
     case kernel_ChainstateLoadOptionType::kernel_WIPE_BLOCK_TREE_DB_CHAINSTATE_LOAD_OPTION: {
-        auto reindex{reinterpret_cast<bool*>(value)};
-        chainstate_load_opts->wipe_block_tree_db = *reindex;
+        auto wipe_block_tree_db{reinterpret_cast<bool*>(value)};
+        chainstate_load_opts->wipe_block_tree_db = *wipe_block_tree_db;
         return;
     }
     case kernel_ChainstateLoadOptionType::kernel_WIPE_CHAINSTATE_DB_CHAINSTATE_LOAD_OPTION: {
-        auto reindex_chainstate{reinterpret_cast<bool*>(value)};
-        chainstate_load_opts->wipe_chainstate_db = *reindex_chainstate;
+        auto wipe_chainstate_db{reinterpret_cast<bool*>(value)};
+        chainstate_load_opts->wipe_chainstate_db = *wipe_chainstate_db;
+        return;
+    }
+    case kernel_ChainstateLoadOptionType::kernel_BLOCK_TREE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION: {
+        auto block_tree_db_in_memory{reinterpret_cast<bool*>(value)};
+        chainstate_load_opts->block_tree_db_in_memory = *block_tree_db_in_memory;
+        return;
+    }
+    case kernel_ChainstateLoadOptionType::kernel_CHAINSTATE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION: {
+        auto coins_db_in_memory{reinterpret_cast<bool*>(value)};
+        chainstate_load_opts->coins_db_in_memory = *coins_db_in_memory;
         return;
     }
     default: {
@@ -704,6 +714,7 @@ void kernel_chainstate_manager_load_chainstate(const kernel_Context* context_,
         cache_sizes.block_tree_db = 2 << 20;
         cache_sizes.coins_db = 2 << 22;
         cache_sizes.coins = (450 << 20) - (2 << 20) - (2 << 22);
+        LogPrintf("Memory only: %d\n", chainstate_load_opts.block_tree_db_in_memory);
         auto [status, chainstate_err]{node::LoadChainstate(chainman, cache_sizes, chainstate_load_opts)};
         if (status != node::ChainstateLoadStatus::SUCCESS) {
             set_error(error, kernel_ErrorCode::kernel_ERROR_INTERNAL, "Failed to load chain state from your data directory. " + chainstate_err.original);
