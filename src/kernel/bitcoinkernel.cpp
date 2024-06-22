@@ -692,16 +692,32 @@ void btck_chainstate_manager_options_destroy(btck_ChainstateManagerOptions* opti
     options = nullptr;
 }
 
-bool btck_chainstate_manager_options_set_wipe_dbs(btck_ChainstateManagerOptions* chainman_opts, bool wipe_block_tree_db, bool wipe_chainstate_db)
+int btck_chainstate_manager_options_set_wipe_dbs(btck_ChainstateManagerOptions* chainman_opts, int wipe_block_tree_db, int wipe_chainstate_db)
 {
-    if (wipe_block_tree_db && !wipe_chainstate_db) {
+    if (wipe_block_tree_db == 1 && wipe_chainstate_db != 1) {
         LogError("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
-        return false;
+        return -1;
     }
     LOCK(chainman_opts->m_opts->m_mutex);
-    chainman_opts->m_opts->m_blockman_options.block_tree_db_params.wipe_data = wipe_block_tree_db;
-    chainman_opts->m_opts->m_chainstate_load_options.wipe_chainstate_db = wipe_chainstate_db;
-    return true;
+    chainman_opts->m_opts->m_blockman_options.block_tree_db_params.wipe_data = wipe_block_tree_db == 1;
+    chainman_opts->m_opts->m_chainstate_load_options.wipe_chainstate_db = wipe_chainstate_db == 1;
+    return 0;
+}
+
+void btck_chainstate_manager_options_set_block_tree_db_in_memory(
+    btck_ChainstateManagerOptions* chainman_opts,
+    int block_tree_db_in_memory)
+{
+    LOCK(chainman_opts->m_opts->m_mutex);
+    chainman_opts->m_opts->m_blockman_options.block_tree_db_params.memory_only = block_tree_db_in_memory == 1;
+}
+
+void btck_chainstate_manager_options_set_chainstate_db_in_memory(
+    btck_ChainstateManagerOptions* chainman_opts,
+    int chainstate_db_in_memory)
+{
+    LOCK(chainman_opts->m_opts->m_mutex);
+    chainman_opts->m_opts->m_chainstate_load_options.coins_db_in_memory = chainstate_db_in_memory == 1;
 }
 
 btck_ChainstateManager* btck_chainstate_manager_create(
