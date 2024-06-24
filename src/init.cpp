@@ -8,7 +8,6 @@
 #include <init.h>
 
 #include <kernel/checks.h>
-#include <kernel/mempool_persist.h>
 #include <kernel/validation_cache_sizes.h>
 
 #include <addrman.h>
@@ -50,6 +49,7 @@
 #include <node/interface_ui.h>
 #include <node/kernel_notifications.h>
 #include <node/mempool_args.h>
+#include <node/mempool_persist.h>
 #include <node/mempool_persist_args.h>
 #include <node/miner.h>
 #include <node/peerman_args.h>
