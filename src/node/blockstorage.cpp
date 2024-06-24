@@ -1212,11 +1212,18 @@ void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFile
     }
 
     // -loadblock=
+    for (const auto& path : vImportFiles) {
+        LogPrintf("Path: %s\n", path.c_str());
+    }
+    // Map of disk positions for blocks with unknown parent (only used for reindex);
+    // parent hash -> child disk position, multiple children can have the same parent.
+    std::multimap<uint256, FlatFilePos> blocks_with_unknown_parent;
+
     for (const fs::path& path : vImportFiles) {
         AutoFile file{fsbridge::fopen(path, "rb")};
         if (!file.IsNull()) {
             LogPrintf("Importing blocks file %s...\n", fs::PathToString(path));
-            chainman.LoadExternalBlockFile(file);
+            chainman.LoadExternalBlockFile(file, nullptr, &blocks_with_unknown_parent);
             if (chainman.m_interrupt) {
                 LogPrintf("Interrupt requested. Exit %s\n", __func__);
                 return;
@@ -1225,6 +1232,8 @@ void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFile
             LogPrintf("Warning: Could not open blocks file %s\n", fs::PathToString(path));
         }
     }
+
+    return;
 
     // scan for better chains in the block chain database, that are not yet connected in the active best chain
 

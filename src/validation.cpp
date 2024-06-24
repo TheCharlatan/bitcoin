@@ -5025,6 +5025,8 @@ void ChainstateManager::LoadExternalBlockFile(
     const auto start{SteadyClock::now()};
     const CChainParams& params{GetParams()};
 
+    auto nblocks{0};
+
     int nLoaded = 0;
     try {
         BufferedFile blkdat{file_in, 2 * MAX_BLOCK_SERIALIZED_SIZE, MAX_BLOCK_SERIALIZED_SIZE + 8};
@@ -5032,9 +5034,13 @@ void ChainstateManager::LoadExternalBlockFile(
         // such as a block fails to deserialize.
         uint64_t nRewind = blkdat.GetPos();
         while (!blkdat.eof()) {
+            nblocks++;
             if (m_interrupt) return;
 
             blkdat.SetPos(nRewind);
+            if (blkdat.eof()) {
+                LogPrintf("End of file!\n");
+            }
             nRewind++; // start one byte further next time, in case of failure
             blkdat.SetLimit(); // remove former limit
             unsigned int nSize = 0;
@@ -5054,6 +5060,7 @@ void ChainstateManager::LoadExternalBlockFile(
             } catch (const std::exception&) {
                 // no valid block header found; don't complain
                 // (this happens at the end of every blk.dat file)
+                LogPrintf("end of file!\n");
                 break;
             }
             try {
@@ -5076,11 +5083,13 @@ void ChainstateManager::LoadExternalBlockFile(
                     LOCK(cs_main);
                     // detect out of order blocks, and store them for later
                     if (hash != params.GetConsensus().hashGenesisBlock && !m_blockman.LookupBlockIndex(header.hashPrevBlock)) {
-                        LogPrint(BCLog::REINDEX, "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
+                        LogPrintf("%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
                                  header.hashPrevBlock.ToString());
                         if (dbp && blocks_with_unknown_parent) {
                             blocks_with_unknown_parent->emplace(header.hashPrevBlock, *dbp);
                         }
+                        LogPrintf("block is out of order.\n");
+                        break;
                         continue;
                     }
 
@@ -5098,6 +5107,7 @@ void ChainstateManager::LoadExternalBlockFile(
                             nLoaded++;
                         }
                         if (state.IsError()) {
+                            LogPrintf("something is going wrong: %s %s", state.GetDebugMessage(), state.GetRejectReason());
                             break;
                         }
                     } else if (hash != params.GetConsensus().hashGenesisBlock && pindex->nHeight % 1000 == 0) {
@@ -5185,10 +5195,15 @@ void ChainstateManager::LoadExternalBlockFile(
                 // perhaps ordered, block files for later reindexing.
                 LogPrint(BCLog::REINDEX, "%s: unexpected data at file offset 0x%x - %s. continuing\n", __func__, (nRewind - 1), e.what());
             }
+
+            if (blkdat.eof()) {
+                LogPrintf("End of file reached!\n");
+            }
         }
     } catch (const std::runtime_error& e) {
         GetNotifications().fatalError(strprintf(_("System error while loading external block file: %s"), e.what()));
     }
+    LogPrintf("Iterated %i blocks from extern file\n", nblocks);
     LogPrintf("Loaded %i blocks from external file in %dms\n", nLoaded, Ticks<std::chrono::milliseconds>(SteadyClock::now() - start));
 }
 

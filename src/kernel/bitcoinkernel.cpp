@@ -984,6 +984,9 @@ void kernel_import_blocks(const kernel_Context* context_,
                 import_files.emplace_back(block_file_paths[i]);
             }
         }
+        for (auto& file : import_files) {
+            LogPrintf("Using file: %s\n", file.c_str());
+        }
         node::ImportBlocks(*chainman, import_files);
         chainman->ActiveChainstate().ForceFlushStateToDisk();
     } catch (const std::exception& e) {

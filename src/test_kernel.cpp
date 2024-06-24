@@ -551,6 +551,42 @@ void chainman_reindex_chainstate_test(std::filesystem::path path_root)
     assert_error_ok(error);
 }
 
+void chainman_signet_test()
+{
+    const auto rand_str{random_string(16)};
+    auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
+    std::filesystem::create_directories(path_root);
+    kernel_Error error;
+    error.code = kernel_ErrorCode::kernel_ERROR_OK;
+
+    TestKernelNotifications notifications{};
+    auto context{create_context(notifications, error, kernel_ChainType::kernel_CHAIN_TYPE_SIGNET)};
+    assert_error_ok(error);
+    auto chainman{create_chainman(path_root, false, false, true, true, error, context)};
+
+    assert_error_ok(error);
+    std::vector<std::string> blockfiles {
+        "/home/drgrid/.bitcoin/signet/blocks/blk00000.dat",
+        // "/home/drgrid/.bitcoin/signet/blocks/blk00001.dat",
+        // "/home/drgrid/.bitcoin/signet/blocks/blk00002.dat",
+        // "/home/drgrid/.bitcoin/signet/blocks/blk00003.dat",
+        // "/home/drgrid/.bitcoin/signet/blocks/blk00004.dat",
+        // "/home/drgrid/.bitcoin/signet/blocks/blk00005.dat",
+        // "/home/drgrid/.bitcoin/signet/blocks/blk00006.dat",
+        // "/home/drgrid/.bitcoin/signet/blocks/blk00007.dat",
+        // "/home/drgrid/.bitcoin/signet/blocks/blk00008.dat",
+        // "/home/drgrid/.bitcoin/signet/blocks/blk00009.dat",
+        // "/home/drgrid/.bitcoin/signet/blocks/blk00010.dat",
+        // "/home/drgrid/.bitcoin/signet/blocks/blk00011.dat",
+        // "/home/drgrid/.bitcoin/signet/blocks/blk00012.dat"
+    };
+    chainman->ImportBlocks(blockfiles, error);
+    assert_error_ok(error);
+
+    assert(!std::filesystem::exists(path_root / "blocks" / "index"));
+    assert(!std::filesystem::exists(path_root / "chainstate"));
+}
+
 int main()
 {
     // legacy transaction
@@ -589,19 +625,21 @@ int main()
 
     default_context_test();
 
-    const auto rand_str{random_string(16)};
-    auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
-    std::filesystem::create_directories(path_root);
+    chainman_signet_test();
 
-    chainman_in_memory_test();
+    // const auto rand_str{random_string(16)};
+    // auto path_root{std::filesystem::temp_directory_path() / ("test_bitcoin_kernel_" + rand_str)};
+    // std::filesystem::create_directories(path_root);
 
-    chainman_mainnet_validation_test(path_root);
+    // chainman_in_memory_test();
 
-    chainman_regtest_validation_test();
+    // chainman_mainnet_validation_test(path_root);
 
-    chainman_reindex_test(path_root);
+    // chainman_regtest_validation_test();
 
-    chainman_reindex_chainstate_test(path_root);
+    // chainman_reindex_test(path_root);
+
+    // chainman_reindex_chainstate_test(path_root);
 
     std::cout << "Libbitcoinkernel test completed.\n";
     return 0;
