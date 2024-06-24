@@ -191,7 +191,6 @@ BITCOIN_CORE_H = \
   kernel/mempool_entry.h \
   kernel/mempool_limits.h \
   kernel/mempool_options.h \
-  kernel/mempool_persist.h \
   kernel/mempool_removal_reason.h \
   kernel/messagestartchars.h \
   kernel/notifications_interface.h \
@@ -227,6 +226,7 @@ BITCOIN_CORE_H = \
   node/interface_ui.h \
   node/kernel_notifications.h \
   node/mempool_args.h \
+  node/mempool_persist.h \
   node/mempool_persist_args.h \
   node/miner.h \
   node/mini_miner.h \
@@ -412,7 +412,6 @@ libbitcoin_node_a_SOURCES = \
   kernel/context.cpp \
   kernel/cs_main.cpp \
   kernel/disconnected_transactions.cpp \
-  kernel/mempool_persist.cpp \
   kernel/mempool_removal_reason.cpp \
   mapport.cpp \
   net.cpp \
@@ -434,6 +433,7 @@ libbitcoin_node_a_SOURCES = \
   node/interfaces.cpp \
   node/kernel_notifications.cpp \
   node/mempool_args.cpp \
+  node/mempool_persist.cpp \
   node/mempool_persist_args.cpp \
   node/miner.cpp \
   node/mini_miner.cpp \
@@ -949,7 +949,6 @@ libbitcoinkernel_la_SOURCES = \
   kernel/context.cpp \
   kernel/cs_main.cpp \
   kernel/disconnected_transactions.cpp \
-  kernel/mempool_persist.cpp \
   kernel/mempool_removal_reason.cpp \
   logging.cpp \
   node/blockstorage.cpp \

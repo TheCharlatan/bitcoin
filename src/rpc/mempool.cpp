@@ -5,11 +5,10 @@
 
 #include <rpc/blockchain.h>
 
-#include <kernel/mempool_persist.h>
-
 #include <chainparams.h>
 #include <core_io.h>
 #include <kernel/mempool_entry.h>
+#include <node/mempool_persist.h>
 #include <node/mempool_persist_args.h>
 #include <node/types.h>
 #include <policy/rbf.h>
