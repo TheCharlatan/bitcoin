@@ -521,9 +521,6 @@ private:
 public:
     BlockIndex(kernel_BlockIndex* block_index) : m_block_index{block_index} {}
 
-    BlockIndex(const BlockIndex&) = delete;
-    BlockIndex& operator=(const BlockIndex&) = delete;
-
     BlockIndex GetPreviousBlockIndex(kernel_Error& error)
     {
         if (!m_block_index) {
@@ -613,6 +610,11 @@ public:
     BlockUndo ReadBlockUndo(BlockIndex& block_index, kernel_Error& error)
     {
         return BlockUndo{kernel_read_block_undo_from_disk(m_context.m_context.get(), m_chainman, block_index.m_block_index.get(), &error)};
+    }
+
+    void WriteBlockToDisk(Block& block, int height, kernel_Error& error)
+    {
+        kernel_write_block_to_disk(m_context.m_context.get(), m_chainman, block.m_block.get(), height, &error);
     }
 
     ~ChainMan()

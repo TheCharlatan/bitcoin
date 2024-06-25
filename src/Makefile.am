@@ -111,6 +111,7 @@ endif
 
 if BUILD_BITCOIN_CHAINSTATE
   bin_PROGRAMS += bitcoin-chainstate
+  bin_PROGRAMS += bitcoin-linearize-blocks
 endif
 
 .PHONY: FORCE check-symbols check-security
@@ -892,6 +893,13 @@ bitcoin_util_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBSECP256K1)
 #
+
+# linearize-blocks binary #
+bitcoin_linearize_blocks_SOURCES = linearize_blocks.cpp
+bitcoin_linearize_blocks_CPPFLAGS = $(AM_CPPFLAGS)
+bitcoin_linearize_blocks_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+bitcoin_linearize_blocks_LDFLAGS = $(RELDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)
+bitcoin_linearize_blocks_LDADD = $(LIBBITCOINKERNEL)
 
 # bitcoin-chainstate binary #
 bitcoin_chainstate_SOURCES = bitcoin-chainstate.cpp
