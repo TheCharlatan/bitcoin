@@ -408,6 +408,11 @@ public:
         return kernel_chainstate_manager_options_set_wipe_dbs(m_options.get(), wipe_block_tree, wipe_chainstate);
     }
 
+    void SetMaxBlockfileSize(uint64_t max_blockfile_size)
+    {
+        kernel_chainstate_manager_options_set_max_block_file_size(m_options.get(), max_blockfile_size);
+    }
+
     void SetBlockTreeDbInMemory(bool block_tree_db_in_memory) const noexcept
     {
         kernel_chainstate_manager_options_set_block_tree_db_in_memory(m_options.get(), block_tree_db_in_memory);

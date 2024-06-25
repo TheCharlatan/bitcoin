@@ -777,6 +777,14 @@ void kernel_chainstate_manager_options_set_chainstate_db_in_memory(
     chainman_opts->m_chainstate_load_options.coins_db_in_memory = chainstate_db_in_memory;
 }
 
+void kernel_chainstate_manager_options_set_max_block_file_size(
+    kernel_ChainstateManagerOptions* chainman_opts_,
+    uint64_t max_blockfile_size)
+{
+    auto chainman_opts{cast_chainstate_manager_options(chainman_opts_)};
+    chainman_opts->m_blockman_options.max_blockfile_size = max_blockfile_size;
+}
+
 kernel_ChainstateManager* kernel_chainstate_manager_create(
     const kernel_Context* context_,
     const kernel_ChainstateManagerOptions* chainman_opts_)
