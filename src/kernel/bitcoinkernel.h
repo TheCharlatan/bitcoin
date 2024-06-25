@@ -1095,6 +1095,21 @@ BITCOINKERNEL_API void kernel_block_index_destroy(kernel_BlockIndex* block_index
 ///@{
 
 /**
+ * @brief Write a block to disk.
+ * 
+ * @param[in] context            Non-null.
+ * @param[in] chainstate_manager Non-null.
+ * @param[in] block              Non-null.
+ * @param[in] height             The height of the block we are writing.
+ */
+void kernel_write_block_to_disk(
+    const kernel_Context* context,
+    kernel_ChainstateManager* chainstate_manager,
+    kernel_Block* block,
+    int height
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
+
+/**
  * @brief Reads the block undo data the passed in block index points to from
  * disk and returns it.
  *
