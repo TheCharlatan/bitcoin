@@ -112,6 +112,7 @@ endif
 if BUILD_BITCOIN_CHAINSTATE
   bin_PROGRAMS += bitcoin-chainstate
   bin_PROGRAMS += test-kernel
+  bin_PROGRAMS += test-kernel-linearize
 endif
 
 .PHONY: FORCE check-symbols check-security
@@ -899,6 +900,13 @@ test_kernel_CPPFLAGS = $(AM_CPPFLAGS)
 test_kernel_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 test_kernel_LDFLAGS = $(RELDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)
 test_kernel_LDADD = $(LIBBITCOINKERNEL)
+
+# test-kernel-linearize binary #
+test_kernel_linearize_SOURCES = test_kernel_linearize.cpp
+test_kernel_linearize_CPPFLAGS = $(AM_CPPFLAGS)
+test_kernel_linearize_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+test_kernel_linearize_LDFLAGS = $(RELDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)
+test_kernel_linearize_LDADD = $(LIBBITCOINKERNEL)
 
 # bitcoin-chainstate binary #
 bitcoin_chainstate_SOURCES = bitcoin-chainstate.cpp
