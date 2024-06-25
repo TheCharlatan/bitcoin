@@ -29,6 +29,7 @@ void initialize_script_sigcache()
 FUZZ_TARGET(script_sigcache, .init = initialize_script_sigcache)
 {
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
+    CSignatureCache signature_cache{DEFAULT_MAX_SIG_CACHE_BYTES / 2};
 
     const std::optional<CMutableTransaction> mutable_transaction = ConsumeDeserializable<CMutableTransaction>(fuzzed_data_provider, TX_WITH_WITNESS);
     const CTransaction tx{mutable_transaction ? *mutable_transaction : CMutableTransaction{}};
@@ -36,7 +37,7 @@ FUZZ_TARGET(script_sigcache, .init = initialize_script_sigcache)
     const CAmount amount = ConsumeMoney(fuzzed_data_provider);
     const bool store = fuzzed_data_provider.ConsumeBool();
     PrecomputedTransactionData tx_data;
-    CachingTransactionSignatureChecker caching_transaction_signature_checker{mutable_transaction ? &tx : nullptr, n_in, amount, store, tx_data};
+    CachingTransactionSignatureChecker caching_transaction_signature_checker{mutable_transaction ? &tx : nullptr, n_in, amount, store, signature_cache, tx_data};
     if (fuzzed_data_provider.ConsumeBool()) {
         const auto random_bytes = fuzzed_data_provider.ConsumeBytes<unsigned char>(64);
         const XOnlyPubKey pub_key(ConsumeUInt256(fuzzed_data_provider));
