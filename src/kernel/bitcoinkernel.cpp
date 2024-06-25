@@ -337,6 +337,12 @@ const node::BlockManager::Options* cast_const_block_manager_options(const kernel
     return reinterpret_cast<const node::BlockManager::Options*>(options);
 }
 
+node::BlockManager::Options* cast_block_manager_options(kernel_BlockManagerOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<node::BlockManager::Options*>(options);
+}
+
 ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman)
 {
     assert(chainman);
@@ -787,6 +793,14 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
         LogError("Failed to create chainstate manager: %s\n", e.what());
         return nullptr;
     }
+}
+
+void kernel_block_manager_options_set_max_block_file_size(
+    kernel_BlockManagerOptions* block_manager_opts_,
+    uint64_t max_blockfile_size)
+{
+    auto block_manager_opts{cast_block_manager_options(block_manager_opts_)};
+    block_manager_opts->max_blockfile_size = max_blockfile_size;
 }
 
 kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()

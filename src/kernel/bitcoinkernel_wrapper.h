@@ -436,6 +436,11 @@ public:
     /** Check whether this BlockManagerOptions object is valid. */
     explicit operator bool() const noexcept { return bool{m_options}; }
 
+    void SetMaxBlockfileSize(uint64_t max_blockfile_size)
+    {
+        kernel_block_manager_options_set_max_block_file_size(m_options.get(), max_blockfile_size);
+    }
+
     friend class ChainMan;
 };
 

@@ -739,6 +739,17 @@ void kernel_chainstate_manager_options_set_worker_threads_num(
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
+ * @brief Sets the max block file size to be used in the block manager.
+ *
+ * @param[in] block_manager_options Non-null, created with kernel_block_manager_options_create.
+ * @param[in] max_block_file_size   Set the maximum block file size.
+ */
+void kernel_block_manager_options_set_max_block_file_size(
+    kernel_BlockManagerOptions* block_manager_options,
+    uint64_t max_block_file_size
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * Destroy the block manager options.
  */
 void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* block_manager_options);
@@ -1045,7 +1056,7 @@ kernel_Block* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_read_block_from_disk(
 
 /**
  * @brief Write a block to disk.
- * 
+ *
  * @param[in] context            Non-null.
  * @param[in] chainstate_manager Non-null.
  * @param[in] block              Non-null.
