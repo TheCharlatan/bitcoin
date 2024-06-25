@@ -939,6 +939,13 @@ void btck_chainstate_manager_options_update_chainstate_db_in_memory(
     opts.m_chainstate_load_options.coins_db_in_memory = chainstate_db_in_memory == 1;
 }
 
+void btck_chainstate_manager_options_set_max_block_file_size(
+    btck_ChainstateManagerOptions* chainman_opts,
+    uint64_t max_blockfile_size)
+{
+    btck_ChainstateManagerOptions::get(chainman_opts).m_blockman_options.max_blockfile_size = max_blockfile_size;
+}
+
 btck_ChainstateManager* btck_chainstate_manager_create(
     const btck_ChainstateManagerOptions* chainman_opts)
 {
