@@ -158,3 +158,17 @@ target_link_libraries(kernel-bitcoin-chainstate
 set_target_properties(kernel-bitcoin-chainstate PROPERTIES
   SKIP_BUILD_RPATH OFF
 )
+
+add_executable(bitcoin-linearize-blocks
+  linearize_blocks.cpp
+)
+
+target_link_libraries(bitcoin-linearize-blocks
+  PRIVATE
+    core_interface
+    bitcoinkernel
+)
+
+set_target_properties(bitcoin-linearize-blocks PROPERTIES 
+  SKIP_BUILD_RPATH OFF
+)

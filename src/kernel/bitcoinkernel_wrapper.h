@@ -688,6 +688,11 @@ public:
         return undo;
     }
 
+    void WriteBlockToDisk(Block& block, int height)
+    {
+        kernel_write_block_to_disk(m_context.m_context.get(), m_chainman, block.m_block.get(), height);
+    }
+
     ~ChainMan()
     {
         kernel_chainstate_manager_destroy(m_chainman, m_context.m_context.get());
