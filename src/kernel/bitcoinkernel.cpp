@@ -914,6 +914,22 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
     }
 }
 
+void kernel_block_manager_options_set(
+    kernel_BlockManagerOptions* block_manager_opts_,
+    kernel_BlockManagerOptionType n_option,
+    uint64_t value)
+{
+    auto block_manager_opts{cast_block_manager_options(block_manager_opts_)};
+
+    switch (n_option) {
+    case kernel_BlockManagerOptionType::kernel_MAX_BLOCKFILE_SIZE_BLOCK_MANAGER_OPTION: {
+        block_manager_opts->max_blockfile_size = value;
+        return;
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
 kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()
 {
     return reinterpret_cast<kernel_ChainstateLoadOptions*>(new node::ChainstateLoadOptions);

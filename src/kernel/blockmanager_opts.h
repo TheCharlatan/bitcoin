@@ -14,6 +14,9 @@ class CChainParams;
 
 namespace kernel {
 
+/** The maximum size of a blk?????.dat file (since 0.8) */
+static const uint64_t MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
+
 /**
  * An options struct for `BlockManager`, more ergonomically referred to as
  * `BlockManager::Options` due to the using-declaration in `BlockManager`.
@@ -24,6 +27,7 @@ struct BlockManagerOpts {
     bool fast_prune{false};
     const fs::path blocks_dir;
     Notifications& notifications;
+    uint64_t max_blockfile_size{MAX_BLOCKFILE_SIZE};
 };
 
 } // namespace kernel

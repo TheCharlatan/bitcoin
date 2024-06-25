@@ -304,6 +304,10 @@ typedef enum {
     kernel_CHAINSTATE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION, //! Set the coins db in memory option, default is false.
 } kernel_ChainstateLoadOptionType;
 
+typedef enum {
+    kernel_MAX_BLOCKFILE_SIZE_BLOCK_MANAGER_OPTION = 0, //! Set the maximum blockfile size, value must be uint64_t.
+} kernel_BlockManagerOptionType; 
+
 /**
  * Whether a validated data structure is valid, invalid, or an error was
  * encountered during processing.
@@ -716,6 +720,20 @@ kernel_BlockManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_manage
     const char* blocks_directory,
     kernel_Error* error
 ) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2);
+
+/**
+ * @brief Sets a single, specific field in the chainstate load options. The
+ * option type has to match the option value.
+ *
+ * @param[in] block_manager_options   Non-null, created with kernel_block_manager_options_create.
+ * @param[in] n_option                Describes the option field that should be set with the value.
+ * @param[in] value                   Single value setting the field selected by n_option.
+ */
+void kernel_block_manager_options_set(
+    kernel_BlockManagerOptions* block_manager_options,
+    kernel_BlockManagerOptionType n_option,
+    uint64_t value
+) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
  * Destroy the block manager options.
