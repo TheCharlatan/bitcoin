@@ -1200,6 +1200,18 @@ kernel_BlockUndo* kernel_read_block_undo_from_disk(const kernel_Context* context
     return reinterpret_cast<kernel_BlockUndo*>(block_undo);
 }
 
+void kernel_write_block_to_disk(
+    const kernel_Context* context,
+    kernel_ChainstateManager* chainman_,
+    kernel_Block* block_,
+    int height)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+    auto block{cast_cblocksharedpointer(block_)};
+
+    chainman->m_blockman.SaveBlockToDisk(**block, height);
+}
+
 void kernel_block_index_destroy(kernel_BlockIndex* block_index)
 {
     // This is just a dummy function. The user does not control block index memory.

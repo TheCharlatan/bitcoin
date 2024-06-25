@@ -1054,6 +1054,21 @@ kernel_Block* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_read_block_from_disk(
 ) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
 
 /**
+ * @brief Write a block to disk.
+ * 
+ * @param[in] context            Non-null.
+ * @param[in] chainstate_manager Non-null.
+ * @param[in] block              Non-null.
+ * @param[in] height             The height of the block we are writing.
+ */
+void kernel_write_block_to_disk(
+    const kernel_Context* context,
+    kernel_ChainstateManager* chainstate_manager,
+    kernel_Block* block,
+    int height
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
+
+/**
  * @brief Reads the block undo data the passed in block index points to from
  * disk and returns it.
  *
