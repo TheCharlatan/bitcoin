@@ -289,6 +289,10 @@ typedef enum {
     kernel_CHAINSTATE_DB_IN_MEMORY_CHAINSTATE_LOAD_OPTION, //! Set the coins db in memory option, value should be a bool, default is false.
 } kernel_ChainstateLoadOptionType;
 
+typedef enum {
+    kernel_MAX_BLOCKFILE_SIZE_BLOCK_MANAGER_OPTION = 0, //! Set the maximum blockfile size, value should be uint64_t.
+} kernel_BlockManagerOptionType; 
+
 /**
  * Whether a validated data structure is valid, invalid, or an error was
  * encountered during processing.
@@ -424,6 +428,7 @@ typedef enum {
     kernel_ERROR_BLOCK_WITHOUT_COINBASE,
     kernel_ERROR_UNKNOWN_CHAINSTATE_LOAD_OPTION,
     kernel_ERROR_OUT_OF_BOUNDS,
+    kernel_ERROR_UNKNOWN_BLOCK_MANAGER_OPTION,
 } kernel_ErrorCode;
 
 /**
@@ -682,6 +687,22 @@ kernel_BlockManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_manage
     const char* blocks_directory,
     kernel_Error* error
 ) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2);
+
+/**
+ * @brief Sets a single, specific field in the chainstate load options. The
+ * option type has to match the option value.
+ *
+ * @param[in] block_manager_options   Non-null, created with kernel_block_manager_options_create.
+ * @param[in] n_option                Describes the option field that should be set with the value.
+ * @param[in] value                   Non-null, single value setting the field selected by n_option.
+ * @param[out] error                  Nullable, will contain an error/success code for the operation.
+ */
+void kernel_block_manager_options_set(
+    kernel_BlockManagerOptions* block_manager_options,
+    kernel_BlockManagerOptionType n_option,
+    void* value,
+    kernel_Error* error
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(3);
 
 /**
  * Destroy the block manager options.

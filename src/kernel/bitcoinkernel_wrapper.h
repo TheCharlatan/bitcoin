@@ -339,6 +339,14 @@ public:
     {
     }
 
+    void SetMaxBlockfileSize(uint64_t max_blockfile_size, kernel_Error& error)
+    {
+        kernel_block_manager_options_set(m_options.get(),
+                                         kernel_BlockManagerOptionType::kernel_MAX_BLOCKFILE_SIZE_BLOCK_MANAGER_OPTION,
+                                         &max_blockfile_size,
+                                         &error);
+    }
+
     BlockManagerOptions() = delete;
 
     friend class ChainMan;

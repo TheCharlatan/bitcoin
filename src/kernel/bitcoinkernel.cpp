@@ -848,6 +848,26 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
     }
 }
 
+void kernel_block_manager_options_set(
+    kernel_BlockManagerOptions* block_manager_opts_,
+    kernel_BlockManagerOptionType n_option,
+    void* value,
+    kernel_Error* error)
+{
+    auto block_manager_opts{cast_block_manager_options(block_manager_opts_)};
+
+    switch (n_option) {
+    case kernel_BlockManagerOptionType::kernel_MAX_BLOCKFILE_SIZE_BLOCK_MANAGER_OPTION: {
+        auto max_blockfile_size{reinterpret_cast<unsigned int*>(value)};
+        block_manager_opts->max_blockfile_size = *max_blockfile_size;
+        return;
+    }
+    default: {
+        set_error(error, kernel_ErrorCode::kernel_ERROR_UNKNOWN_BLOCK_MANAGER_OPTION, "Unknow block manager option.");
+    }
+    }
+}
+
 kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()
 {
     return reinterpret_cast<kernel_ChainstateLoadOptions*>(new node::ChainstateLoadOptions);
