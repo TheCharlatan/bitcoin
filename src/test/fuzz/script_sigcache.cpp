@@ -5,6 +5,7 @@
 #include <chainparams.h>
 #include <key.h>
 #include <pubkey.h>
+#include <random.h>
 #include <script/sigcache.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
@@ -24,7 +25,7 @@ SignatureCache* g_signature_cache;
 void initialize_script_sigcache()
 {
     static const auto testing_setup = MakeNoLogFileContext<>();
-    static SignatureCache signature_cache{DEFAULT_MAX_SIG_CACHE_BYTES / 2};
+    static SignatureCache signature_cache{DEFAULT_MAX_SIG_CACHE_BYTES / 2, GetRandHash()};
     g_setup = testing_setup.get();
     g_signature_cache = &signature_cache;
 }
