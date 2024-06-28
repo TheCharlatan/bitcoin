@@ -2095,11 +2095,9 @@ bool CScriptCheck::operator()() {
     return VerifyScript(scriptSig, m_tx_out.scriptPubKey, witness, nFlags, CachingTransactionSignatureChecker(ptxTo, nIn, m_tx_out.nValue, cacheStore, *m_signature_cache, *txdata), &error);
 }
 
-ValidationCache::ValidationCache(size_t script_execution_cache_bytes, size_t signature_cache_bytes)
-    : m_signature_cache{signature_cache_bytes / 2}
+ValidationCache::ValidationCache(size_t script_execution_cache_bytes, size_t signature_cache_bytes, const uint256& nonce)
+    : m_signature_cache{signature_cache_bytes / 2, nonce}
 {
-    // Setup the salted hasher
-    uint256 nonce = GetRandHash();
     // We want the nonce to be 64 bytes long to force the hasher to process
     // this chunk, which makes later hash computations more efficient. We
     // just write our 32-byte entropy twice to fill the 64 bytes.
@@ -6233,7 +6231,7 @@ ChainstateManager::ChainstateManager(const util::SignalInterrupt& interrupt, Opt
       m_interrupt{interrupt},
       m_options{Flatten(std::move(options))},
       m_blockman{interrupt, std::move(blockman_options)},
-      m_validation_cache{m_options.script_execution_cache_bytes, m_options.signature_cache_bytes}
+      m_validation_cache{m_options.script_execution_cache_bytes, m_options.signature_cache_bytes, GetRandHash()}
 {
 }
 
