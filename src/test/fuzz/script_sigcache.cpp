@@ -5,6 +5,7 @@
 #include <chainparams.h>
 #include <key.h>
 #include <pubkey.h>
+#include <random.h>
 #include <script/sigcache.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
@@ -29,7 +30,7 @@ void initialize_script_sigcache()
 FUZZ_TARGET(script_sigcache, .init = initialize_script_sigcache)
 {
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
-    SignatureCache signature_cache{DEFAULT_MAX_SIG_CACHE_BYTES / 2};
+    SignatureCache signature_cache{DEFAULT_MAX_SIG_CACHE_BYTES / 2, GetRandHash()};
 
     const std::optional<CMutableTransaction> mutable_transaction = ConsumeDeserializable<CMutableTransaction>(fuzzed_data_provider, TX_WITH_WITNESS);
     const CTransaction tx{mutable_transaction ? *mutable_transaction : CMutableTransaction{}};

@@ -377,7 +377,7 @@ public:
     CuckooCache::cache<uint256, SignatureCacheHasher> m_script_execution_cache;
     SignatureCache m_signature_cache;
 
-    ValidationCache(size_t script_execution_cache_bytes, size_t signature_cache_bytes);
+    ValidationCache(size_t script_execution_cache_bytes, size_t signature_cache_bytes, const uint256& cache_nonce);
 
     ValidationCache(const ValidationCache&) = delete;
     ValidationCache& operator=(const ValidationCache&) = delete;

@@ -44,7 +44,7 @@ private:
     std::shared_mutex cs_sigcache;
 
 public:
-    SignatureCache(size_t max_size_bytes);
+    SignatureCache(size_t max_size_bytes, const uint256& nonce);
 
     SignatureCache(const SignatureCache&) = delete;
     SignatureCache& operator=(const SignatureCache&) = delete;

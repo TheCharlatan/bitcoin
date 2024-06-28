@@ -6,6 +6,7 @@
 #include <key.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
+#include <random.h>
 #include <script/script.h>
 #include <script/script_error.h>
 #include <script/sign.h>
@@ -113,7 +114,7 @@ BOOST_AUTO_TEST_CASE(sign)
     }
     // All of the above should be OK, and the txTos have valid signatures
     // Check to make sure signature verification fails if we use the wrong ScriptSig:
-    SignatureCache signature_cache{DEFAULT_MAX_SIG_CACHE_BYTES / 2};
+    SignatureCache signature_cache{DEFAULT_MAX_SIG_CACHE_BYTES / 2, GetRandHash()};
     for (int i = 0; i < 8; i++) {
         PrecomputedTransactionData txdata(txTo[i]);
         for (int j = 0; j < 8; j++)
