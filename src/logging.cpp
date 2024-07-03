@@ -52,7 +52,6 @@ bool BCLog::Logger::StartLogging()
 {
     StdLockGuard scoped_lock(m_cs);
 
-    assert(m_buffering);
     assert(m_fileout == nullptr);
 
     if (m_print_to_file) {
@@ -352,6 +351,10 @@ std::string BCLog::Logger::GetLogPrefix(BCLog::LogFlags category, BCLog::Level l
 
 void BCLog::Logger::LogPrintStr(const std::string& str, const std::string& logging_function, const std::string& source_file, int source_line, BCLog::LogFlags category, BCLog::Level level)
 {
+    if (!Enabled()) {
+        return;
+    }
+
     StdLockGuard scoped_lock(m_cs);
     std::string str_prefixed = LogEscapeMessage(str);
 

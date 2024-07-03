@@ -136,6 +136,11 @@ namespace BCLog {
             return m_buffering || m_print_to_console || m_print_to_file || !m_print_callbacks.empty();
         }
 
+        void SetBuffering(bool should_buffer) {
+            StdLockGuard scoped_lock(m_cs);
+            m_buffering = should_buffer;
+        }
+
         /** Connect a slot to the print signal and return the connection */
         std::list<std::function<void(const std::string&)>>::iterator PushBackCallback(std::function<void(const std::string&)> fun)
         {

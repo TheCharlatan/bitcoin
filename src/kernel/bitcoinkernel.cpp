@@ -2,8 +2,22 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <logging.h>
+
 #include <functional>
 #include <string>
+
+namespace {
+
+struct InitLoggingWithoutBuffering 
+{
+    InitLoggingWithoutBuffering() {
+        /* Run libsecp256k1 self-test before using the secp256k1_context_static. */
+        LogInstance().SetBuffering(false); 
+    }
+} LOGGING_INITIALIZER;
+
+} // namespace
 
 // Define G_TRANSLATION_FUN symbol in libbitcoinkernel library so users of the
 // library aren't required to export this symbol
