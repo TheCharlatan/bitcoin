@@ -52,6 +52,8 @@ struct TestOpts {
     std::vector<const char*> extra_args{};
     bool coins_db_in_memory{true};
     bool block_tree_db_in_memory{true};
+    bool setup_net{true};
+    bool setup_validation_interface{true};
 };
 
 /** Basic testing setup.
@@ -217,6 +219,16 @@ struct TestChain100Setup : public TestingSetup {
     CKey coinbaseKey; // private/public key needed to spend coinbase transactions
 };
 
+inline std::vector<const char*> AddNoLogArgs(const std::vector<const char*> args)
+{
+    return Cat(
+        {
+            "-nodebuglogfile",
+            "-nodebug",
+        },
+        args);
+}
+
 /**
  * Make a test setup that has disk access to the debug.log file disabled. Can
  * be used in "hot loops", for example fuzzing or benchmarking.
@@ -224,13 +236,7 @@ struct TestChain100Setup : public TestingSetup {
 template <class T = const BasicTestingSetup>
 std::unique_ptr<T> MakeNoLogFileContext(const ChainType chain_type = ChainType::REGTEST, TestOpts opts = {})
 {
-    opts.extra_args = Cat(
-        {
-            "-nodebuglogfile",
-            "-nodebug",
-        },
-        opts.extra_args);
-
+    opts.extra_args = AddNoLogArgs(opts.extra_args);
     return std::make_unique<T>(chain_type, opts);
 }
 
