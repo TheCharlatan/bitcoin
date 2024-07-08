@@ -277,6 +277,7 @@ static RPCHelpMan waitfornewblock()
     int timeout = 0;
     if (!request.params[0].isNull())
         timeout = request.params[0].getInt<int>();
+    if (timeout < 0) throw JSONRPCError(RPC_MISC_ERROR, "Negative timeout");
 
     CUpdatedBlock block;
     {
@@ -324,6 +325,7 @@ static RPCHelpMan waitforblock()
 
     if (!request.params[1].isNull())
         timeout = request.params[1].getInt<int>();
+    if (timeout < 0) throw JSONRPCError(RPC_MISC_ERROR, "Negative timeout");
 
     CUpdatedBlock block;
     {
@@ -372,6 +374,7 @@ static RPCHelpMan waitforblockheight()
 
     if (!request.params[1].isNull())
         timeout = request.params[1].getInt<int>();
+    if (timeout < 0) throw JSONRPCError(RPC_MISC_ERROR, "Negative timeout");
 
     CUpdatedBlock block;
     {
