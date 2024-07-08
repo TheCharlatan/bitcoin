@@ -8,6 +8,7 @@
 #include <interfaces/types.h>
 #include <node/types.h>
 #include <uint256.h>
+#include <util/time.h>
 
 #include <memory>
 #include <optional>
@@ -39,6 +40,17 @@ public:
 
     //! Returns the hash and height for the tip of this chain
     virtual std::optional<BlockRef> getTip() = 0;
+
+    /**
+     * Waits for the tip to change
+     *
+     * @param[in] current_tip block hash of the current chain tip. Function waits
+     *                        for the chain tip to change if this matches, otherwise
+     *                        it returns right away.
+     * @param[in] timeout     how long to wait for a new tip
+     * @returns               Hash and height of the current chain tip after this call.
+     */
+    virtual BlockRef waitTipChanged(uint256 current_tip, MillisecondsDouble timeout = MillisecondsDouble::max()) = 0;
 
    /**
      * Construct a new block template
