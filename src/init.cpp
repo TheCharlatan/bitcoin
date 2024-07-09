@@ -427,16 +427,6 @@ static void registerSignalHandler(int signal, void(*handler)(int))
 }
 #endif
 
-static void OnRPCStarted()
-{
-}
-
-static void OnRPCStopped()
-{
-    g_best_block_cv.notify_all();
-    LogPrint(BCLog::RPC, "RPC stopped.\n");
-}
-
 void SetupServerArgs(ArgsManager& argsman)
 {
     SetupHelpOptions(argsman);
@@ -714,8 +704,6 @@ static void StartupNotify(const ArgsManager& args)
 static bool AppInitServers(NodeContext& node)
 {
     const ArgsManager& args = *Assert(node.args);
-    RPCServer::OnStarted(&OnRPCStarted);
-    RPCServer::OnStopped(&OnRPCStopped);
     if (!InitHTTPServer(*Assert(node.shutdown))) {
         return false;
     }

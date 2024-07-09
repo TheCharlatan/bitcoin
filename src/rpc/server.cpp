@@ -18,8 +18,7 @@
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/time.h>
-
-#include <boost/signals2/signal.hpp>
+#include <validation.h>
 
 #include <cassert>
 #include <chrono>
@@ -68,22 +67,6 @@ struct RPCCommandExecution
         g_rpc_server_info.active_commands.erase(it);
     }
 };
-
-static struct CRPCSignals
-{
-    boost::signals2::signal<void ()> Started;
-    boost::signals2::signal<void ()> Stopped;
-} g_rpcSignals;
-
-void RPCServer::OnStarted(std::function<void ()> slot)
-{
-    g_rpcSignals.Started.connect(slot);
-}
-
-void RPCServer::OnStopped(std::function<void ()> slot)
-{
-    g_rpcSignals.Stopped.connect(slot);
-}
 
 std::string CRPCTable::help(const std::string& strCommand, const JSONRPCRequest& helpreq) const
 {
@@ -297,7 +280,6 @@ void StartRPC()
 {
     LogPrint(BCLog::RPC, "Starting RPC\n");
     g_rpc_running = true;
-    g_rpcSignals.Started();
 }
 
 void InterruptRPC()
@@ -320,7 +302,8 @@ void StopRPC()
         LogPrint(BCLog::RPC, "Stopping RPC\n");
         WITH_LOCK(g_deadline_timers_mutex, deadlineTimers.clear());
         DeleteAuthCookie();
-        g_rpcSignals.Stopped();
+        g_best_block_cv.notify_all();
+        LogPrint(BCLog::RPC, "RPC stopped.\n");
     });
 }
 
