@@ -16,7 +16,7 @@
 #include <hash.h>
 #include <headerssync.h>
 #include <index/blockfilterindex.h>
-#include <kernel/chain.h>
+#include <kernel/types.h>
 #include <kernel/mempool_entry.h>
 #include <logging.h>
 #include <merkleblock.h>
@@ -55,6 +55,7 @@
 #include <utility>
 
 using namespace util::hex_literals;
+using kernel::ChainstateRole;
 
 /** Headers download timeout.
  *  Timeout = base + per_header * (expected number of headers) */
@@ -489,7 +490,7 @@ public:
     /** Overridden from CValidationInterface. */
     void ActiveTipChange(const CBlockIndex& new_tip, bool) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_tx_download_mutex);
-    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected) override
+    void BlockConnected(const ChainstateRole& role, const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_tx_download_mutex);
     void BlockDisconnected(const std::shared_ptr<const CBlock> &block, const CBlockIndex* pindex) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_tx_download_mutex);
@@ -1521,7 +1522,7 @@ void PeerManagerImpl::FindNextBlocksToDownload(const Peer& peer, unsigned int co
     // When we sync with AssumeUtxo and discover the snapshot is not in the peer's best chain, abort:
     // We can't reorg to this chain due to missing undo data until the background sync has finished,
     // so downloading blocks from it would be futile.
-    const CBlockIndex* snap_base{m_chainman.GetSnapshotBaseBlock()};
+    const CBlockIndex* snap_base{m_chainman.ActiveChainstate().SnapshotBase()};
     if (snap_base && state->pindexBestKnownBlock->GetAncestor(snap_base->nHeight) != snap_base) {
         LogDebug(BCLog::NET, "Not downloading blocks from peer=%d, which doesn't have the snapshot block in its best chain.\n", peer.m_id);
         return;
@@ -2136,7 +2137,7 @@ void PeerManagerImpl::ActiveTipChange(const CBlockIndex& new_tip, bool is_ibd)
  * possibly reduce dynamic block stalling timeout.
  */
 void PeerManagerImpl::BlockConnected(
-    ChainstateRole role,
+    const ChainstateRole& role,
     const std::shared_ptr<const CBlock>& pblock,
     const CBlockIndex* pindex)
 {
@@ -2155,8 +2156,8 @@ void PeerManagerImpl::BlockConnected(
     }
 
     // The following task can be skipped since we don't maintain a mempool for
-    // the ibd/background chainstate.
-    if (role == ChainstateRole::BACKGROUND) {
+    // the historical chainstate.
+    if (role.historical) {
         return;
     }
     LOCK(m_tx_download_mutex);

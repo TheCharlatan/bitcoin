@@ -18,6 +18,8 @@
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <sync.h>
+#include <kernel/types.h>
+#include <node/context.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
 #include <util/result.h>
@@ -39,6 +41,7 @@
 #include <utility>
 #include <vector>
 
+using kernel::ChainstateRole;
 using wallet::CWallet;
 using wallet::CreateMockableWalletDatabase;
 using wallet::WALLET_FLAG_DESCRIPTORS;
@@ -94,7 +97,7 @@ void generateFakeBlock(const CChainParams& params,
 
     // notify wallet
     const auto& pindex = WITH_LOCK(::cs_main, return context.chainman->ActiveChain().Tip());
-    wallet.blockConnected(ChainstateRole::NORMAL, kernel::MakeBlockInfo(pindex, &block));
+    wallet.blockConnected(ChainstateRole{}, kernel::MakeBlockInfo(pindex, &block));
 }
 
 struct PreSelectInputs {
