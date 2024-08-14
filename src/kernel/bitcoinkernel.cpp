@@ -492,6 +492,12 @@ CBlockUndo* cast_block_undo(kernel_BlockUndo* undo)
     return reinterpret_cast<CBlockUndo*>(undo);
 }
 
+static CCoinsViewCursor* cast_coins_view_cursor(kernel_CoinsViewCursor* cursor)
+{
+    assert(cursor);
+    return reinterpret_cast<CCoinsViewCursor*>(cursor);
+}
+
 } // namespace
 
 int kernel_verify_script(const unsigned char* script_pubkey, size_t script_pubkey_len,
@@ -1326,4 +1332,127 @@ bool kernel_chainstate_manager_process_block(const kernel_Context* context_, ker
         return false;
     }
     return accepted;
+}
+
+kernel_CoinsViewCursor* kernel_chainstate_coins_cursor_create(kernel_ChainstateManager* chainman_, kernel_Error* err)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+
+    std::unique_ptr<CCoinsViewCursor> cursor{};
+    {
+        chainman->ActiveChainstate().ForceFlushStateToDisk();
+        cursor = WITH_LOCK(::cs_main, return chainman->ActiveChainstate().CoinsDB()).Cursor();
+        if (!cursor->Valid()) {
+            set_error(err, kernel_ERROR_INTERNAL, "Cursor is not valid, probably the chainstate is not initialized correctly.");
+            return nullptr;
+        }
+    }
+    return reinterpret_cast<kernel_CoinsViewCursor*>(cursor.release());
+}
+
+bool kernel_coins_cursor_next(kernel_CoinsViewCursor* cursor_)
+{
+    auto cursor{cast_coins_view_cursor(cursor_)};
+    cursor->Next();
+    return cursor->Valid();
+}
+
+kernel_OutPoint* kernel_coins_cursor_get_key(kernel_CoinsViewCursor* cursor_, kernel_Error* err)
+{
+    auto cursor{cast_coins_view_cursor(cursor_)};
+    COutPoint key;
+    {
+        LOCK(cs_main);
+        if (!cursor->Valid()) {
+            set_error(err, kernel_ERROR_OUT_OF_BOUNDS, "Cursor is not valid, probably iterated out of bounds.");
+            return nullptr;
+        }
+        cursor->GetKey(key);
+    }
+
+    kernel_OutPoint* out_point{ new kernel_OutPoint{
+        .hash = {},
+        .n = key.n,
+    }};
+    std::memcpy(out_point->hash, key.hash.data(), sizeof(out_point->hash));
+    return out_point;
+}
+
+kernel_Coin* kernel_coins_cursor_get_value(kernel_CoinsViewCursor* cursor_, kernel_Error* err)
+{
+    auto cursor{cast_coins_view_cursor(cursor_)};
+
+    Coin coin;
+    {
+        LOCK(cs_main);
+        if (!cursor->Valid()) {
+            set_error(err, kernel_ERROR_OUT_OF_BOUNDS, "Cursor is not valid, probably iterated out of bounds.");
+            return nullptr;
+        }
+        if (!cursor->GetValue(coin)) return nullptr;
+    }
+
+    std::unique_ptr<unsigned char[]> byte_array(new unsigned char[coin.out.scriptPubKey.size()]);
+    std::copy(coin.out.scriptPubKey.begin(), coin.out.scriptPubKey.end(), byte_array.get());
+
+    auto kernel_coin{new kernel_Coin{
+        .out =  kernel_TransactionOutput {
+            .value = coin.out.nValue,
+            .script_pubkey = byte_array.release(),
+            .script_pubkey_len = coin.out.scriptPubKey.size(),
+        },
+        .is_coinbase = coin.fCoinBase,
+        .confirmation_height = coin.nHeight,
+    }};
+
+    return kernel_coin;
+}
+
+void kernel_coins_cursor_destroy(kernel_CoinsViewCursor* cursor)
+{
+    if (!cursor) {
+        return;
+    }
+    delete cast_coins_view_cursor(cursor);
+}
+
+kernel_Coin* kernel_get_coin_by_out_point(kernel_ChainstateManager* chainman_, const kernel_OutPoint* out_point, kernel_Error* err)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+    Coin coin;
+    COutPoint key{Txid::FromUint256(uint256{out_point->hash}), out_point->n };
+    {
+        LOCK(cs_main);
+        if (!chainman->ActiveChainstate().CoinsDB().HaveCoin(key)) {
+            set_error(err, kernel_ERROR_INTERNAL, "Out point has no entry in coins db");
+            return nullptr;
+        }
+        chainman->ActiveChainstate().CoinsDB().GetCoin(key, coin);
+    }
+
+    std::unique_ptr<unsigned char[]> byte_array(new unsigned char[coin.out.scriptPubKey.size()]);
+    std::copy(coin.out.scriptPubKey.begin(), coin.out.scriptPubKey.end(), byte_array.get());
+
+    auto kernel_coin{new kernel_Coin{
+        .out =  kernel_TransactionOutput {
+            .value = coin.out.nValue,
+            .script_pubkey = byte_array.release(),
+            .script_pubkey_len = coin.out.scriptPubKey.size(),
+        },
+        .is_coinbase = coin.fCoinBase,
+        .confirmation_height = coin.nHeight,
+    }};
+
+    return kernel_coin;
+}
+
+void kernel_out_point_destroy(kernel_OutPoint* out_point)
+{
+    if (out_point) delete out_point;
+}
+
+void kernel_coin_destroy(kernel_Coin* coin)
+{
+    if (coin && coin->out.script_pubkey) delete[] coin->out.script_pubkey;
+    if (coin) delete coin;
 }

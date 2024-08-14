@@ -546,6 +546,36 @@ public:
     friend class ChainMan;
 };
 
+class CoinsViewCursor
+{
+private:
+    struct Deleter {
+        void operator()(kernel_CoinsViewCursor* ptr) const
+        {
+            kernel_coins_cursor_destroy(ptr);
+        }
+    };
+    std::unique_ptr<kernel_CoinsViewCursor, Deleter> m_cursor;
+
+public:
+    CoinsViewCursor(kernel_CoinsViewCursor* cursor) : m_cursor{cursor} {}
+
+    bool Next()
+    {
+        return kernel_coins_cursor_next(m_cursor.get());
+    }
+
+    kernel_OutPoint* GetKey(kernel_Error& error)
+    {
+        return kernel_coins_cursor_get_key(m_cursor.get(), &error);
+    }
+
+    kernel_Coin* GetValue(kernel_Error& error)
+    {
+        return kernel_coins_cursor_get_value(m_cursor.get(), &error);
+    }
+};
+
 class ChainMan
 {
 private:
@@ -611,6 +641,16 @@ public:
     BlockUndo ReadBlockUndo(BlockIndex& block_index, kernel_Error& error)
     {
         return BlockUndo{kernel_read_block_undo_from_disk(m_context.m_context.get(), m_chainman, block_index.m_block_index.get(), &error)};
+    }
+
+    CoinsViewCursor GetCoinsViewCursor(kernel_Error& error)
+    {
+        return CoinsViewCursor{kernel_chainstate_coins_cursor_create(m_chainman, &error)};
+    }
+
+    kernel_Coin* GetCoinByOutPoint(const kernel_OutPoint* out_point, kernel_Error& error)
+    {
+        return kernel_get_coin_by_out_point(m_chainman, out_point, &error);
     }
 
     ~ChainMan()
