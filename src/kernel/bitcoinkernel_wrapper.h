@@ -609,6 +609,39 @@ public:
     friend class ChainMan;
 };
 
+class CoinsViewCursor
+{
+private:
+    struct Deleter {
+        void operator()(kernel_CoinsViewCursor* ptr) const
+        {
+            kernel_coins_cursor_destroy(ptr);
+        }
+    };
+    std::unique_ptr<kernel_CoinsViewCursor, Deleter> m_cursor;
+
+public:
+    CoinsViewCursor(kernel_CoinsViewCursor* cursor) noexcept : m_cursor{cursor} {}
+
+    /** Check whether this CoinsViewCursor object is valid. */
+    explicit operator bool() const noexcept { return m_cursor != nullptr; }
+
+    bool Next() const noexcept
+    {
+        return kernel_coins_cursor_next(m_cursor.get());
+    }
+
+    kernel_OutPoint* GetKey() const noexcept
+    {
+        return kernel_coins_cursor_get_key(m_cursor.get());
+    }
+
+    TransactionOutput GetValue() const noexcept
+    {
+        return kernel_coins_cursor_get_value(m_cursor.get());
+    }
+};
+
 class ChainMan
 {
 private:
@@ -628,7 +661,7 @@ public:
     ChainMan(const ChainMan&) = delete;
     ChainMan& operator=(const ChainMan&) = delete;
 
-    bool LoadChainstate(ChainstateLoadOptions& chainstate_load_opts) const noexcept
+    bool LoadChainstate(const ChainstateLoadOptions& chainstate_load_opts) const noexcept
     {
         return kernel_chainstate_manager_load_chainstate(m_context.m_context.get(), chainstate_load_opts.m_options.get(), m_chainman);
     }
@@ -690,6 +723,16 @@ public:
         auto undo{kernel_read_block_undo_from_disk(m_context.m_context.get(), m_chainman, block_index.m_block_index.get())};
         if (!undo) return std::nullopt;
         return undo;
+    }
+
+    CoinsViewCursor GetCoinsViewCursor() const noexcept
+    {
+        return CoinsViewCursor{kernel_chainstate_coins_cursor_create(m_chainman)};
+    }
+
+    TransactionOutput GetOutputByOutPoint(const kernel_OutPoint* out_point) const noexcept
+    {
+        return kernel_get_output_by_out_point(m_chainman, out_point);
     }
 
     ~ChainMan()

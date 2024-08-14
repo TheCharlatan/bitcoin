@@ -242,6 +242,14 @@ typedef struct kernel_ValidationInterface kernel_ValidationInterface;
  */
 typedef struct kernel_BlockUndo kernel_BlockUndo;
 
+/**
+ * Opaque data structure for holding a cursor over the UTXO set. The cursor
+ * should remain valid over future updates to the chainstate, but may return
+ * unexpected results. It is therefore best to avoid validation tasks while
+ * manipulating a cursor.
+ */
+typedef struct kernel_CoinsViewCursor kernel_CoinsViewCursor;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -490,6 +498,15 @@ kernel_TransactionOutput* kernel_transaction_output_create(
  * Destroy the transaction output.
  */
 void kernel_transaction_output_destroy(kernel_TransactionOutput* transaction_output);
+
+/**
+ * Holds the information for retrieving a previous transaction output. This
+ * information is part of a transaction's input.
+ */
+typedef struct {
+    uint8_t hash[32];
+    unsigned int n;
+} kernel_OutPoint;
 
 /**
  * @brief Verify if the input at input_index of tx_to spends the script pubkey
@@ -1166,6 +1183,68 @@ kernel_ScriptPubkey* kernel_copy_script_pubkey_from_output(kernel_TransactionOut
  */
 int64_t kernel_get_transaction_output_amount(kernel_TransactionOutput* transaction_output
 ) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Return a coins view cursor that can be used to iterate through the coins.
+ *
+ * @param[in]  chainman Non-null.
+ * @return              A valid coins database cursor, or null on error.
+ */
+kernel_CoinsViewCursor* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_coins_cursor_create(
+    kernel_ChainstateManager* chainman
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Makes the cursor point to the next entry in the coins database.
+ *
+ * @param[in] cursor Non-null.
+ * @return           True on success.
+ */
+bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_coins_cursor_next(
+    kernel_CoinsViewCursor* cursor
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Retrieve the transaction out point the cursor currently points to.
+ *
+ * @param[in] cursor Non-null.
+ * @return           A transaction out point, or null on error.
+ */
+kernel_OutPoint* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_coins_cursor_get_key(
+    kernel_CoinsViewCursor* cursor
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Retrieve the coin the cursor currently point to.
+ *
+ * @param[in] cursor Non-null.
+ * @return           An unspent transaction output, or null on error.
+ */
+kernel_TransactionOutput* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_coins_cursor_get_value(
+    kernel_CoinsViewCursor* cursor
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * Destroy the coins view cursor.
+ */void kernel_coins_cursor_destroy(kernel_CoinsViewCursor* cursor);
+
+/**
+ * @brief Retrieve a coin by its outpoint.
+ *
+ * @param[in] chainman  Non-null.
+ * @param[in] out_point Non-null.
+ * @return              An unspent output if a corresponding entry was found, null if no entry was found.
+ */
+kernel_TransactionOutput* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_get_output_by_out_point(
+    kernel_ChainstateManager* chainman,
+    const kernel_OutPoint* out_point
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2);
+
+/**
+ * Destroy the out point.
+ */
+void kernel_out_point_destroy(kernel_OutPoint* out_point);
+
 
 #ifdef __cplusplus
 } // extern "C"
