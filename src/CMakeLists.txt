@@ -76,7 +76,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 string(APPEND CMAKE_C_COMPILE_OBJECT " ${APPEND_CPPFLAGS} ${APPEND_CFLAGS}")
 
 # Stable, backwards-compatible consensus functionality.
-add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
+add_library(bitcoin_consensus OBJECT EXCLUDE_FROM_ALL
   arith_uint256.cpp
   consensus/merkle.cpp
   consensus/tx_check.cpp
@@ -96,6 +96,55 @@ target_link_libraries(bitcoin_consensus
     secp256k1
 )
 
+add_library(bitcoin_kernel OBJECT EXCLUDE_FROM_ALL
+  chain.cpp
+  coins.cpp
+  compressor.cpp
+  consensus/tx_verify.cpp
+  core_read.cpp
+  dbwrapper.cpp
+  deploymentinfo.cpp
+  deploymentstatus.cpp
+  flatfile.cpp
+  kernel/chain.cpp
+  kernel/chainparams.cpp
+  kernel/checks.cpp
+  kernel/coinstats.cpp
+  kernel/context.cpp
+  kernel/cs_main.cpp
+  kernel/disconnected_transactions.cpp
+  kernel/mempool_removal_reason.cpp
+  node/blockstorage.cpp
+  node/chainstate.cpp
+  node/utxo_snapshot.cpp
+  policy/feerate.cpp
+  policy/packages.cpp
+  policy/policy.cpp
+  policy/rbf.cpp
+  policy/settings.cpp
+  policy/truc_policy.cpp
+  pow.cpp
+  script/sigcache.cpp
+  script/solver.cpp
+  signet.cpp
+  txdb.cpp
+  txmempool.cpp
+  validation.cpp
+  validationinterface.cpp
+  versionbits.cpp
+)
+target_link_libraries(bitcoin_kernel
+  PRIVATE
+    core_interface
+    bitcoin_consensus
+    bitcoin_kernel_util
+    leveldb
+    secp256k1
+    Boost::headers
+    $<TARGET_NAME_IF_EXISTS:USDT::headers>
+    $<$<PLATFORM_ID:Windows>:ws2_32>
+)
+
 if(WITH_ZMQ)
   add_subdirectory(zmq)
 endif()
@@ -108,7 +157,6 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   bech32.cpp
   chainparams.cpp
   chainparamsbase.cpp
-  coins.cpp
   common/args.cpp
   common/bloom.cpp
   common/config.cpp
@@ -120,13 +168,9 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   common/signmessage.cpp
   common/system.cpp
   common/url.cpp
-  compressor.cpp
-  core_read.cpp
   core_write.cpp
-  deploymentinfo.cpp
   external_signer.cpp
   init/common.cpp
-  kernel/chainparams.cpp
   key.cpp
   key_io.cpp
   merkleblock.cpp
@@ -135,8 +179,6 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   netaddress.cpp
   netbase.cpp
   outputtype.cpp
-  policy/feerate.cpp
-  policy/policy.cpp
   protocol.cpp
   psbt.cpp
   rpc/external_signer.cpp
@@ -149,7 +191,6 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   script/parsing.cpp
   script/sign.cpp
   script/signingprovider.cpp
-  script/solver.cpp
 )
 target_link_libraries(bitcoin_common
   PRIVATE
@@ -179,7 +220,7 @@ if(ENABLE_WALLET)
       core_interface
       bitcoin_wallet
       bitcoin_common
-      bitcoin_util
+      bitcoin_kernel
       Boost::headers
     )
     list(APPEND installable_targets bitcoin-wallet)
@@ -195,11 +236,6 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   bip324.cpp
   blockencodings.cpp
   blockfilter.cpp
-  chain.cpp
-  consensus/tx_verify.cpp
-  dbwrapper.cpp
-  deploymentstatus.cpp
-  flatfile.cpp
   headerssync.cpp
   httprpc.cpp
   httpserver.cpp
@@ -209,22 +245,13 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   index/coinstatsindex.cpp
   index/txindex.cpp
   init.cpp
-  kernel/chain.cpp
-  kernel/checks.cpp
-  kernel/coinstats.cpp
-  kernel/context.cpp
-  kernel/cs_main.cpp
-  kernel/disconnected_transactions.cpp
-  kernel/mempool_removal_reason.cpp
   mapport.cpp
   net.cpp
   net_processing.cpp
   netgroup.cpp
   node/abort.cpp
   node/blockmanager_args.cpp
-  node/blockstorage.cpp
   node/caches.cpp
-  node/chainstate.cpp
   node/chainstatemanager_args.cpp
   node/coin.cpp
   node/coins_view_args.cpp
@@ -246,16 +273,10 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   node/timeoffsets.cpp
   node/transaction.cpp
   node/txreconciliation.cpp
-  node/utxo_snapshot.cpp
   node/warnings.cpp
   noui.cpp
   policy/fees.cpp
   policy/fees_args.cpp
-  policy/packages.cpp
-  policy/rbf.cpp
-  policy/settings.cpp
-  policy/truc_policy.cpp
-  pow.cpp
   rest.cpp
   rpc/blockchain.cpp
   rpc/fees.cpp
@@ -269,16 +290,9 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   rpc/server_util.cpp
   rpc/signmessage.cpp
   rpc/txoutproof.cpp
-  script/sigcache.cpp
-  signet.cpp
   torcontrol.cpp
-  txdb.cpp
-  txmempool.cpp
   txorphanage.cpp
   txrequest.cpp
-  validation.cpp
-  validationinterface.cpp
-  versionbits.cpp
   $<$<TARGET_EXISTS:bitcoin_wallet>:wallet/init.cpp>
   $<$<NOT:$<TARGET_EXISTS:bitcoin_wallet>>:dummywallet.cpp>
 )
@@ -287,7 +301,7 @@ target_link_libraries(bitcoin_node
     core_interface
     bitcoin_common
     bitcoin_util
-    leveldb
+    bitcoin_kernel
     minisketch
     univalue
     Boost::headers
@@ -348,6 +362,7 @@ if(BUILD_CLI)
     core_interface
     bitcoin_cli
     bitcoin_common
+    bitcoin_kernel
     bitcoin_util
     $<TARGET_NAME_IF_EXISTS:libevent::libevent>
   )
@@ -361,6 +376,7 @@ if(BUILD_TX)
   target_link_libraries(bitcoin-tx
     core_interface
     bitcoin_common
+    bitcoin_kernel
     bitcoin_util
     univalue
   )
@@ -374,6 +390,7 @@ if(BUILD_UTIL)
   target_link_libraries(bitcoin-util
     core_interface
     bitcoin_common
+    bitcoin_kernel
     bitcoin_util
   )
   list(APPEND installable_targets bitcoin-util)
