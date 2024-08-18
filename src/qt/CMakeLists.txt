@@ -51,9 +51,9 @@ qt5_add_translation(qm_files ${ts_files})
 
 configure_file(bitcoin_locale.qrc bitcoin_locale.qrc COPYONLY)
 
-# The bitcoinqt sources have to include headers in
+# The bitcoin_qt sources have to include headers in
 # order to parse them to collect translatable strings.
-add_library(bitcoinqt STATIC EXCLUDE_FROM_ALL
+add_library(bitcoin_qt STATIC EXCLUDE_FROM_ALL
   bantablemodel.cpp
   bantablemodel.h
   bitcoin.cpp
@@ -115,12 +115,12 @@ add_library(bitcoinqt STATIC EXCLUDE_FROM_ALL
   bitcoin.qrc
   ${CMAKE_CURRENT_BINARY_DIR}/bitcoin_locale.qrc
 )
-target_compile_definitions(bitcoinqt
+target_compile_definitions(bitcoin_qt
   PUBLIC
     QT_NO_KEYWORDS
     QT_USE_QSTRINGBUILDER
 )
-target_include_directories(bitcoinqt
+target_include_directories(bitcoin_qt
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
 )
@@ -128,12 +128,13 @@ set_property(SOURCE macnotificationhandler.mm
   # Ignore warnings "'NSUserNotificationCenter' is deprecated: first deprecated in macOS 11.0".
   APPEND PROPERTY COMPILE_OPTIONS -Wno-deprecated-declarations
 )
-target_link_libraries(bitcoinqt
+target_link_libraries(bitcoin_qt
   PUBLIC
     Qt5::Widgets
   PRIVATE
     core_interface
     bitcoin_cli
+    bitcoin_node
     leveldb
     Boost::headers
     $<TARGET_NAME_IF_EXISTS:NATPMP::NATPMP>
@@ -144,7 +145,7 @@ target_link_libraries(bitcoinqt
 )
 
 if(ENABLE_WALLET)
-  target_sources(bitcoinqt
+  target_sources(bitcoin_qt
     PRIVATE
       addressbookpage.cpp
       addressbookpage.h
@@ -207,7 +208,7 @@ if(ENABLE_WALLET)
       walletview.cpp
       walletview.h
   )
-  target_link_libraries(bitcoinqt
+  target_link_libraries(bitcoin_qt
     PRIVATE
       bitcoin_wallet
       Qt5::Network
@@ -215,13 +216,13 @@ if(ENABLE_WALLET)
 endif()
 
 if(WITH_DBUS)
-  target_link_libraries(bitcoinqt PRIVATE Qt5::DBus)
+  target_link_libraries(bitcoin_qt PRIVATE Qt5::DBus)
 endif()
 
 if(qt_lib_type STREQUAL "STATIC_LIBRARY")
   # We want to define static plugins to link ourselves, thus preventing
   # automatic linking against a "sane" set of default static plugins.
-  qt5_import_plugins(bitcoinqt
+  qt5_import_plugins(bitcoin_qt
       EXCLUDE_BY_TYPE bearer iconengines imageformats platforms styles
   )
 endif()
@@ -235,8 +236,7 @@ add_windows_resources(bitcoin-qt res/bitcoin-qt-res.rc)
 
 target_link_libraries(bitcoin-qt
   core_interface
-  bitcoinqt
-  bitcoin_node
+  bitcoin_qt
 )
 
 import_plugins(bitcoin-qt)
@@ -252,7 +252,6 @@ if(WITH_MULTIPROCESS)
   )
   target_link_libraries(bitcoin-gui
     core_interface
-    bitcoinqt
     bitcoin_node
     bitcoin_ipc
   )

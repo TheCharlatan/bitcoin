@@ -219,7 +219,6 @@ if(ENABLE_WALLET)
     target_link_libraries(bitcoin-wallet
       core_interface
       bitcoin_wallet
-      bitcoin_common
       bitcoin_kernel
       Boost::headers
     )
@@ -300,7 +299,6 @@ target_link_libraries(bitcoin_node
   PRIVATE
     core_interface
     bitcoin_common
-    bitcoin_util
     bitcoin_kernel
     minisketch
     univalue
@@ -363,7 +361,6 @@ if(BUILD_CLI)
     bitcoin_cli
     bitcoin_common
     bitcoin_kernel
-    bitcoin_util
     $<TARGET_NAME_IF_EXISTS:libevent::libevent>
   )
   list(APPEND installable_targets bitcoin-cli)
@@ -377,7 +374,6 @@ if(BUILD_TX)
     core_interface
     bitcoin_common
     bitcoin_kernel
-    bitcoin_util
     univalue
   )
   list(APPEND installable_targets bitcoin-tx)
@@ -391,7 +387,6 @@ if(BUILD_UTIL)
     core_interface
     bitcoin_common
     bitcoin_kernel
-    bitcoin_util
   )
   list(APPEND installable_targets bitcoin-util)
 endif()

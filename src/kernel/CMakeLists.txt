@@ -16,6 +16,7 @@ target_link_libraries(bitcoinkernel
     bitcoin_kernel
     bitcoin_kernel_util
     bitcoin_consensus
+    bitcoin_crypto
   PUBLIC
     Boost::headers
 )
