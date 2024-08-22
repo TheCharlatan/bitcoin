@@ -34,6 +34,7 @@
 #include <node/interface_ui.h>
 #include <node/mini_miner.h>
 #include <node/miner.h>
+#include <node/kernel_notifications.h>
 #include <node/transaction.h>
 #include <node/types.h>
 #include <node/warnings.h>
@@ -879,14 +880,14 @@ public:
         // std::chrono does not check against overflow
         if (deadline < now) deadline = std::chrono::steady_clock::time_point::max();
         {
-            WAIT_LOCK(g_best_block_mutex, lock);
-            while ((g_best_block == uint256() || g_best_block == current_tip) && !chainman().m_interrupt) {
+            WAIT_LOCK(notifications().m_tip_block_mutex, lock);
+            while ((notifications().m_tip_block == uint256() || notifications().m_tip_block == current_tip) && !chainman().m_interrupt) {
                 now = std::chrono::steady_clock::now();
                 if (now >= deadline) break;
-                g_best_block_cv.wait_until(lock, std::min(deadline, now + tick));
+                notifications().m_tip_block_cv.wait_until(lock, std::min(deadline, now + tick));
             }
         }
-        // Must release g_best_block_mutex before locking cs_main, to avoid deadlocks.
+        // Must release m_tip_block_mutex before locking cs_main, to avoid deadlocks.
         LOCK(::cs_main);
         return BlockRef{chainman().ActiveChain().Tip()->GetBlockHash(), chainman().ActiveChain().Tip()->nHeight};
     }
@@ -923,6 +924,7 @@ public:
 
     NodeContext* context() override { return &m_node; }
     ChainstateManager& chainman() { return *Assert(m_node.chainman); }
+    KernelNotifications& notifications() { return *Assert(m_node.notifications); }
     NodeContext& m_node;
 };
 } // namespace
