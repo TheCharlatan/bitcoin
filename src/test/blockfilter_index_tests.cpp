@@ -16,6 +16,8 @@
 #include <test/util/setup_common.h>
 #include <validation.h>
 
+#include <span>
+
 #include <boost/test/unit_test.hpp>
 
 using node::BlockAssembler;
@@ -103,7 +105,7 @@ bool BuildChainTestingSetup::BuildChain(const CBlockIndex* pindex,
         CBlockHeader header = block->GetBlockHeader();
 
         BlockValidationState state;
-        if (!Assert(m_node.chainman)->ProcessNewBlockHeaders({header}, true, state, &pindex)) {
+        if (!Assert(m_node.chainman)->ProcessNewBlockHeaders(std::span<CBlockHeader>{&header, 1}, true, state, &pindex)) {
             return false;
         }
     }

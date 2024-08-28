@@ -17,6 +17,7 @@
 #include <validation.h>
 #include <validationinterface.h>
 
+#include <span>
 #include <thread>
 
 using node::BlockAssembler;
@@ -101,7 +102,8 @@ std::shared_ptr<CBlock> MinerTestingSetup::FinalizeBlock(std::shared_ptr<CBlock>
     // submit block header, so that miner can get the block height from the
     // global state and the node has the topology of the chain
     BlockValidationState ignored;
-    BOOST_CHECK(Assert(m_node.chainman)->ProcessNewBlockHeaders({pblock->GetBlockHeader()}, true, ignored));
+    auto header{pblock->GetBlockHeader()};
+    BOOST_CHECK(Assert(m_node.chainman)->ProcessNewBlockHeaders(std::span<CBlockHeader>{&header, 1}, true, ignored));
 
     return pblock;
 }

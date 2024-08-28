@@ -43,6 +43,7 @@
 #include <validationinterface.h>
 
 #include <memory>
+#include <span>
 #include <stdint.h>
 
 using node::BlockAssembler;
@@ -1095,7 +1096,7 @@ static RPCHelpMan submitheader()
     }
 
     BlockValidationState state;
-    chainman.ProcessNewBlockHeaders({h}, /*min_pow_checked=*/true, state);
+    chainman.ProcessNewBlockHeaders(std::span<CBlockHeader>{&h, 1}, /*min_pow_checked=*/true, state);
     if (state.IsValid()) return UniValue::VNULL;
     if (state.IsError()) {
         throw JSONRPCError(RPC_VERIFY_ERROR, state.ToString());
