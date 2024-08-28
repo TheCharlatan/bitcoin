@@ -101,7 +101,8 @@ std::shared_ptr<CBlock> MinerTestingSetup::FinalizeBlock(std::shared_ptr<CBlock>
     // submit block header, so that miner can get the block height from the
     // global state and the node has the topology of the chain
     BlockValidationState ignored;
-    BOOST_CHECK(Assert(m_node.chainman)->ProcessNewBlockHeaders({pblock->GetBlockHeader()}, true, ignored));
+    auto header{pblock->GetBlockHeader()};
+    BOOST_CHECK(Assert(m_node.chainman)->ProcessNewBlockHeaders({{header}}, true, ignored));
 
     return pblock;
 }
