@@ -87,6 +87,7 @@ struct TestDirectory {
 class TestKernelNotifications : public KernelNotifications<TestKernelNotifications>
 {
 public:
+    bool m_got_header{true};
     void BlockTipHandler(kernel_SynchronizationState state, kernel_BlockIndex* index) override
     {
         std::cout << "Block tip changed" << std::endl;
@@ -94,6 +95,7 @@ public:
 
     void HeaderTipHandler(kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
     {
+        m_got_header = true;
         assert(timestamp > 0);
     }
 
@@ -547,9 +549,18 @@ void chainman_regtest_validation_test()
     TestKernelNotifications notifications{};
     auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_REGTEST)};
 
+    // Do some serialization sanity-checks for the headers
+    auto header{Block{REGTEST_BLOCK_DATA[0]}.GetBlockHeader()};
+    assert(header);
+    auto header_data{header.GetBlockHeaderData()};
+    assert(span_to_hex_string(header_data) == "0000002006226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f295badc0bdd9a2bc0955d12f337491eae4c87ba4660078c0156310284d47c6ff9a242d66ffff7f2000000000");
+    auto same_header{BlockHeader{header_data}};
+    assert(same_header);
+    assert(span_to_hex_string(header_data) == span_to_hex_string(same_header.GetBlockHeaderData()));
+
     // Validate 206 regtest blocks in total.
     // Stop halfway to check that it is possible to continue validating starting
-    // from prior state.
+    // from prior state and with just some of the headers pre-synced.
     const size_t mid{REGTEST_BLOCK_DATA.size() / 2};
 
     {
@@ -557,6 +568,11 @@ void chainman_regtest_validation_test()
         for (size_t i{0}; i < mid; i++) {
             Block block{REGTEST_BLOCK_DATA[i]};
             assert(block);
+            BlockHeader header{block.GetBlockHeader()};
+            assert(header);
+            notifications.m_got_header = false;
+            assert(chainman->ProcessBlockHeader(header));
+            assert(notifications.m_got_header);
             bool new_block{false};
             assert(chainman->ProcessBlock(block, &new_block));
             assert(new_block == true);

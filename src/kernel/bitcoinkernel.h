@@ -250,6 +250,11 @@ typedef struct kernel_BlockUndo kernel_BlockUndo;
  */
 typedef struct kernel_CoinsViewCursor kernel_CoinsViewCursor;
 
+/**
+ * Opaque data structure for holding a block header.
+ */
+typedef struct kernel_BlockHeader kernel_BlockHeader;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -1091,6 +1096,19 @@ kernel_BlockUndo* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_read_block_undo_from_d
 ) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
 
 /**
+ * @brief Validates a passed in block header and on success adds it to the header chain.
+ * 
+ * @param[in] chainman Non-null.
+ * @param[in] header   Non-null, the header to be validated.
+ * @return             True if the header was successfully validated.
+ */
+bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_process_block_header(
+    const kernel_Context* context,
+    kernel_ChainstateManager* chainman,
+    kernel_BlockHeader* header
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
+
+/**
  * @brief Destroy the block index.
  */
 void kernel_block_index_destroy(kernel_BlockIndex* block_index);
@@ -1245,6 +1263,42 @@ kernel_TransactionOutput* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_get_output_by_
  */
 void kernel_out_point_destroy(kernel_OutPoint* out_point);
 
+
+/**
+ * @brief Get the block header from an existing block.
+ *
+ * @param[in] block Non-null.
+ * @return          A copy of the block's header.
+ */
+kernel_BlockHeader* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_get_block_header(
+    kernel_Block* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Parse a serialized raw block header into a new block header object.
+ *
+ * @param[in] raw_block_header     Non-null, serialized block header.
+ * @param[in] raw_block_header_len Length of the serialized block header.
+ * @return                         The allocated block header, or null on error.
+ */
+kernel_BlockHeader* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_header_create(
+    const unsigned char* raw_block_header, size_t raw_block_header_len
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Copies block header data into the returned byte array.
+ *
+ * @param[in] header Non-null.
+ * @return           Allocated byte array holding the block data.
+ */
+kernel_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_copy_block_header_data(
+    kernel_BlockHeader* header
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * Destroy the block header.
+ */
+void kernel_block_header_destroy(kernel_BlockHeader* header);
 
 #ifdef __cplusplus
 } // extern "C"

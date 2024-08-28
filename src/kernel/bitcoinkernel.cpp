@@ -372,6 +372,12 @@ static CCoinsViewCursor* cast_coins_view_cursor(kernel_CoinsViewCursor* cursor)
     return reinterpret_cast<CCoinsViewCursor*>(cursor);
 }
 
+CBlockHeader* cast_block_header(kernel_BlockHeader* header)
+{
+    assert(header);
+    return reinterpret_cast<CBlockHeader*>(header);
+}
+
 } // namespace
 
 kernel_Transaction* kernel_transaction_create(const unsigned char* raw_transaction, size_t raw_transaction_len)
@@ -1191,6 +1197,16 @@ int64_t kernel_get_transaction_output_amount(kernel_TransactionOutput* output_)
     return output->nValue;
 }
 
+bool kernel_chainstate_manager_process_block_header(const kernel_Context* context_, kernel_ChainstateManager* chainman_, kernel_BlockHeader* header_)
+{
+    auto& chainman{*cast_chainstate_manager(chainman_)};
+    auto header{cast_block_header(header_)};
+
+    std::vector<CBlockHeader> headers{*header};
+    BlockValidationState state;
+    return chainman.ProcessNewBlockHeaders(headers, true, state);
+}
+
 bool kernel_chainstate_manager_process_block(
     const kernel_Context* context_,
     kernel_ChainstateManager* chainman_,
@@ -1304,5 +1320,52 @@ kernel_TransactionOutput* kernel_get_output_by_out_point(kernel_ChainstateManage
 void kernel_out_point_destroy(kernel_OutPoint* out_point)
 {
     if (out_point) delete out_point;
+}
+
+kernel_BlockHeader* kernel_get_block_header(kernel_Block* block_)
+{
+    auto block{cast_cblocksharedpointer(block_)};
+    return reinterpret_cast<kernel_BlockHeader*>(new CBlockHeader{(*block)->GetBlockHeader()});
+}
+
+kernel_BlockHeader* kernel_block_header_create(const unsigned char* raw_block_header, size_t raw_block_header_len)
+{
+    auto header{new CBlockHeader{}};
+
+    DataStream stream{Span{raw_block_header, raw_block_header_len}};
+
+    try {
+        stream >> *header;
+    } catch (const std::exception& e) {
+        delete header;
+        LogError("Block header decode failed.\n");
+        return nullptr;
+    }
+
+    return reinterpret_cast<kernel_BlockHeader*>(header);
+}
+
+void kernel_block_header_destroy(kernel_BlockHeader* header)
+{
+    if (header) {
+        delete cast_block_header(header);
+    }
+}
+
+kernel_ByteArray* kernel_copy_block_header_data(kernel_BlockHeader* header_)
+{
+    auto header{cast_block_header(header_)};
+
+    DataStream ss{};
+    ss << *header;
+
+    auto byte_array{new kernel_ByteArray{
+        .data = new unsigned char[ss.size()],
+        .size = ss.size(),
+    }};
+
+    std::memcpy(byte_array->data, ss.data(), byte_array->size);
+
+    return byte_array;
 }
 

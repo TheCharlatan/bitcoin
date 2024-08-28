@@ -477,6 +477,42 @@ public:
     friend class ChainMan;
 };
 
+class BlockHeader
+{
+private:
+    struct Deleter {
+        void operator()(kernel_BlockHeader* ptr) const
+        {
+            kernel_block_header_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_BlockHeader, Deleter> m_block_header;
+
+public:
+    BlockHeader(std::span<const unsigned char> raw_block_header) noexcept
+        : m_block_header{kernel_block_header_create(raw_block_header.data(), raw_block_header.size())}
+    {
+    }
+
+    BlockHeader(kernel_BlockHeader* block_header) noexcept : m_block_header{block_header}
+    {
+    }
+
+    /** Check whether this BlockHeader object is valid. */
+    explicit operator bool() const noexcept { return bool{m_block_header}; }
+
+    std::vector<unsigned char> GetBlockHeaderData() const noexcept
+    {
+        auto serialized_header{kernel_copy_block_header_data(m_block_header.get())};
+        std::vector<unsigned char> vec{serialized_header->data, serialized_header->data + serialized_header->size};
+        kernel_byte_array_destroy(serialized_header);
+        return vec;
+    }
+
+    friend class ChainMan;
+};
+
 class Block
 {
 private:
@@ -511,6 +547,11 @@ public:
         std::vector<unsigned char> vec{serialized_block->data, serialized_block->data + serialized_block->size};
         kernel_byte_array_destroy(serialized_block);
         return vec;
+    }
+
+    BlockHeader GetBlockHeader() const noexcept
+    {
+        return kernel_get_block_header(m_block.get());
     }
 
     friend class ChainMan;
@@ -675,6 +716,11 @@ public:
         }
 
         return kernel_import_blocks(m_context.m_context.get(), m_chainman, c_paths.data(), c_paths.size());
+    }
+
+    bool ProcessBlockHeader(BlockHeader& header) const noexcept
+    {
+        return kernel_chainstate_manager_process_block_header(m_context.m_context.get(), m_chainman, header.m_block_header.get());
     }
 
     bool ProcessBlock(const Block& block, bool* new_block) const noexcept
