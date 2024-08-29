@@ -1146,6 +1146,24 @@ bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_process_block_he
 ) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
 
 /**
+ * @brief Validates a single passed in transaction. Requires a mempool to have
+ * been configured previously for the chainstate manager through the chainstate
+ * load options.
+ *
+ * @param[in] context     Non-null.
+ * @param[in] chainman    Non-null.
+ * @param[in] transaction Non-null.
+ * @param[in] test_accept If true, will only check the transaction validity and will not submit it to the mempool.
+ * @return                True if the transaction was successfully validated.
+ */
+bool kernel_chainstate_manager_process_transaction(
+    const kernel_Context* context,
+    kernel_ChainstateManager* chainman,
+    kernel_Transaction* transaction,
+    bool test_accept
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(3);
+
+/**
  * @brief Destroy the block index.
  */
 void kernel_block_index_destroy(kernel_BlockIndex* block_index);
