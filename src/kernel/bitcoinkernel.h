@@ -255,6 +255,12 @@ typedef struct kernel_CoinsViewCursor kernel_CoinsViewCursor;
  */
 typedef struct kernel_BlockHeader kernel_BlockHeader;
 
+/**
+ * Opaque data structure for holding a transaction. Internally, this creates a
+ * reference counted transaction pointer.
+ */
+typedef struct kernel_Transaction kernel_Transaction;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -1313,6 +1319,57 @@ bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_is_block_mutated(
  * Destroy the block header.
  */
 void kernel_block_header_destroy(kernel_BlockHeader* header);
+
+/**
+ * @brief Retrieve the number of transactions in a block. This information can be used
+ * to iterate through the block and retrieve certain transactions through
+ * kernel_get_transcation_by_index.
+ *
+ * @param[in] block Non-null.
+ * @return          The number of transactions in the block.
+ */
+size_t BITCOINKERNEL_WARN_UNUSED_RESULT kernel_number_of_transactions_in_block(
+    kernel_Block* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Retrieve a transaction by its index in a block. The user has ownership
+ * over this transaction and may use it even after the block is destroyed.
+ *
+ * @param[in] block Non-null.
+ * @param[in] index The index within the block of the to be retrieved transaction.
+ * @return          The transaction, or null on error.
+ */
+kernel_Transaction* kernel_get_transaction_by_index(
+    kernel_Block* block,
+    uint64_t index
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Copy and serialize the transaction data into the returned byte array.
+ *
+ * @param[in] transaction Non-null.
+ * @return                Allocated byte array holding the transaction data.
+ */
+kernel_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_copy_transaction_data(
+    kernel_Transaction* transaction
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Create a new transaction from the serialized data.
+ *
+ * @param[in] raw_transaction     Non-null.
+ * @param[in] raw_transaction_len Length of the serialized transaction.
+ * @return                        The transaction, or null on error.
+ */
+kernel_Transaction* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_transaction_create(
+    const unsigned char* raw_transaction, size_t raw_transaction_len
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * Destroy the transaction.
+ */
+void kernel_transaction_destroy(kernel_Transaction* transaction);
 
 #ifdef __cplusplus
 } // extern "C"

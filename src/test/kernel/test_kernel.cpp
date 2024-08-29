@@ -558,6 +558,15 @@ void chainman_regtest_validation_test()
     assert(same_header);
     assert(span_to_hex_string(header_data) == span_to_hex_string(same_header.GetBlockHeaderData()));
 
+    // Do some serialization sanity-checks for the transactions
+    auto transaction{Block{REGTEST_BLOCK_DATA[0]}.GetTransaction(0)};
+    assert(transaction);
+    auto transaction_data{transaction.GetTransactionData()};
+    assert(span_to_hex_string(transaction_data) == "020000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff025100ffffffff0200f2052a010000001600141409745405c4e8310a875bcd602db6b9b3dc0cf90000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf90120000000000000000000000000000000000000000000000000000000000000000000000000");
+    auto same_transaction{Transaction{transaction_data}};
+    assert(same_transaction);
+    assert(span_to_hex_string(transaction_data) == span_to_hex_string(same_transaction.GetTransactionData()));
+
     // Validate 206 regtest blocks in total.
     // Stop halfway to check that it is possible to continue validating starting
     // from prior state and with just some of the headers pre-synced.

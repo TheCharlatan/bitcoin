@@ -31,8 +31,18 @@ public:
     {
     }
 
+    Transaction(kernel_Transaction* transaction) noexcept : m_transaction{transaction} {}
+
     /** Check whether this Transaction object is valid. */
     explicit operator bool() const noexcept { return bool{m_transaction}; }
+
+    std::vector<unsigned char> GetTransactionData() const noexcept
+    {
+        auto serialized_transaction{kernel_copy_transaction_data(m_transaction.get())};
+        std::vector<unsigned char> vec{serialized_transaction->data, serialized_transaction->data + serialized_transaction->size};
+        kernel_byte_array_destroy(serialized_transaction);
+        return vec;
+    }
 };
 
 class ScriptPubkey
@@ -557,6 +567,16 @@ public:
     BlockHeader GetBlockHeader() const noexcept
     {
         return kernel_get_block_header(m_block.get());
+    }
+
+    size_t GetNumberOfTransactions() const
+    {
+        return kernel_number_of_transactions_in_block(m_block.get());
+    }
+
+    Transaction GetTransaction(uint64_t index) const
+    {
+        return Transaction{kernel_get_transaction_by_index(m_block.get(), index)};
     }
 
     friend class ChainMan;

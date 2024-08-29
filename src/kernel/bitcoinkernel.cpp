@@ -387,8 +387,26 @@ kernel_Transaction* kernel_transaction_create(const unsigned char* raw_transacti
         auto tx = new CTransaction{deserialize, TX_WITH_WITNESS, stream};
         return reinterpret_cast<kernel_Transaction*>(tx);
     } catch (const std::exception&) {
+        LogDebug(BCLog::KERNEL, "Transaction decode failed.\n");
         return nullptr;
     }
+}
+
+kernel_ByteArray* kernel_copy_transaction_data(kernel_Transaction* transaction_)
+{
+    auto transaction{cast_transaction(transaction_)};
+
+    DataStream ss{};
+    ss << TX_WITH_WITNESS(*transaction);
+
+    auto byte_array{new kernel_ByteArray{
+        .data = new unsigned char[ss.size()],
+        .size = ss.size(),
+    }};
+
+    std::memcpy(byte_array->data, ss.data(), byte_array->size);
+
+    return byte_array;
 }
 
 void kernel_transaction_destroy(kernel_Transaction* transaction)
@@ -1374,3 +1392,20 @@ bool kernel_is_block_mutated(kernel_Block* block_, bool check_witness_root)
     auto block{cast_cblocksharedpointer(block_)};
     return IsBlockMutated(**block, check_witness_root);
 }
+
+size_t kernel_number_of_transactions_in_block(kernel_Block* block_)
+{
+    auto block{cast_cblocksharedpointer(block_)};
+    return (**block).vtx.size();
+}
+
+kernel_Transaction* kernel_get_transaction_by_index(kernel_Block* block_, uint64_t index)
+{
+    auto block{cast_cblocksharedpointer(block_)};
+    if (index >= (**block).vtx.size()) {
+        LogDebug(BCLog::KERNEL, "Index is not in range of available transactions in this block.\n");
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_Transaction*>(new CTransaction{*(**block).vtx[index]});
+}
+
