@@ -754,6 +754,11 @@ public:
         return kernel_chainstate_manager_process_block_header(m_context.m_context.get(), m_chainman, header.m_block_header.get());
     }
 
+    bool ProcessTransaction(Transaction& transaction, bool test_accept) const noexcept
+    {
+        return kernel_chainstate_manager_process_transaction(m_context.m_context.get(), m_chainman, transaction.m_transaction.get(), test_accept);
+    }
+
     bool ProcessBlock(Block& block, kernel_ProcessBlockStatus& status) const noexcept
     {
         return kernel_chainstate_manager_process_block(m_context.m_context.get(), m_chainman, block.m_block.get(), &status);

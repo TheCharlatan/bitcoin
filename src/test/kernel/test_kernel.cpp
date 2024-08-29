@@ -602,15 +602,28 @@ void chainman_regtest_validation_test()
         }
     }
 
+    // Validated the rest on a new chainman, but leave the last block.
     auto chainman{create_chainman(test_directory, false, false, false, false, context)};
 
-    for (size_t i{mid}; i < REGTEST_BLOCK_DATA.size(); i++) {
+    for (size_t i{mid}; i < REGTEST_BLOCK_DATA.size() - 1; i++) {
         Block block{REGTEST_BLOCK_DATA[i]};
         assert(block);
         auto status{kernel_ProcessBlockStatus::kernel_PROCESS_BLOCK_OK};
-        assert(chainman->ProcessBlock(block, status));
+        chainman->ProcessBlock(block, status);
         assert(status == kernel_PROCESS_BLOCK_OK);
     }
+
+    Block block{REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 1]};
+    assert(block);
+    for (size_t i{1}; i < block.GetNumberOfTransactions(); i++) {
+        Transaction tx{block.GetTransaction(i)};
+        assert(tx);
+        std::cout << "Processing: " << i << std::endl;
+        assert(chainman->ProcessTransaction(tx, true));
+    }
+    auto status{kernel_ProcessBlockStatus::kernel_PROCESS_BLOCK_OK};
+    chainman->ProcessBlock(block, status);
+    assert(status == kernel_PROCESS_BLOCK_OK);
 
     auto tip = chainman->GetBlockIndexFromTip();
     auto read_block = chainman->ReadBlock(tip).value();
