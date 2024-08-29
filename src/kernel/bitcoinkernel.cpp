@@ -1424,3 +1424,8 @@ kernel_ByteArray* kernel_copy_block_header_data(kernel_BlockHeader* header_)
     return byte_array;
 }
 
+bool kernel_is_block_mutated(kernel_Block* block_, bool check_witness_root)
+{
+    auto block{cast_cblocksharedpointer(block_)};
+    return IsBlockMutated(**block, check_witness_root);
+}
