@@ -425,6 +425,12 @@ CBlockHeader* cast_block_header(kernel_BlockHeader* header)
     return reinterpret_cast<CBlockHeader*>(header);
 }
 
+CTransactionRef* cast_transaction_ref(kernel_Transaction* transaction)
+{
+    assert(transaction);
+    return reinterpret_cast<CTransactionRef*>(transaction);
+}
+
 } // namespace
 
 kernel_Transaction* kernel_transaction_create(const unsigned char* raw_transaction, size_t raw_transaction_len)
@@ -1445,4 +1451,58 @@ bool kernel_is_block_mutated(kernel_Block* block_, bool check_witness_root)
 {
     auto block{cast_cblocksharedpointer(block_)};
     return IsBlockMutated(**block, check_witness_root);
+}
+
+size_t kernel_number_of_transactions_in_block(kernel_Block* block_)
+{
+    auto block{cast_cblocksharedpointer(block_)};
+    return (**block).vtx.size();
+}
+
+kernel_Transaction* kernel_get_transaction_by_index(kernel_Block* block_, uint64_t index)
+{
+    auto block{cast_cblocksharedpointer(block_)};
+    if (index >= (**block).vtx.size()) {
+        LogDebug(BCLog::KERNEL, "Index is not in range of available transactions in this block.\n");
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_Transaction*>(new CTransactionRef{(**block).vtx[index]});
+}
+
+kernel_ByteArray* kernel_copy_transaction_data(kernel_Transaction* transaction_)
+{
+    auto transaction{cast_transaction_ref(transaction_)};
+
+    DataStream ss{};
+    ss << TX_WITH_WITNESS(**transaction);
+
+    auto byte_array{new kernel_ByteArray{
+        .data = new unsigned char[ss.size()],
+        .size = ss.size(),
+    }};
+
+    std::memcpy(byte_array->data, ss.data(), byte_array->size);
+
+    return byte_array;
+}
+
+kernel_Transaction* kernel_transaction_create(const unsigned char* raw_transaction, size_t raw_transaction_len)
+{
+    DataStream stream{Span{raw_transaction, raw_transaction_len}};
+
+    CTransaction* transaction;
+    try {
+        transaction = new CTransaction{deserialize, TX_WITH_WITNESS, stream};
+    } catch (const std::exception& e) {
+        LogDebug(BCLog::KERNEL, "Transaction decode failed.\n");
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_Transaction*>(new std::shared_ptr<CTransaction>{transaction});
+}
+
+void kernel_transaction_destroy(kernel_Transaction* transaction)
+{
+    if (transaction) {
+        delete cast_transaction_ref(transaction);
+    }
 }
