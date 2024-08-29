@@ -261,6 +261,16 @@ typedef struct kernel_BlockHeader kernel_BlockHeader;
  */
 typedef struct kernel_Transaction kernel_Transaction;
 
+/**
+ * Opaque data structure for holding a mempool options. This is passed through
+ * the context options to the context. The context then instantiates a mempool.
+ * When loading the chainstate in the chainstate manager, the context passes a
+ * pointer of the mempool to the chainstate. The chainstate then uses it for
+ * processing transactions. It may be destroyed once passed to the context
+ * options.
+ */
+typedef struct kernel_MempoolOptions kernel_MempoolOptions;
+
 /** Current sync state passed to tip changed callbacks. */
 typedef enum {
     kernel_INIT_REINDEX,
@@ -636,6 +646,16 @@ kernel_Notifications* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_notifications_crea
 void kernel_notifications_destroy(const kernel_Notifications* notifications);
 
 /**
+ * @brief Create an opaque kernel mempool.
+ */
+kernel_MempoolOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_mempool_options_create();
+
+/**
+ * Destroy the kernel mempool options.
+ */
+void kernel_mempool_options_destroy(const kernel_MempoolOptions* mempool);
+
+/**
  * Creates an empty context options.
  */
 kernel_ContextOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_context_options_create();
@@ -662,6 +682,17 @@ void kernel_context_options_set_chainparams(
 void kernel_context_options_set_notifications(
     kernel_ContextOptions* context_options,
     const kernel_Notifications* notifications
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2);
+
+/**
+ * @brief Set the kernel mempool options for
+ *
+ * @param[in] context_options Non-null, previously create with kernel_mempool_options_create.
+ * @param[in] mempool_options Is set to the context options.
+ */
+void kernel_context_options_set_mempool(
+        kernel_ContextOptions* context_options,
+        const kernel_MempoolOptions* mempool_options
 ) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2);
 
 /**
@@ -1103,7 +1134,7 @@ kernel_BlockUndo* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_read_block_undo_from_d
 
 /**
  * @brief Validates a passed in block header and on success adds it to the header chain.
- * 
+ *
  * @param[in] chainman Non-null.
  * @param[in] header   Non-null, the header to be validated.
  * @return             True if the header was successfully validated.
@@ -1354,22 +1385,6 @@ kernel_Transaction* kernel_get_transaction_by_index(
 kernel_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_copy_transaction_data(
     kernel_Transaction* transaction
 ) BITCOINKERNEL_ARG_NONNULL(1);
-
-/**
- * @brief Create a new transaction from the serialized data.
- *
- * @param[in] raw_transaction     Non-null.
- * @param[in] raw_transaction_len Length of the serialized transaction.
- * @return                        The transaction, or null on error.
- */
-kernel_Transaction* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_transaction_create(
-    const unsigned char* raw_transaction, size_t raw_transaction_len
-) BITCOINKERNEL_ARG_NONNULL(1);
-
-/**
- * Destroy the transaction.
- */
-void kernel_transaction_destroy(kernel_Transaction* transaction);
 
 #ifdef __cplusplus
 } // extern "C"

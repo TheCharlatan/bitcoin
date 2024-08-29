@@ -195,6 +195,7 @@ public:
 struct ContextOptions {
     std::unique_ptr<const KernelNotifications> m_notifications;
     std::unique_ptr<const CChainParams> m_chainparams;
+    std::unique_ptr<const CTxMemPool::Options> m_mempool_options;
 };
 
 class Context
@@ -209,6 +210,8 @@ public:
     std::unique_ptr<ValidationSignals> m_signals;
 
     std::unique_ptr<const CChainParams> m_chainparams;
+
+    std::unique_ptr<CTxMemPool> m_mempool;
 
     Context(const ContextOptions* options, bool& sane)
         : m_context{std::make_unique<kernel::Context>()},
@@ -226,6 +229,17 @@ public:
             m_chainparams = std::make_unique<const CChainParams>(*options->m_chainparams);
         } else {
             m_chainparams = CChainParams::Main();
+        }
+
+        if (options && options->m_mempool_options) {
+            bilingual_str mempool_err;
+            m_mempool = std::make_unique<CTxMemPool>(*options->m_mempool_options, mempool_err);
+            if (!mempool_err.empty()) {
+                LogError("Failed to construct a chainstate manager: %s", mempool_err.original);
+                sane = false;
+            }
+        } else {
+            m_mempool = nullptr;
         }
 
         if (!kernel::SanityChecks(*m_context)) {
@@ -286,6 +300,12 @@ const CChainParams* cast_const_chain_params(const kernel_ChainParameters* chain_
 {
     assert(chain_params);
     return reinterpret_cast<const CChainParams*>(chain_params);
+}
+
+const CTxMemPool::Options* cast_const_mempool_options(const kernel_MempoolOptions* mempool_opts)
+{
+    assert(mempool_opts);
+    return reinterpret_cast<const CTxMemPool::Options*>(mempool_opts);
 }
 
 const KernelNotifications* cast_const_notifications(const kernel_Notifications* notifications)
@@ -630,6 +650,18 @@ void kernel_notifications_destroy(const kernel_Notifications* notifications)
     }
 }
 
+kernel_MempoolOptions* kernel_mempool_options_create()
+{
+    return reinterpret_cast<kernel_MempoolOptions*>(new CTxMemPool::Options{});
+}
+
+void kernel_mempool_options_destroy(const kernel_MempoolOptions* mempool_options)
+{
+    if (mempool_options) {
+        delete cast_const_mempool_options(mempool_options);
+    }
+}
+
 kernel_ContextOptions* kernel_context_options_create()
 {
     return reinterpret_cast<kernel_ContextOptions*>(new ContextOptions{});
@@ -649,6 +681,13 @@ void kernel_context_options_set_notifications(kernel_ContextOptions* options_, c
     auto notifications{reinterpret_cast<const KernelNotifications*>(notifications_)};
     // Copy the notifications, so the caller can free it again
     options->m_notifications = std::make_unique<const KernelNotifications>(*notifications);
+}
+
+void kernel_context_options_set_mempool(kernel_ContextOptions* options_, const kernel_MempoolOptions* mempool_opts_)
+{
+    auto options{cast_context_options(options_)};
+    auto mempool_opts{reinterpret_cast<const CTxMemPool::Options*>(mempool_opts_)};
+    options->m_mempool_options = std::make_unique<const CTxMemPool::Options>(*mempool_opts);
 }
 
 void kernel_context_options_destroy(kernel_ContextOptions* options)
@@ -875,10 +914,15 @@ bool kernel_chainstate_manager_load_chainstate(const kernel_Context* context_,
     try {
         auto& chainstate_load_opts{*cast_chainstate_load_options(chainstate_load_opts_)};
         auto& chainman{*cast_chainstate_manager(chainman_)};
+        auto& context{*cast_const_context(context_)};
 
         if (chainstate_load_opts.wipe_block_tree_db && !chainstate_load_opts.wipe_chainstate_db) {
             LogError("Wiping the block tree db without also wiping the chainstate db is currently unsupported.\n");
             return false;
+        }
+
+        if (context.m_mempool) {
+            chainstate_load_opts.mempool = context.m_mempool.get();
         }
 
         node::CacheSizes cache_sizes;
