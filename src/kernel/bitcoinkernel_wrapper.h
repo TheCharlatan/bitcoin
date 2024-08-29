@@ -549,6 +549,11 @@ public:
         return vec;
     }
 
+    bool IsBlockMutated(bool check_witness_root) const noexcept
+    {
+        return kernel_is_block_mutated(m_block.get(), check_witness_root);
+    }
+
     BlockHeader GetBlockHeader() const noexcept
     {
         return kernel_get_block_header(m_block.get());

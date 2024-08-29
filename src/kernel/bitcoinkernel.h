@@ -1296,6 +1296,20 @@ kernel_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_copy_block_header_data
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
+ * @brief Checks if the block has been mutated. If the block is a segwit block,
+ * check_witness_root should be set, otherwise the block will be seen as
+ * mutated.
+ *
+ * @param[in] block              Non-null.
+ * @param[in] check_witness_root Also check the witness root, additionally to the merkle root.
+ * @return                       True if the block is mutated.
+ */
+bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_is_block_mutated(
+    kernel_Block* block,
+    bool check_witness_root
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * Destroy the block header.
  */
 void kernel_block_header_destroy(kernel_BlockHeader* header);

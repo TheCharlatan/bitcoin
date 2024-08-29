@@ -568,6 +568,8 @@ void chainman_regtest_validation_test()
         for (size_t i{0}; i < mid; i++) {
             Block block{REGTEST_BLOCK_DATA[i]};
             assert(block);
+            assert(block.IsBlockMutated(false));
+            assert(!block.IsBlockMutated(true));
             BlockHeader header{block.GetBlockHeader()};
             assert(header);
             notifications.m_got_header = false;
