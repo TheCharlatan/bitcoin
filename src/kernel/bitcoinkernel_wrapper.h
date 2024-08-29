@@ -31,8 +31,18 @@ public:
     {
     }
 
+    Transaction(kernel_Transaction* transaction) noexcept : m_transaction{transaction} {}
+
     /** Check whether this Transaction object is valid. */
     explicit operator bool() const noexcept { return bool{m_transaction}; }
+
+    std::vector<unsigned char> GetTransactionData() const noexcept
+    {
+        auto serialized_transaction{kernel_copy_transaction_data(m_transaction.get())};
+        std::vector<unsigned char> vec{serialized_transaction->data, serialized_transaction->data + serialized_transaction->size};
+        kernel_byte_array_destroy(serialized_transaction);
+        return vec;
+    }
 };
 
 class ScriptPubkey
@@ -225,6 +235,24 @@ public:
     friend class ContextOptions;
 };
 
+class MempoolOptions
+{
+private:
+    struct Deleter {
+        void operator()(const kernel_MempoolOptions* ptr) const
+        {
+            kernel_mempool_options_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<const kernel_MempoolOptions, Deleter> m_mempool_options;
+
+public:
+    MempoolOptions() noexcept : m_mempool_options{kernel_mempool_options_create()} {}
+
+    friend class ContextOptions;
+};
+
 class ChainParams
 {
 private:
@@ -267,6 +295,11 @@ public:
     void SetNotifications(KernelNotifications<T>& notifications) const noexcept
     {
         kernel_context_options_set_notifications(m_options.get(), notifications.m_notifications.get());
+    }
+
+    void SetMempoolOptions(MempoolOptions& mempool_options) const noexcept
+    {
+        kernel_context_options_set_mempool(m_options.get(), mempool_options.m_mempool_options.get());
     }
 
     friend class Context;
@@ -508,38 +541,6 @@ public:
     friend class ChainMan;
 };
 
-class Transaction
-{
-private:
-    struct Deleter {
-        void operator()(kernel_Transaction* ptr) const
-        {
-            kernel_transaction_destroy(ptr);
-        }
-    };
-
-    std::unique_ptr<kernel_Transaction, Deleter> m_transaction;
-
-public:
-    Transaction(std::span<const unsigned char> raw_transaction) noexcept
-        : m_transaction{kernel_transaction_create(raw_transaction.data(), raw_transaction.size())}
-    {
-    }
-
-    Transaction(kernel_Transaction* transaction) noexcept : m_transaction{transaction} {}
-
-    /** Check whether this Transaction object is valid. */
-    explicit operator bool() const noexcept { return bool{m_transaction}; }
-
-    std::vector<unsigned char> GetTransactionData() const noexcept
-    {
-        auto serialized_transaction{kernel_copy_transaction_data(m_transaction.get())};
-        std::vector<unsigned char> vec{serialized_transaction->data, serialized_transaction->data + serialized_transaction->size};
-        kernel_byte_array_destroy(serialized_transaction);
-        return vec;
-    }
-};
-
 class Block
 {
 private:
@@ -579,14 +580,14 @@ public:
     BlockHeader GetBlockHeader() const noexcept
     {
         return kernel_get_block_header(m_block.get());
-    }    
+    }
 
-    size_t GetNumberOfTransactions() const
+    size_t GetNumberOfTransactions() const noexcept
     {
         return kernel_number_of_transactions_in_block(m_block.get());
     }
 
-    Transaction GetTransaction(uint64_t index) const
+    Transaction GetTransaction(uint64_t index) const noexcept
     {
         return Transaction{kernel_get_transaction_by_index(m_block.get(), index)};
     }
