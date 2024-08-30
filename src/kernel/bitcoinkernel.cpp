@@ -1469,3 +1469,8 @@ kernel_Transaction* kernel_get_transaction_by_index(kernel_Block* block_, uint64
     return reinterpret_cast<kernel_Transaction*>(new CTransaction{*(**block).vtx[index]});
 }
 
+bool kernel_loading_blocks(kernel_ChainstateManager* chainman)
+{
+    return cast_chainstate_manager(chainman)->m_blockman.LoadingBlocks();
+}
+

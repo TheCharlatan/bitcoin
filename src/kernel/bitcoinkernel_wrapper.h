@@ -766,6 +766,11 @@ public:
         return kernel_import_blocks(m_context.m_context.get(), m_chainman, c_paths.data(), c_paths.size());
     }
 
+    bool LoadingBlocks() const noexcept
+    {
+        return kernel_loading_blocks(m_chainman);
+    }
+
     bool ProcessBlockHeader(BlockHeader& header) const noexcept
     {
         return kernel_chainstate_manager_process_block_header(m_context.m_context.get(), m_chainman, header.m_block_header.get());

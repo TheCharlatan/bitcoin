@@ -689,6 +689,7 @@ void chainman_reindex_chainstate_test(TestDirectory& test_directory)
     std::vector<std::string> import_files;
     import_files.push_back(test_directory.m_directory / "blocks" / "blk00000.dat");
     chainman->ImportBlocks(import_files);
+    assert(!chainman->LoadingBlocks());
 }
 
 int main()
