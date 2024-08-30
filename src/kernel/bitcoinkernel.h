@@ -1404,6 +1404,17 @@ kernel_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_copy_transaction_data(
     kernel_Transaction* transaction
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
+/**
+ * @brief Check if the chainstate manager is busy loading blocks from disk. This
+ * may be the case when reindexing, or importing block files from disk.
+ *
+ * @param[in] chainman Non-null.
+ * @return             True if the chainstate manager is busy loading blocks.
+ */
+bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_loading_blocks(
+    kernel_ChainstateManager* chainman
+) BITCOINKERNEL_ARG_NONNULL(1);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif // __cplusplus

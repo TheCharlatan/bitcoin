@@ -1539,3 +1539,8 @@ kernel_ByteArray* kernel_copy_transaction_data(kernel_Transaction* transaction_)
 
     return byte_array;
 }
+
+bool kernel_loading_blocks(kernel_ChainstateManager* chainman)
+{
+    return cast_chainstate_manager(chainman)->m_blockman.LoadingBlocks();
+}
