@@ -1210,7 +1210,7 @@ public:
     }
 };
 
-void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFiles)
+void ImportBlocks(ChainstateManager& chainman, std::span<const fs::path> vImportFiles)
 {
     ImportingNow imp{chainman.m_blockman.m_importing};
 
