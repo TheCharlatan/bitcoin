@@ -1067,6 +1067,8 @@ bool AppInitParameterInteraction(const ArgsManager& args)
             .chainparams = chainman_opts_dummy.chainparams,
             .blocks_dir = args.GetBlocksDirPath(),
             .notifications = chainman_opts_dummy.notifications,
+            .block_tree_db_dir = args.GetDataDirNet() / "blocks" / "index",
+            .block_tree_db_cache_size = 0,
         };
         auto blockman_result{ApplyArgsManOptions(args, blockman_opts_dummy)};
         if (!blockman_result) {
@@ -1515,13 +1517,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     };
     Assert(ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
-    BlockManager::Options blockman_opts{
-        .chainparams = chainman_opts.chainparams,
-        .blocks_dir = args.GetBlocksDirPath(),
-        .notifications = chainman_opts.notifications,
-    };
-    Assert(ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
-
     // cache size calculations
     CacheSizes cache_sizes = CalculateCacheSizes(args, g_enabled_filter_types.size());
 
@@ -1535,6 +1530,15 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                   cache_sizes.filter_index * (1.0 / 1024 / 1024), BlockFilterTypeName(filter_type));
     }
     LogPrintf("* Using %.1f MiB for chain state database\n", cache_sizes.coins_db * (1.0 / 1024 / 1024));
+
+    BlockManager::Options blockman_opts{
+        .chainparams = chainman_opts.chainparams,
+        .blocks_dir = args.GetBlocksDirPath(),
+        .notifications = chainman_opts.notifications,
+        .block_tree_db_dir = args.GetDataDirNet() / "blocks" / "index",
+        .block_tree_db_cache_size = cache_sizes.block_tree_db,
+    };
+    Assert(ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
     assert(!node.mempool);
     assert(!node.chainman);
@@ -1559,8 +1563,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
         LogPrintf("* Using %.1f MiB for in-memory UTXO set (plus up to %.1f MiB of unused mempool space)\n", cache_sizes.coins * (1.0 / 1024 / 1024), mempool_opts.max_size_bytes * (1.0 / 1024 / 1024));
 
+        blockman_opts.wipe_block_tree_db = do_reindex;
+
         try {
             node.chainman = std::make_unique<ChainstateManager>(*Assert(node.shutdown), chainman_opts, blockman_opts);
+        } catch (dbwrapper_error&) {
+            return InitError(Untranslated("Error opening block database."));
         } catch (std::exception& e) {
             return InitError(strprintf(Untranslated("Failed to initialize ChainstateManager: %s"), e.what()));
         }
@@ -1592,7 +1600,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
         node::ChainstateLoadOptions options;
         options.mempool = Assert(node.mempool.get());
-        options.wipe_block_tree_db = do_reindex;
         options.wipe_chainstate_db = do_reindex || do_reindex_chainstate;
         options.prune = chainman.m_blockman.IsPruneMode();
         options.check_blocks = args.GetIntArg("-checkblocks", DEFAULT_CHECKBLOCKS);
