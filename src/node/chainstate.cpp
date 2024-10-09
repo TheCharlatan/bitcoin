@@ -99,7 +99,7 @@ static ChainstateLoadResult CompleteChainstateInitialization(
     // by a call to `chainman.MaybeRebalanceCaches()`. We just need to make sure
     // that the sum of the two caches (40%) does not exceed the allowable amount
     // during this temporary initialization state.
-    double init_cache_fraction = 0.2;
+    double init_cache_fraction = chainman.GetAll().size() > 1 ? 0.2 : 1.0;
 
     // At this point we're either in reindex or we've loaded a useful
     // block tree into BlockIndex()!
