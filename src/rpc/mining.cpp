@@ -42,6 +42,9 @@
 #include <validation.h>
 #include <validationinterface.h>
 
+#include <kernel/bitcoinkernel.h>
+#include <logging.h>
+
 #include <memory>
 #include <stdint.h>
 
@@ -150,7 +153,14 @@ static bool GenerateBlock(ChainstateManager& chainman, Mining& miner, CBlock& bl
 
     if (!process_new_block) return true;
 
-    if (!miner.processNewBlock(block_out, nullptr)) {
+    // bool accepted = miner.processNewBlock(blockptr, /*new_block=*/&new_block);
+    bool accepted = kernel_chainstate_manager_process_block(
+        reinterpret_cast<kernel_Context*>(&chainman),
+        reinterpret_cast<kernel_ChainstateManager*>(&chainman),
+        reinterpret_cast<kernel_Block*>(&block_out),
+        nullptr);
+
+    if (!accepted) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
     }
 
@@ -1049,12 +1059,19 @@ static RPCHelpMan submitblock()
     }
 
     NodeContext& node = EnsureAnyNodeContext(request.context);
-    Mining& miner = EnsureMining(node);
+    // Mining& miner = EnsureMining(node);
+    //
+    LogInfo("Going here!\n\n\n\n");
 
     bool new_block;
     auto sc = std::make_shared<submitblock_StateCatcher>(block.GetHash());
     CHECK_NONFATAL(chainman.m_options.signals)->RegisterSharedValidationInterface(sc);
-    bool accepted = miner.processNewBlock(blockptr, /*new_block=*/&new_block);
+    // bool accepted = miner.processNewBlock(blockptr, /*new_block=*/&new_block);
+    bool accepted = kernel_chainstate_manager_process_block(
+        reinterpret_cast<kernel_Context*>(node.kernel.get()),
+        reinterpret_cast<kernel_ChainstateManager*>(node.chainman.get()),
+        reinterpret_cast<kernel_Block*>(&new_block),
+        nullptr);
     CHECK_NONFATAL(chainman.m_options.signals)->UnregisterSharedValidationInterface(sc);
     if (!new_block && accepted) {
         return "duplicate";
@@ -1062,6 +1079,7 @@ static RPCHelpMan submitblock()
     if (!sc->found) {
         return "inconclusive";
     }
+    LogInfo("Getting out of here!\n\n\n\n");
     return BIP22ValidationResult(sc->state);
 },
     };

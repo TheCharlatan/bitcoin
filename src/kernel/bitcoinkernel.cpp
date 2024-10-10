@@ -53,9 +53,9 @@ using util::ImmediateTaskRunner;
 
 // Define G_TRANSLATION_FUN symbol in libbitcoinkernel library so users of the
 // library aren't required to export this symbol
-extern const std::function<std::string(const char*)> G_TRANSLATION_FUN{nullptr};
+// extern const std::function<std::string(const char*)> G_TRANSLATION_FUN{nullptr};
 
-static const kernel::Context kernel_context_static{};
+// static const kernel::Context kernel_context_static{};
 
 namespace {
 
@@ -1224,6 +1224,7 @@ bool kernel_chainstate_manager_process_block(
     kernel_Block* block_,
     kernel_ProcessBlockStatus* status)
 {
+    LogInfo("This is being routed through the kernel!\n");
     auto& chainman{*cast_chainstate_manager(chainman_)};
 
     auto blockptr{cast_cblocksharedpointer(block_)};
