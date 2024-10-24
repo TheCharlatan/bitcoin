@@ -46,6 +46,12 @@ public:
     explicit ValidationSignalsImpl(std::unique_ptr<util::TaskRunnerInterface> task_runner)
         : m_task_runner{std::move(Assert(task_runner))} {}
 
+    ~ValidationSignalsImpl()
+    {
+        LogInfo("Flushing the task runner");
+        m_task_runner->flush();
+    }
+
     void Register(std::shared_ptr<CValidationInterface> callbacks) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
     {
         LOCK(m_mutex);
@@ -95,11 +101,6 @@ ValidationSignals::ValidationSignals(std::unique_ptr<util::TaskRunnerInterface> 
     : m_internals{std::make_unique<ValidationSignalsImpl>(std::move(task_runner))} {}
 
 ValidationSignals::~ValidationSignals() = default;
-
-void ValidationSignals::FlushBackgroundCallbacks()
-{
-    m_internals->m_task_runner->flush();
-}
 
 size_t ValidationSignals::CallbacksPending()
 {

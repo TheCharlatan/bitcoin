@@ -174,9 +174,6 @@ public:
 
     ~ValidationSignals();
 
-    /** Call any remaining callbacks on the calling thread */
-    void FlushBackgroundCallbacks();
-
     size_t CallbacksPending();
 
     /** Register subscriber */

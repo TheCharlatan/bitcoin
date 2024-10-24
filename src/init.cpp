@@ -344,10 +344,6 @@ void Shutdown(NodeContext& node)
         }
     }
 
-    // After there are no more peers/RPC left to give us new data which may generate
-    // CValidationInterface callbacks, flush them...
-    if (node.validation_signals) node.validation_signals->FlushBackgroundCallbacks();
-
     // Stop and delete all indexes only after flushing background callbacks.
     for (auto* index : node.indexes) index->Stop();
     if (g_txindex) g_txindex.reset();
