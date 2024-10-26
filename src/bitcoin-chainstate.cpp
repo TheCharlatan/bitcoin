@@ -140,6 +140,8 @@ int main(int argc, char* argv[])
         }
     }
 
+    std::cout << CHECKLEVEL_DOC[0];
+
     for (Chainstate* chainstate : WITH_LOCK(::cs_main, return chainman.GetAll())) {
         BlockValidationState state;
         if (!chainstate->ActivateBestChain(state, nullptr)) {
