@@ -537,7 +537,7 @@ static RPCHelpMan getprioritisedtransactions()
 
 
 // NOTE: Assumes a conclusive result; if result is inconclusive, it must be handled by caller
-static UniValue BIP22ValidationResult(const BlockValidationState& state)
+static UniValue BIP22ValidationResult(const BlockValidationState& state, bool throw_coinbase)
 {
     if (state.IsValid())
         return UniValue::VNULL;
@@ -547,6 +547,11 @@ static UniValue BIP22ValidationResult(const BlockValidationState& state)
     if (state.IsInvalid())
     {
         std::string strRejectReason = state.GetRejectReason();
+        if (throw_coinbase) {
+            if (state.GetResult() == BlockValidationResult::BLOCK_CONSENSUS && strRejectReason == "bad-cb-missing") {
+                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block does not start with a coinbase");
+            }
+        }
         if (strRejectReason.empty())
             return "rejected";
         return strRejectReason;
@@ -706,7 +711,7 @@ static RPCHelpMan getblocktemplate()
             }
             BlockValidationState state;
             miner.testBlockValidity(block, /*check_merkle_root=*/true, state);
-            return BIP22ValidationResult(state);
+            return BIP22ValidationResult(state, false);
         }
 
         const UniValue& aClientRules = oparam.find_value("rules");
@@ -1015,25 +1020,7 @@ static RPCHelpMan submitblock()
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
     }
 
-    if (block.vtx.empty() || !block.vtx[0]->IsCoinBase()) {
-        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block does not start with a coinbase");
-    }
-
     ChainstateManager& chainman = EnsureAnyChainman(request.context);
-    uint256 hash = block.GetHash();
-    {
-        LOCK(cs_main);
-        const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(hash);
-        if (pindex) {
-            if (pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
-                return "duplicate";
-            }
-            if (pindex->nStatus & BLOCK_FAILED_MASK) {
-                return "duplicate-invalid";
-            }
-        }
-    }
-
     {
         LOCK(cs_main);
         const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(block.hashPrevBlock);
@@ -1056,7 +1043,7 @@ static RPCHelpMan submitblock()
     if (!sc->found) {
         return "inconclusive";
     }
-    return BIP22ValidationResult(sc->state);
+    return BIP22ValidationResult(sc->state, true);
 },
     };
 }
