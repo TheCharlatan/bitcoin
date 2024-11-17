@@ -527,6 +527,13 @@ bool ScriptPubkeyApi<Derived>::Verify(int64_t amount,
     return result == 1;
 }
 
+struct BlockHashDeleter {
+    void operator()(btck_BlockHash* ptr) const
+    {
+        btck_block_hash_destroy(ptr);
+    }
+};
+
 class Block : public Handle<btck_Block, btck_block_copy, btck_block_destroy>
 {
 public:
@@ -550,6 +557,11 @@ public:
     auto Transactions() const
     {
         return Range<Block, &Block::CountTransactions, &Block::GetTransaction>{*this};
+    }
+
+    std::unique_ptr<btck_BlockHash, BlockHashDeleter> GetHash() const
+    {
+        return std::unique_ptr<btck_BlockHash, BlockHashDeleter>(btck_block_get_hash(get()));
     }
 
     std::vector<std::byte> ToBytes() const
@@ -598,14 +610,6 @@ public:
     {
     }
 };
-
-struct BlockHashDeleter {
-    void operator()(btck_BlockHash* ptr) const
-    {
-        btck_block_hash_destroy(ptr);
-    }
-};
-
 
 class BlockTreeEntry : public View<btck_BlockTreeEntry>
 {
