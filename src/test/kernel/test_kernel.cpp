@@ -336,5 +336,6 @@ BOOST_AUTO_TEST_CASE(btck_chainman_tests)
     auto context{create_context(notifications, btck_ChainType::btck_CHAIN_TYPE_MAINNET)};
 
     ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+    chainman_opts.SetWorkerThreads(4);
     ChainMan chainman{context, chainman_opts};
 }
