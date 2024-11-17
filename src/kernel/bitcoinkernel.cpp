@@ -303,6 +303,12 @@ const ChainstateManagerOptions* cast_const_chainstate_manager_options(const kern
     return reinterpret_cast<const ChainstateManagerOptions*>(options);
 }
 
+ChainstateManagerOptions* cast_chainstate_manager_options(kernel_ChainstateManagerOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<ChainstateManagerOptions*>(options);
+}
+
 ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman)
 {
     assert(chainman);
@@ -578,6 +584,12 @@ kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const 
         LogError("Failed to create chainstate manager options: %s", e.what());
         return nullptr;
     }
+}
+
+void kernel_chainstate_manager_options_set_worker_threads_num(kernel_ChainstateManagerOptions* opts_, int worker_threads)
+{
+    auto opts{cast_chainstate_manager_options(opts_)};
+    opts->m_chainman_options.worker_threads_num = worker_threads;
 }
 
 void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* options)
