@@ -570,6 +570,11 @@ public:
         return Range<Block, &Block::CountTransactions, &Block::GetTransaction>{*this};
     }
 
+    BlockHash GetHash() const
+    {
+        return BlockHash{btck_block_get_hash(get())};
+    }
+
     std::vector<std::byte> ToBytes() const
     {
         return write_bytes(get(), btck_block_to_bytes);

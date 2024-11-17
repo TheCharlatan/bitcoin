@@ -545,15 +545,18 @@ void chainman_reindex_test(TestDirectory& test_directory)
     auto tip_index{chain.Tip()};
     auto tip_block_data{chainman->ReadBlock(tip_index).value().ToBytes()};
     auto second_index{chain.GetByHeight(1)};
-    auto second_block_data{chainman->ReadBlock(second_index).value().ToBytes()};
+    auto second_block{chainman->ReadBlock(second_index).value()};
+    auto second_block_data{second_block.ToBytes()};
     auto second_height{second_index.GetHeight()};
     BOOST_CHECK_EQUAL(second_height, 1);
     check_equal(next_block_data, tip_block_data);
     check_equal(next_block_data, second_block_data);
 
-    auto hash{second_index.GetHash()};
-    auto another_second_index{chainman->GetBlockTreeEntry(hash.get())};
+    auto second_hash{second_index.GetHash()};
+    auto another_second_index{chainman->GetBlockTreeEntry(second_hash.get())};
     auto another_second_height{another_second_index.GetHeight()};
+    auto second_block_hash{second_block.GetHash()};
+    check_equal(second_block_hash.Bytes(), second_hash.Bytes());
     BOOST_CHECK_EQUAL(second_height, another_second_height);
 }
 
