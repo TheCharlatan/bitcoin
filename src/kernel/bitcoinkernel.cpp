@@ -1003,6 +1003,11 @@ int btck_block_to_bytes(const btck_Block* block, btck_WriteBytes writer, void* u
     }
 }
 
+btck_BlockHash* btck_block_get_hash(const btck_Block* block)
+{
+    return btck_BlockHash::create(btck_Block::get(block)->GetHash());
+}
+
 void btck_block_destroy(btck_Block* block)
 {
     delete block;
