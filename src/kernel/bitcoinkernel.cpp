@@ -967,6 +967,14 @@ int btck_block_to_bytes(const btck_Block* block, btck_WriteBytes writer, void* u
     }
 }
 
+btck_BlockHash* btck_block_get_hash(const btck_Block* block)
+{
+    auto hash{btck_Block::get(block)->GetHash()};
+    auto block_hash = new btck_BlockHash{};
+    std::memcpy(block_hash->hash, hash.begin(), sizeof(hash));
+    return block_hash;
+}
+
 void btck_block_destroy(btck_Block* block)
 {
     if (!block) return;
@@ -1001,7 +1009,6 @@ btck_BlockHash* btck_block_tree_entry_get_block_hash(const btck_BlockTreeEntry* 
 void btck_block_hash_destroy(btck_BlockHash* hash)
 {
     if (hash) delete hash;
-    hash = nullptr;
 }
 
 btck_BlockSpentOutputs* btck_block_spent_outputs_read(const btck_ChainstateManager* chainman, const btck_BlockTreeEntry* entry)
