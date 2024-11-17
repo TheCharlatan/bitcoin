@@ -329,7 +329,8 @@ BOOST_AUTO_TEST_CASE(kernel_chainman_tests)
 
     ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     BOOST_REQUIRE(chainman_opts);
-    ChainMan chainman{context, chainman_opts};
-    BOOST_CHECK(chainman);
-}
+    chainman_opts.SetWorkerThreads(4);
 
+    ChainMan chainman{context, chainman_opts};
+    BOOST_REQUIRE(chainman);
+}
