@@ -1011,6 +1011,26 @@ BITCOINKERNEL_API btck_Transaction* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /*
+ * @brief Calculate and return the hash of a block.
+ *
+ * @param[in] block Non-null.
+ * @return    The block hash.
+ */
+BITCOINKERNEL_API btck_BlockHash* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_get_hash(
+    btck_Block* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Calculate and return the hash of a block.
+ *
+ * @param[in] block Non-null.
+ * @return    The block hash.
+ */
+BITCOINKERNEL_API btck_BlockHash* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_pointer_get_hash(
+    const btck_BlockPointer* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * @brief Copies block data into the returned byte array.
  *
  * @param[in] block  Non-null.
@@ -1332,7 +1352,7 @@ BITCOINKERNEL_API void btck_coin_destroy(btck_Coin* coin);
  * @brief Return the block hash associated with a block index.
  *
  * @param[in] block_index Non-null.
- * @return    The block hash.
+ * @return    The block hash, or null if the block index has no associated hash.
  */
 BITCOINKERNEL_API btck_BlockHash* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_index_get_block_hash(
     const btck_BlockIndex* block_index
