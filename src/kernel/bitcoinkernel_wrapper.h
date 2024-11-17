@@ -374,6 +374,11 @@ public:
     {
     }
 
+    void SetWorkerThreads(int worker_threads) const
+    {
+        btck_chainstate_manager_options_set_worker_threads_num(m_options.get(), worker_threads);
+    }
+
     friend class ChainMan;
 };
 
