@@ -369,6 +369,11 @@ public:
     UnownedBlock(UnownedBlock&&) = delete;
     UnownedBlock& operator=(UnownedBlock&&) = delete;
 
+    std::unique_ptr<btck_BlockHash, BlockHashDeleter> GetHash() const
+    {
+        return std::unique_ptr<btck_BlockHash, BlockHashDeleter>(btck_block_pointer_get_hash(m_block));
+    }
+
     std::vector<unsigned char> GetBlockData() const
     {
         auto serialized_block{btck_block_pointer_copy_data(m_block)};
@@ -584,6 +589,11 @@ public:
         return Transaction{btck_block_get_transaction_at(m_block.get(), index)};
     }
 
+    std::unique_ptr<btck_BlockHash, BlockHashDeleter> GetHash() const
+    {
+        return std::unique_ptr<btck_BlockHash, BlockHashDeleter>(btck_block_get_hash(m_block.get()));
+    }
+
     std::vector<unsigned char> GetBlockData() const
     {
         auto serialized_block{btck_block_copy_data(m_block.get())};
@@ -713,7 +723,6 @@ public:
         return TransactionSpentOutputs{btck_block_spent_outputs_get_transaction_spent_outputs_at(m_block_spent_outputs.get(), tx_undo_index)};
     }
 };
-
 
 class Chain
 {
