@@ -605,6 +605,11 @@ public:
     {
     }
 
+    void SetWorkerThreads(int worker_threads)
+    {
+        btck_chainstate_manager_options_set_worker_threads_num(impl(), worker_threads);
+    }
+
     friend class ChainMan;
 };
 
