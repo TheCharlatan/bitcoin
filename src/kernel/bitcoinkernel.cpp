@@ -943,6 +943,23 @@ btck_ByteArray* btck_block_pointer_copy_data(const btck_BlockPointer* block_)
     return byte_array;
 }
 
+btck_BlockHash* btck_block_get_hash(btck_Block* block)
+{
+    auto hash{block->m_block->GetHash()};
+    auto block_hash = new btck_BlockHash{};
+    std::memcpy(block_hash->hash, hash.begin(), sizeof(hash));
+    return block_hash;
+}
+
+btck_BlockHash* btck_block_pointer_get_hash(const btck_BlockPointer* block_)
+{
+    auto block{cast_const_cblock(block_)};
+    auto hash{block->GetHash()};
+    auto block_hash = new btck_BlockHash{};
+    std::memcpy(block_hash->hash, hash.begin(), sizeof(hash));
+    return block_hash;
+}
+
 void btck_block_destroy(btck_Block* block)
 {
     if (!block) return;
@@ -1016,7 +1033,7 @@ btck_Block* btck_block_read( btck_ChainstateManager* chainman, const btck_BlockI
         LogError("Failed to read block.");
         return nullptr;
     }
-    return new btck_Block{block};
+    return new btck_Block{std::move(block)};;
 }
 
 btck_BlockSpentOutputs* btck_block_spent_outputs_read(btck_ChainstateManager* chainman, const btck_BlockIndex* block_index_)
