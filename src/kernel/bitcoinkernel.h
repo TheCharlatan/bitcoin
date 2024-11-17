@@ -599,6 +599,19 @@ kernel_ChainstateManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainst
 ) BITCOINKERNEL_ARG_NONNULL(1, 2);
 
 /**
+ * @brief Set the number of available worker threads used during validation.
+ *
+ * @param[in] chainstate_manager_options Non-null, options to be set.
+ * @param[in] worker_threads The number of worker threads that should be spawned in the thread pool
+ *                           used for validation. When set to 0 no parallel verification is done.
+ *                           The value range is clamped internally between 0 and 15.
+ */
+void kernel_chainstate_manager_options_set_worker_threads_num(
+        kernel_ChainstateManagerOptions* chainstate_manager_options,
+        int worker_threads
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * Destroy the chainstate manager options.
  */
 void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* chainstate_manager_options);
