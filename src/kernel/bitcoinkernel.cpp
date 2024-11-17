@@ -977,6 +977,23 @@ int btck_block_pointer_to_bytes(const btck_BlockPointer* block_, btck_WriteBytes
     }
 }
 
+btck_BlockHash* btck_block_get_hash(const btck_Block* block)
+{
+    auto hash{block->m_block->GetHash()};
+    auto block_hash = new btck_BlockHash{};
+    std::memcpy(block_hash->hash, hash.begin(), sizeof(hash));
+    return block_hash;
+}
+
+btck_BlockHash* btck_block_pointer_get_hash(const btck_BlockPointer* block_)
+{
+    auto block{cast_const_cblock(block_)};
+    auto hash{block->GetHash()};
+    auto block_hash = new btck_BlockHash{};
+    std::memcpy(block_hash->hash, hash.begin(), sizeof(hash));
+    return block_hash;
+}
+
 void btck_block_destroy(btck_Block* block)
 {
     if (!block) return;
