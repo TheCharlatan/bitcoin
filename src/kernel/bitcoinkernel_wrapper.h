@@ -631,6 +631,11 @@ public:
     UnownedBlock(UnownedBlock&&) = delete;
     UnownedBlock& operator=(UnownedBlock&&) = delete;
 
+    std::unique_ptr<btck_BlockHash, BlockHashDeleter> GetHash() const
+    {
+        return std::unique_ptr<btck_BlockHash, BlockHashDeleter>(btck_block_pointer_get_hash(m_block));
+    }
+
     std::vector<std::byte> ToBytes() const
     {
         return write_bytes(m_block, btck_block_pointer_to_bytes);
@@ -799,6 +804,11 @@ public:
     auto Transactions() const
     {
         return Range<Block, &Block::CountTransactions, &Block::GetTransaction>{*this};
+    }
+
+    std::unique_ptr<btck_BlockHash, BlockHashDeleter> GetHash() const
+    {
+        return std::unique_ptr<btck_BlockHash, BlockHashDeleter>(btck_block_get_hash(impl()));
     }
 
     std::vector<std::byte> ToBytes() const

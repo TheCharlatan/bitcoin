@@ -1088,6 +1088,26 @@ BITCOINKERNEL_API btck_Transaction* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /*
+ * @brief Calculate and return the hash of a block.
+ *
+ * @param[in] block Non-null.
+ * @return    The block hash.
+ */
+BITCOINKERNEL_API btck_BlockHash* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_get_hash(
+    const btck_Block* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Calculate and return the hash of a block.
+ *
+ * @param[in] block Non-null.
+ * @return    The block hash.
+ */
+BITCOINKERNEL_API btck_BlockHash* BITCOINKERNEL_WARN_UNUSED_RESULT btck_block_pointer_get_hash(
+    const btck_BlockPointer* block
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/*
  * @brief Serializes the block through the passed in callback to bytes.
  * This is consensus serialization that is also used for the p2p network.
  *
