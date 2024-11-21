@@ -237,11 +237,19 @@ class MiningTest(BitcoinTestFramework):
         bad_block = copy.deepcopy(block)
         bad_block.vtx[0].vin[0].prevout.hash += 1
         bad_block.vtx[0].rehash()
+        self.log.info("getblocktemplate: Test block with missing coinbase")
         assert_template(node, bad_block, 'bad-cb-missing')
 
+        self.log.info("submitblock: Test empty block")
+        assert_equal('high-hash', node.submitblock(hexdata=CBlock().serialize().hex()))
         self.log.info("submitblock: Test invalid coinbase transaction")
-        assert_raises_rpc_error(-22, "Block does not start with a coinbase", node.submitblock, CBlock().serialize().hex())
-        assert_raises_rpc_error(-22, "Block does not start with a coinbase", node.submitblock, bad_block.serialize().hex())
+        bad_block.solve()
+        assert_equal("bad-cb-missing", node.submitblock(hexdata=bad_block.serialize().hex()))
+        no_tx_block = copy.deepcopy(block)
+        no_tx_block.vtx.clear()
+        no_tx_block.hashMerkleRoot = 0
+        no_tx_block.solve()
+        assert_equal("bad-blk-length", node.submitblock(hexdata=no_tx_block.serialize().hex()))
 
         self.log.info("getblocktemplate: Test truncated final transaction")
         assert_raises_rpc_error(-22, "Block decode failed", node.getblocktemplate, {
