@@ -6,7 +6,6 @@
 
 #include <common/args.h>
 #include <index/txindex.h>
-#include <txdb.h>
 
 //! Max memory allocated to block tree DB specific cache, if -txindex (MiB)
 // Unlike for the UTXO database, for the txindex scenario the leveldb cache make
@@ -19,7 +18,7 @@ namespace node {
 CacheSizes CalculateCacheSizes(const ArgsManager& args, size_t n_indexes)
 {
     int64_t nTotalCache = (args.GetIntArg("-dbcache", DEFAULT_DB_CACHE) << 20);
-    nTotalCache = std::max(nTotalCache, nMinDbCache << 20); // total cache cannot be less than nMinDbCache
+    nTotalCache = std::max(nTotalCache, MIN_DB_CACHE << 20); // total cache cannot be less than nMinDbCache
     CacheSizes sizes;
     sizes.kernel.block_tree_db = std::min(nTotalCache / 8, MAX_BLOCK_DB_CACHE << 20);
     nTotalCache -= sizes.kernel.block_tree_db;

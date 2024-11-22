@@ -12,6 +12,9 @@
 
 class ArgsManager;
 
+//! min. -dbcache (MiB)
+static constexpr int64_t MIN_DB_CACHE{4};
+
 namespace node {
 struct CacheSizes {
     kernel::CacheSizes kernel;

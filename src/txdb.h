@@ -23,8 +23,6 @@ class uint256;
 
 //! -dbbatchsize default (bytes)
 static const int64_t nDefaultDbBatchSize = 16 << 20;
-//! min. -dbcache (MiB)
-static const int64_t nMinDbCache = 4;
 
 //! User-controlled performance and debug options.
 struct CoinsViewOptions {
