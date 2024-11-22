@@ -25,6 +25,7 @@
 #include <node/chainstate.h>
 #include <random.h>
 #include <script/sigcache.h>
+#include <util/byte_conversion.h>
 #include <util/chaintype.h>
 #include <util/fs.h>
 #include <util/signalinterrupt.h>
@@ -123,10 +124,7 @@ int main(int argc, char* argv[])
     util::SignalInterrupt interrupt;
     ChainstateManager chainman{interrupt, chainman_opts, blockman_opts};
 
-    node::CacheSizes cache_sizes;
-    cache_sizes.block_tree_db = 2 << 20;
-    cache_sizes.coins_db = 2 << 22;
-    cache_sizes.coins = (450 << 20) - (2 << 20) - (2 << 22);
+    kernel::CacheSizes cache_sizes{MiBToBytes(nDefaultDbCache)};
     node::ChainstateLoadOptions options;
     auto [status, error] = node::LoadChainstate(chainman, cache_sizes, options);
     if (status != node::ChainstateLoadStatus::SUCCESS) {
