@@ -21,8 +21,6 @@
 class COutPoint;
 class uint256;
 
-//! -dbcache default (MiB)
-static const int64_t nDefaultDbCache = 450;
 //! -dbbatchsize default (bytes)
 static const int64_t nDefaultDbBatchSize = 16 << 20;
 //! min. -dbcache (MiB)
@@ -34,8 +32,6 @@ static const int64_t nMaxBlockDBCache = 2;
 static const int64_t nMaxTxIndexCache = 1024;
 //! Max memory allocated to all block filter index caches combined in MiB.
 static const int64_t max_filter_index_cache = 1024;
-//! Max memory allocated to coin DB specific cache (MiB)
-static const int64_t nMaxCoinsDBCache = 8;
 
 //! User-controlled performance and debug options.
 struct CoinsViewOptions {

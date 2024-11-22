@@ -103,7 +103,8 @@ struct BasicTestingSetup {
  * initialization behaviour.
  */
 struct ChainTestingSetup : public BasicTestingSetup {
-    node::CacheSizes m_cache_sizes{};
+    node::IndexCacheSizes m_index_cache_sizes{std::get<0>(node::CalculateCacheSizes(m_args))};
+    kernel::CacheSizes m_kernel_cache_sizes{std::get<1>(node::CalculateCacheSizes(m_args))};
     bool m_coins_db_in_memory{true};
     bool m_block_tree_db_in_memory{true};
     std::function<void()> m_make_chainman{};
