@@ -9,6 +9,8 @@
 
 #include <algorithm>
 
+//! Suggested default amount of cache reserved for the kernel (MiB)
+static constexpr int64_t DEFAULT_KERNEL_CACHE{450};
 //! Max memory allocated to block tree DB specific cache (bytes)
 static constexpr size_t MAX_BLOCK_DB_CACHE{2_MiB};
 //! Max memory allocated to coin DB specific cache (bytes)
@@ -22,9 +24,9 @@ struct CacheSizes {
 
     CacheSizes(size_t total_cache)
     {
-        block_tree_db = std::min<size_t>(total_cache / 8, MAX_BLOCK_DB_CACHE);
+        block_tree_db = std::min(total_cache / 8, MAX_BLOCK_DB_CACHE);
         total_cache -= block_tree_db;
-        coins_db = std::min<size_t>(total_cache / 2, MAX_COINS_DB_CACHE);
+        coins_db = std::min(total_cache / 2, MAX_COINS_DB_CACHE);
         total_cache -= coins_db;
         coins = total_cache; // the rest goes to the coins cache
     }
