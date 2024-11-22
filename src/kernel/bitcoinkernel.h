@@ -574,7 +574,7 @@ bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_disable_log_category(const kernel_L
  * @return              A new kernel logging connection, or null on error.
  */
 kernel_LoggingConnection* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_logging_connection_create(
-    kernel_LogCallback callback,
+    kernel_LogCallback* callback,
     void* user_data,
     const kernel_LoggingOptions options
 ) BITCOINKERNEL_ARG_NONNULL(1);

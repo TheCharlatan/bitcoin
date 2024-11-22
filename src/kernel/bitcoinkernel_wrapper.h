@@ -152,13 +152,15 @@ private:
     };
 
     std::unique_ptr<T> m_log;
+    kernel_LogCallback m_callback;
     std::unique_ptr<kernel_LoggingConnection, Deleter> m_connection;
 
 public:
     Logger(std::unique_ptr<T> log, const kernel_LoggingOptions& logging_options) noexcept
         : m_log{std::move(log)},
+          m_callback{[](void* user_data, const char* message) { static_cast<T*>(user_data)->LogMessage(message); }},
           m_connection{kernel_logging_connection_create(
-              [](void* user_data, const char* message) { static_cast<T*>(user_data)->LogMessage(message); },
+              &m_callback,
               m_log.get(),
               logging_options)}
     {

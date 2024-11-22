@@ -510,7 +510,7 @@ void kernel_disable_logging()
     LogInstance().DisableLogging();
 }
 
-kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback callback,
+kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback* callback,
                                                            void* user_data,
                                                            const kernel_LoggingOptions options)
 {
@@ -520,7 +520,7 @@ kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback ca
     LogInstance().m_log_sourcelocations = options.log_sourcelocations;
     LogInstance().m_always_print_category_level = options.always_print_category_levels;
 
-    auto connection{LogInstance().PushBackCallback([callback, user_data](const std::string& str) { callback(user_data, str.c_str()); })};
+    auto connection{LogInstance().PushBackCallback([callback, user_data](const std::string& str) { if (*callback) (*callback)(user_data, str.c_str()); })};
 
     try {
         // Only start logging if we just added the connection.
