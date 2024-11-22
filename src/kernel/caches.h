@@ -5,10 +5,16 @@
 #ifndef BITCOIN_KERNEL_CACHES_H
 #define BITCOIN_KERNEL_CACHES_H
 
-#include <txdb.h>
 #include <util/byte_conversion.h>
 
 #include <algorithm>
+
+//! Suggested default amount of cache reserved for the kernel (MiB)
+static constexpr int64_t DEFAULT_KERNEL_CACHE{450};
+//! Max memory allocated to block tree DB specific cache (bytes)
+static constexpr size_t MAX_BLOCK_DB_CACHE{MiBToBytes(2)};
+//! Max memory allocated to coin DB specific cache (bytes)
+static constexpr size_t MAX_COINS_DB_CACHE{MiBToBytes(8)};
 
 namespace kernel {
 struct CacheSizes {
@@ -18,9 +24,9 @@ struct CacheSizes {
 
     CacheSizes(size_t total_cache)
     {
-        block_tree_db = std::min(total_cache / 8, MiBToBytes(nMaxBlockDBCache));
+        block_tree_db = std::min(total_cache / 8, MAX_BLOCK_DB_CACHE);
         total_cache -= block_tree_db;
-        coins_db = std::min(total_cache / 2, MiBToBytes(nMaxCoinsDBCache));
+        coins_db = std::min(total_cache / 2, MAX_COINS_DB_CACHE);
         total_cache -= coins_db;
         coins = total_cache; // the rest goes to the coins cache
     }
