@@ -7,7 +7,6 @@
 #include <common/args.h>
 #include <index/txindex.h>
 #include <kernel/caches.h>
-#include <txdb.h>
 
 // Unlike for the UTXO database, for the txindex scenario the leveldb cache make
 // a meaningful difference: https://github.com/bitcoin/bitcoin/pull/8273#issuecomment-229601991
@@ -19,7 +18,7 @@ namespace node {
 std::tuple<IndexCacheSizes, kernel::CacheSizes> CalculateCacheSizes(const ArgsManager& args, size_t n_indexes)
 {
     int64_t nTotalCache = (args.GetIntArg("-dbcache", DEFAULT_DB_CACHE) << 20);
-    nTotalCache = std::max(nTotalCache, nMinDbCache << 20); // total cache cannot be less than nMinDbCache
+    nTotalCache = std::max(nTotalCache, MIN_DB_CACHE << 20); // total cache cannot be less than nMinDbCache
     IndexCacheSizes sizes;
     sizes.tx_index = std::min(nTotalCache / 8, args.GetBoolArg("-txindex", DEFAULT_TXINDEX) ? MAX_TX_INDEX_CACHE << 20 : 0);
     nTotalCache -= sizes.tx_index;
