@@ -153,18 +153,19 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   script/signingprovider.cpp
   script/solver.cpp
 )
-target_link_libraries(bitcoin_common
-  PRIVATE
-    core_interface
-    bitcoin_consensus
-    bitcoin_util
-    univalue
-    secp256k1
-    Boost::headers
-    $<TARGET_NAME_IF_EXISTS:USDT::headers>
-    $<$<PLATFORM_ID:Windows>:ws2_32>
-)
-
+if(BUILD_WALLET_TOOL OR BUILD_CLI OR BUILD_TX OR BUILD_UTIL OR BUILD_DAEMON OR BUILD_GUI OR BUILD_TESTS OR BUILD_BENCH OR BUILD_FUZZ_BINARY OR WITH_MULTIPROCESS)
+  target_link_libraries(bitcoin_common
+    PRIVATE
+      core_interface
+      bitcoin_consensus
+      bitcoin_util
+      univalue
+      secp256k1
+      Boost::headers
+      $<TARGET_NAME_IF_EXISTS:USDT::headers>
+      $<$<PLATFORM_ID:Windows>:ws2_32>
+  )
+endif()
 
 set(installable_targets)
 if(ENABLE_WALLET)
@@ -286,6 +287,8 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   $<$<TARGET_EXISTS:bitcoin_wallet>:wallet/init.cpp>
   $<$<NOT:$<TARGET_EXISTS:bitcoin_wallet>>:dummywallet.cpp>
 )
+
+if(BUILD_DAEMON OR BUILD_GUI OR BUILD_TESTS OR BUILD_BENCH OR BUILD_FUZZ_BINARY OR WITH_MULTIPROCESS)
 target_link_libraries(bitcoin_node
   PRIVATE
     core_interface
@@ -301,6 +304,7 @@ target_link_libraries(bitcoin_node
     $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
 )
+endif()
 
 
 # Bitcoin Core bitcoind.
@@ -352,11 +356,13 @@ add_library(bitcoin_cli STATIC EXCLUDE_FROM_ALL
   compat/stdin.cpp
   rpc/client.cpp
 )
+if(BUILD_CLI OR BUILD_GUI OR BUILD_TESTS OR BUILD_FUZZ)
 target_link_libraries(bitcoin_cli
   PUBLIC
     core_interface
     univalue
 )
+endif()
 
 
 # Bitcoin Core RPC client
