@@ -1632,6 +1632,10 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
     return ss.GetHash();
 }
 
+
+template uint256 SignatureHash<CTransaction>(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int32_t nHashType, const CAmount& amount, SigVersion sigversion, const PrecomputedTransactionData* cache);
+template uint256 SignatureHash<CMutableTransaction>(const CScript& scriptCode, const CMutableTransaction& txTo, unsigned int nIn, int32_t nHashType, const CAmount& amount, SigVersion sigversion, const PrecomputedTransactionData* cache);
+
 template <class T>
 bool GenericTransactionSignatureChecker<T>::VerifyECDSASignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash) const
 {

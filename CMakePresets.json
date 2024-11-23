@@ -88,6 +88,43 @@
         "WITH_USDT": "ON",
         "WITH_ZMQ": "ON"
       }
+    },
+    {
+      "name": "kernel-riscv-baremetal",
+      "displayName": "Kernel mode with riscv for bare metal",
+      "binaryDir": "${sourceDir}/build_kernel_riscv",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_COMPILER": "/opt/riscv-ilp32/bin/riscv32-unknown-elf-gcc",
+        "CMAKE_CXX_COMPILER": "/opt/riscv-ilp32/bin/riscv32-unknown-elf-g++",
+        "CMAKE_C_FLAGS": "-march=rv32gc -mabi=ilp32",
+        "CMAKE_CXX_FLAGS": "-march=rv32gc -mabi=ilp32",
+        "CMAKE_EXE_LINKER_FLAGS": "-nostartfiles -nodefaultlibs -nostdlib",
+        "BUILD_BENCH": "OFF",
+        "BUILD_CLI": "OFF",
+        "BUILD_DAEMON": "OFF",
+        "BUILD_FUZZ_BINARY": "OFF",
+        "BUILD_GUI": "OFF",
+        "BUILD_GUI_TESTS": "OFF",
+        "BUILD_KERNEL_LIB": "ON",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "OFF",
+        "BUILD_TX": "OFF",
+        "BUILD_UTIL": "OFF",
+        "BUILD_UTIL_CHAINSTATE": "OFF",
+        "BUILD_WALLET_TOOL": "OFF",
+        "ENABLE_EXTERNAL_SIGNER": "OFF",
+        "ENABLE_HARDENING": "OFF",
+        "ENABLE_WALLET": "OFF",
+        "WARN_INCOMPATIBLE_BDB": "OFF",
+        "WITH_BDB": "OFF",
+        "WITH_MULTIPROCESS": "OFF",
+        "WITH_QRENCODE": "OFF",
+        "WITH_SQLITE": "OFF",
+        "WITH_USDT": "OFF",
+        "WITH_ZMQ": "OFF"
+      }
     }
   ]
 }

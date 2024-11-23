@@ -318,11 +318,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   endif()
 endif()
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-target_link_libraries(core_interface INTERFACE
-  Threads::Threads
-)
+#set(THREADS_PREFER_PTHREAD_FLAG ON)
+#find_package(Threads REQUIRED)
+#target_link_libraries(core_interface INTERFACE
+#  Threads::Threads
+#)
 
 add_library(sanitize_interface INTERFACE)
 target_link_libraries(core_interface INTERFACE sanitize_interface)
