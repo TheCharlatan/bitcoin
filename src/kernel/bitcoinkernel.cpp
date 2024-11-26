@@ -445,23 +445,23 @@ bool kernel_verify_script(const kernel_ScriptPubkey* script_pubkey_,
                          const kernel_TransactionOutput** spent_outputs_, size_t spent_outputs_len,
                          const unsigned int input_index,
                          const unsigned int flags,
-                         kernel_ScriptVerifyStatus* status)
+                         bool log_malformed_parameter)
 {
     const CAmount amount{amount_};
     const auto& script_pubkey{*cast_script_pubkey(script_pubkey_)};
 
     if (!verify_flags(flags)) {
-        if (status) *status = kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS;
+        if (log_malformed_parameter) LogWarning("Verify script: Invalid flags");
         return false;
     }
 
     if (!is_valid_flag_combination(flags)) {
-        if (status) *status = kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS_COMBINATION;
+        if (log_malformed_parameter) LogWarning("Verify script: Invalid flags combination");
         return false;
     }
 
     if (flags & kernel_SCRIPT_FLAGS_VERIFY_TAPROOT && spent_outputs_ == nullptr) {
-        if (status) *status = kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_REQUIRED;
+        if (log_malformed_parameter) LogWarning("Verify script: Spent outputs are required when the taproot flag is set.");
         return false;
     }
 
@@ -469,7 +469,7 @@ bool kernel_verify_script(const kernel_ScriptPubkey* script_pubkey_,
     std::vector<CTxOut> spent_outputs;
     if (spent_outputs_ != nullptr) {
         if (spent_outputs_len != tx.vin.size()) {
-            if (status) *status = kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_MISMATCH;
+            if (log_malformed_parameter) LogWarning("Verify script: The number of spent outputs does not match the number of transaction inputs");
             return false;
         }
         spent_outputs.reserve(spent_outputs_len);
@@ -480,7 +480,7 @@ bool kernel_verify_script(const kernel_ScriptPubkey* script_pubkey_,
     }
 
     if (input_index >= tx.vin.size()) {
-        if (status) *status = kernel_SCRIPT_VERIFY_ERROR_TX_INPUT_INDEX;
+        if (log_malformed_parameter) LogWarning("Verify Script: The selected input index is out of bounds of the actual number of transaction inputs");
         return false;
     }
     PrecomputedTransactionData txdata{tx};

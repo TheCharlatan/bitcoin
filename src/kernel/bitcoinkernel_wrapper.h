@@ -113,7 +113,7 @@ int verify_script(const ScriptPubkey& script_pubkey,
                   const std::span<const TransactionOutput> spent_outputs,
                   unsigned int input_index,
                   unsigned int flags,
-                  kernel_ScriptVerifyStatus& status) noexcept
+                  bool log_malformed_parameter) noexcept
 {
     const kernel_TransactionOutput** spent_outputs_ptr = nullptr;
     std::vector<const kernel_TransactionOutput*> raw_spent_outputs;
@@ -132,7 +132,7 @@ int verify_script(const ScriptPubkey& script_pubkey,
         spent_outputs_ptr, spent_outputs.size(),
         input_index,
         flags,
-        &status);
+        log_malformed_parameter);
 }
 
 template <typename T>

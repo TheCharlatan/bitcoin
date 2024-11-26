@@ -379,18 +379,6 @@ typedef struct {
 } kernel_LoggingOptions;
 
 /**
- * A collection of status codes that may be issued by the script verify function.
- */
-typedef enum {
-    kernel_SCRIPT_VERIFY_OK = 0,
-    kernel_SCRIPT_VERIFY_ERROR_TX_INPUT_INDEX, //!< The provided input index is out of range of the actual number of inputs of the transaction.
-    kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS, //!< The provided bitfield for the flags was invalid.
-    kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS_COMBINATION, //!< The flags very combined in an invalid way.
-    kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_REQUIRED, //!< The taproot flag was set, so valid spent_outputs have to be provided.
-    kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_MISMATCH, //!< The number of spent outputs does not match the number of inputs of the tx.
-} kernel_ScriptVerifyStatus;
-
-/**
  * Script verification flags that may be composed with each other.
  */
 typedef enum
@@ -511,8 +499,8 @@ void kernel_transaction_output_destroy(kernel_TransactionOutput* transaction_out
  * @param[in] spent_outputs_len Length of the spent_outputs array.
  * @param[in] input_index       Index of the input in tx_to spending the script_pubkey.
  * @param[in] flags             Bitfield of kernel_ScriptFlags controlling validation constraints.
- * @param[out] status           Nullable, will be set to an error code if the operation fails.
- *                              Should be set to kernel_SCRIPT_VERIFY_OK.
+ * @param[out] log_malformed    Whether to log an error message if a malformed function parameter
+ *                              was detected.
  * @return                      True if the script is valid.
  */
 bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_verify_script(
@@ -522,7 +510,7 @@ bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_verify_script(
     const kernel_TransactionOutput** spent_outputs, size_t spent_outputs_len,
     unsigned int input_index,
     unsigned int flags,
-    kernel_ScriptVerifyStatus* status
+    bool log_malformed
 ) BITCOINKERNEL_ARG_NONNULL(1, 3);
 
 /**

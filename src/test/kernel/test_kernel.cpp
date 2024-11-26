@@ -194,7 +194,6 @@ void run_verify_test(
 {
     assert(spending_tx);
     assert(spent_script_pubkey);
-    auto status = kernel_ScriptVerifyStatus::kernel_SCRIPT_VERIFY_OK;
 
     if (taproot) {
         verify_script(
@@ -204,8 +203,7 @@ void run_verify_test(
             spent_outputs,
             input_index,
             kernel_SCRIPT_FLAGS_VERIFY_ALL,
-            status);
-        assert(status == kernel_SCRIPT_VERIFY_OK);
+            true);
     } else {
         assert(!verify_script(
             spent_script_pubkey,
@@ -214,9 +212,7 @@ void run_verify_test(
             spent_outputs,
             input_index,
             kernel_SCRIPT_FLAGS_VERIFY_ALL,
-            status));
-        assert(status == kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_REQUIRED);
-        status = kernel_SCRIPT_VERIFY_OK;
+            true));
     }
 
     assert(verify_script(
@@ -226,8 +222,7 @@ void run_verify_test(
         spent_outputs,
         input_index,
         VERIFY_ALL_PRE_TAPROOT,
-        status));
-    assert(status == kernel_SCRIPT_VERIFY_OK);
+        true));
 
     assert(verify_script(
         spent_script_pubkey,
@@ -236,8 +231,7 @@ void run_verify_test(
         spent_outputs,
         input_index,
         VERIFY_ALL_PRE_SEGWIT,
-        status));
-    assert(status == kernel_SCRIPT_VERIFY_OK);
+        true));
 
     assert(!verify_script(
         spent_script_pubkey,
@@ -246,8 +240,7 @@ void run_verify_test(
         spent_outputs,
         input_index,
         VERIFY_ALL_PRE_TAPROOT << 2,
-        status));
-    assert(status == kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS);
+        true));
 
     assert(!verify_script(
         spent_script_pubkey,
@@ -256,9 +249,7 @@ void run_verify_test(
         spent_outputs,
         5,
         VERIFY_ALL_PRE_TAPROOT,
-        status));
-    assert(status == kernel_SCRIPT_VERIFY_ERROR_TX_INPUT_INDEX);
-    status = kernel_SCRIPT_VERIFY_OK;
+        true));
 }
 
 void transaction_test()
