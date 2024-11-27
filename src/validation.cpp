@@ -6279,7 +6279,6 @@ ChainstateManager::~ChainstateManager()
     for (Chainstate* chainstate : GetAll()) {
         if (chainstate->CanFlushToDisk()) {
             chainstate->ForceFlushStateToDisk();
-            chainstate->ResetCoinsViews();
         }
     }
 
