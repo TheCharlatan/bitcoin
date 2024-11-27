@@ -348,6 +348,13 @@ void Shutdown(NodeContext& node)
     // CValidationInterface callbacks, flush them...
     if (node.validation_signals) node.validation_signals->FlushBackgroundCallbacks();
 
+    // Any future callbacks will be dropped. This should absolutely be safe -
+    // if missing a callback results in an unrecoverable situation, unclean
+    // shutdown would too. The only reason to do the above flushes is to let
+    // the wallet and indexes catch up with our current chain to avoid any
+    // strange pruning edge cases and make next startup faster by avoiding
+    // rescan.
+
     // Stop and delete all indexes only after flushing background callbacks.
     for (auto* index : node.indexes) index->Stop();
     if (g_txindex) g_txindex.reset();
@@ -355,21 +362,6 @@ void Shutdown(NodeContext& node)
     DestroyAllBlockFilterIndexes();
     node.indexes.clear(); // all instances are nullptr now
 
-    // Any future callbacks will be dropped. This should absolutely be safe - if
-    // missing a callback results in an unrecoverable situation, unclean shutdown
-    // would too. The only reason to do the above flushes is to let the wallet catch
-    // up with our current chain to avoid any strange pruning edge cases and make
-    // next startup faster by avoiding rescan.
-
-    if (node.chainman) {
-        LOCK(cs_main);
-        for (Chainstate* chainstate : node.chainman->GetAll()) {
-            if (chainstate->CanFlushToDisk()) {
-                chainstate->ForceFlushStateToDisk();
-                chainstate->ResetCoinsViews();
-            }
-        }
-    }
     for (const auto& client : node.chain_clients) {
         client->stop();
     }
