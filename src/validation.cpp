@@ -6276,6 +6276,12 @@ ChainstateManager::ChainstateManager(const util::SignalInterrupt& interrupt, Opt
 ChainstateManager::~ChainstateManager()
 {
     LOCK(::cs_main);
+    for (Chainstate* chainstate : GetAll()) {
+        if (chainstate->CanFlushToDisk()) {
+            chainstate->ForceFlushStateToDisk();
+            chainstate->ResetCoinsViews();
+        }
+    }
 
     m_versionbitscache.Clear();
 }
