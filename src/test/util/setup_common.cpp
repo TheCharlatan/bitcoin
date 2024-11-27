@@ -329,6 +329,20 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
     }
 }
 
+CTxMemPool& ChainTestingSetup::ReplaceMempool()
+{
+    // Delete the previous mempool to ensure with valgrind that the old
+    // pointer is not accessed, when the new one should be accessed
+    // instead.
+    m_node.mempool.reset();
+    bilingual_str error;
+    m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node), error);
+    Assert(error.empty());
+    auto& dummy_chainstate{static_cast<DummyChainState&>(m_node.chainman->ActiveChainstate())};
+    dummy_chainstate.SetMempool(m_node.mempool.get());
+    return *m_node.mempool;
+}
+
 TestingSetup::TestingSetup(
     const ChainType chainType,
     TestOpts opts)
