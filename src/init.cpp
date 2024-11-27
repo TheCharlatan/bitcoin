@@ -385,9 +385,9 @@ void Shutdown(NodeContext& node)
     if (node.validation_signals) {
         node.validation_signals->UnregisterAllValidationInterfaces();
     }
+    node.chainman.reset();
     node.mempool.reset();
     node.fee_estimator.reset();
-    node.chainman.reset();
     node.validation_signals.reset();
     node.scheduler.reset();
     node.ecc_context.reset();
