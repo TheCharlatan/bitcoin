@@ -82,25 +82,25 @@ jobs:
 
     - name: Build depends
       run: |
-        make -C $PWD/depends NO_QT=1 NO_QR=1 NO_ZMQ=1 NO_WALLET=1 NO_USDT=1 HOST=${{ matrix.target }} -j$(nproc)
+        make -C depends NO_QT=1 NO_QR=1 NO_ZMQ=1 NO_WALLET=1 NO_USDT=1 HOST=${{ matrix.target }} -j$(nproc)
 
     - name: Configure Bitcoin Core
       run: |
-        cmake -B $PWD/build_${{ matrix.target }} -DCMAKE_TOOLCHAIN_FILE=$PWD/depends/${{ matrix.target }}/toolchain.cmake -DBUILD_KERNEL_LIB=ON -DBUILD_BENCH=OFF -DBUILD_DAEMON=OFF -DBUILD_FUZZ_BINARY=OFF -DBUILD_TESTS=OFF -DBUILD_TX=OFF -DBUILD_UTIL=OFF -DBUILD_UTIL_CHAINSTATE=OFF -DBUILD_WALLET_TOOL=OFF -DENABLE_WALLET=OFF
+        cmake -B build_${{ matrix.target }} -DCMAKE_TOOLCHAIN_FILE=$PWD/depends/${{ matrix.target }}/toolchain.cmake -DBUILD_KERNEL_LIB=ON -DBUILD_BENCH=OFF -DBUILD_DAEMON=OFF -DBUILD_FUZZ_BINARY=OFF -DBUILD_TESTS=OFF -DBUILD_TX=OFF -DBUILD_UTIL=OFF -DBUILD_UTIL_CHAINSTATE=OFF -DBUILD_WALLET_TOOL=OFF -DENABLE_WALLET=OFF
 
     - name: Build Bitcoin Kernel
       run: |
-        cmake --build $PWD/build_${{ matrix.target }} --target bitcoinkernel --parallel
+        cmake --build build_${{ matrix.target }} --target bitcoinkernel --parallel
 
     - name: Package Library
       run: |
-        cmake --install $PWD/build_${{ matrix.target }} --component Kernel --prefix=$PWD/bitcoinkernel_${{ matrix.target }}
-        tar -czf bitcoinkernel-${{ matrix.target }}.tar.gz $PWD/bitcoinkernel_${{ matrix.target }}
+        cmake --install build_${{ matrix.target }} --component Kernel --prefix=bitcoinkernel_${{ matrix.target }}
+        tar -czf bitcoinkernel-${{ matrix.target }}.tar.gz bitcoinkernel_${{ matrix.target }}
 
     - name: Upload Binary
       uses: actions/upload-artifact@v3
       with:
-        name: bitcoinkernel-${{ matrix.target }}.tar.gz
+        name: bitcoinkernel-${{ matrix.target }}
         path: bitcoinkernel-${{ matrix.target }}.tar.gz
         compression-level: 0
         if-no-files-found: error
