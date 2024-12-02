@@ -96,13 +96,11 @@ jobs:
 
     - name: Package Library
       run: |
-        cmake --install build_${{ matrix.target }} --component Kernel --prefix=bitcoinkernel_${{ matrix.target }}
-        tar -czf bitcoinkernel-${{ matrix.target }}.tar.gz bitcoinkernel_${{ matrix.target }}
+        cmake --install build_${{ matrix.target }} --component Kernel --prefix=build/bitcoinkernel_${{ matrix.target }}
 
     - name: Upload Binary
       uses: actions/upload-artifact@v3
       with:
         name: bitcoinkernel-${{ matrix.target }}
-        path: bitcoinkernel-${{ matrix.target }}.tar.gz
-        compression-level: 0
+        path: build/*
         if-no-files-found: error
