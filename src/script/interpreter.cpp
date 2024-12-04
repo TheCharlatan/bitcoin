@@ -1882,6 +1882,7 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
 
     if (witversion == 0) {
         if (program.size() == WITNESS_V0_SCRIPTHASH_SIZE) {
+            DEBUG_SCRIPT_PHASE("push witness v0 p2wsh");
             // BIP141 P2WSH: 32-byte witness v0 program (which encodes SHA256(script))
             if (stack.size() == 0) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_WITNESS_EMPTY);
@@ -1895,6 +1896,7 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
             }
             return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::WITNESS_V0, checker, execdata, serror);
         } else if (program.size() == WITNESS_V0_KEYHASH_SIZE) {
+            DEBUG_SCRIPT_PHASE("push witness v0 p2wpkh");
             // BIP141 P2WPKH: 20-byte witness v0 program (which encodes Hash160(pubkey))
             if (stack.size() != 2) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH); // 2 items in witness
@@ -1918,12 +1920,14 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
         }
         execdata.m_annex_init = true;
         if (stack.size() == 1) {
+            DEBUG_SCRIPT_PHASE("taproot key path");
             // Key path spending (stack size is 1 after removing optional annex)
             if (!checker.CheckSchnorrSignature(stack.front(), program, SigVersion::TAPROOT, execdata, serror)) {
                 return false; // serror is set
             }
             return set_success(serror);
         } else {
+            DEBUG_SCRIPT_PHASE("taproot script path");
             // Script path spending (stack size is >1 after removing optional annex)
             const valtype& control = SpanPopBack(stack);
             const valtype& script = SpanPopBack(stack);
@@ -1976,11 +1980,13 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const C
     // scriptSig and scriptPubKey must be evaluated sequentially on the same stack
     // rather than being simply concatenated (see CVE-2010-5141)
     std::vector<std::vector<unsigned char> > stack, stackCopy;
+    DEBUG_SCRIPT_PHASE("push scriptsig");
     if (!EvalScript(stack, scriptSig, flags, checker, SigVersion::BASE, serror))
         // serror is set
         return false;
     if (flags & SCRIPT_VERIFY_P2SH)
         stackCopy = stack;
+    DEBUG_SCRIPT_PHASE("push script pubkey");
     if (!EvalScript(stack, scriptPubKey, flags, checker, SigVersion::BASE, serror))
         // serror is set
         return false;
@@ -2011,6 +2017,7 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const C
     // Additional validation for spend-to-script-hash transactions:
     if ((flags & SCRIPT_VERIFY_P2SH) && scriptPubKey.IsPayToScriptHash())
     {
+        DEBUG_SCRIPT_PHASE("script verify p2sh");
         // scriptSig must be literals-only or validation fails
         if (!scriptSig.IsPushOnly())
             return set_error(serror, SCRIPT_ERR_SIG_PUSHONLY);
@@ -2037,6 +2044,7 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const C
 
         // P2SH witness program
         if (flags & SCRIPT_VERIFY_WITNESS) {
+            DEBUG_SCRIPT_PHASE("p2sh wrapped segwit");
             if (pubKey2.IsWitnessProgram(witnessversion, witnessprogram)) {
                 hadWitness = true;
                 if (scriptSig != CScript() << std::vector<unsigned char>(pubKey2.begin(), pubKey2.end())) {

@@ -8,14 +8,28 @@
 #include <vector>
 
 DebugScriptCallback g_script_debug_callback{nullptr};
+DebugScriptPhaseCallback g_script_debug_phase_callback{nullptr};
+
 
 void DebugScript(std::span<const std::vector<unsigned char>> stack, const CScript& script, uint32_t opcode_pos, std::span<const std::vector<unsigned char>> altstack)
 {
     if (g_script_debug_callback) g_script_debug_callback(stack, script, opcode_pos, altstack);
 }
 
-void RegisterDebugScriptCallback(DebugScriptCallback func)
+void DebugScriptPhase(std::string_view phase)
 {
-    g_script_debug_callback = func;
+    if (g_script_debug_phase_callback) g_script_debug_phase_callback(phase);
+}
+
+void RegisterDebugScriptCallback(DebugScriptCallback debug_func, DebugScriptPhaseCallback phase_func)
+{
+    g_script_debug_callback = debug_func;
+    g_script_debug_phase_callback = phase_func;
+}
+
+void DeRegisterDebugScriptCallback()
+{
+    g_script_debug_callback = nullptr;
+    g_script_debug_phase_callback = nullptr;
 }
 

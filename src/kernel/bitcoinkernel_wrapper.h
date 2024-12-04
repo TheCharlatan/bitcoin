@@ -170,11 +170,13 @@ public:
 
 template <typename T>
 concept ScriptDebug = requires(T a,
+                               const char* phase,
                                const std::vector<std::vector<unsigned char>>& stack,
                                const std::vector<unsigned char>& script,
                                uint32_t opcode_pos,
                                const std::vector<std::vector<unsigned char>>& altstack) {
     { a.ScriptDebug(stack, script, opcode_pos, altstack) } -> std::same_as<void>;
+    { a.ScriptDebugPhase(phase) } -> std::same_as<void>;
 };
 
 template <ScriptDebug T>
@@ -186,7 +188,7 @@ public:
     ScriptDebugger(std::unique_ptr<T> debugger) noexcept
         : m_debugger{std::move(debugger)}
     {
-        kernel_register_script_debug_cb(nullptr, [](
+        auto debug_wrapper = [](
             void* user_data,
             const unsigned char* const* stack_items,
             const size_t* stack_item_sizes,
@@ -212,7 +214,11 @@ public:
                 }
 
                 static_cast<T*>(user_data)->ScriptDebug(stack, script, opcode_pos, altstack);
-            });
+            };
+        auto phase_wrapper = [](void* user_data, const char* phase) {
+            static_cast<T*>(user_data)->ScriptDebugPhase(phase);
+        };
+        kernel_register_script_debug_cb(nullptr, debug_wrapper, phase_wrapper);
     }
 };
 

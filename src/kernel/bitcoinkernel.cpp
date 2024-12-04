@@ -388,45 +388,53 @@ const CBlockUndo* cast_const_block_undo(const kernel_BlockUndo* undo)
 
 } // namespace
 
-void kernel_register_script_debug_cb(void* user_data, kernel_ScriptDebugCallback callback)
+void kernel_register_script_debug_cb(void* user_data, kernel_ScriptDebugCallback debug_callback, kernel_ScriptDebugPhaseCallback phase_callback)
 {
-    if (!callback) return;
+    DebugScriptCallback debug_wrapper{nullptr};
+    DebugScriptPhaseCallback phase_wrapper{nullptr};
+    if (debug_callback) {
+        debug_wrapper = [user_data, debug_callback](std::span<const std::vector<unsigned char>> stack,
+                                const CScript& script,
+                                uint32_t opcode_pos,
+                                std::span<const std::vector<unsigned char>> altstack) {
+            std::vector<const unsigned char*> stack_ptrs;
+            std::vector<size_t> stack_sizes;
+            stack_ptrs.reserve(stack.size());
+            stack_sizes.reserve(stack.size());
+            for (const auto& item : stack) {
+                stack_ptrs.push_back(item.data());
+                stack_sizes.push_back(item.size());
+            }
 
-    auto wrapper = [user_data, callback](std::span<const std::vector<unsigned char>> stack,
-                            const CScript& script,
-                            uint32_t opcode_pos,
-                            std::span<const std::vector<unsigned char>> altstack) {
-        std::vector<const unsigned char*> stack_ptrs;
-        std::vector<size_t> stack_sizes;
-        stack_ptrs.reserve(stack.size());
-        stack_sizes.reserve(stack.size());
-        for (const auto& item : stack) {
-            stack_ptrs.push_back(item.data());
-            stack_sizes.push_back(item.size());
-        }
+            std::vector<const unsigned char*> altstack_ptrs;
+            std::vector<size_t> altstack_sizes;
+            altstack_ptrs.reserve(altstack.size());
+            altstack_sizes.reserve(altstack.size());
+            for (const auto& item : altstack) {
+                altstack_ptrs.push_back(item.data());
+                altstack_sizes.push_back(item.size());
+            }
 
-        std::vector<const unsigned char*> altstack_ptrs;
-        std::vector<size_t> altstack_sizes;
-        altstack_ptrs.reserve(altstack.size());
-        altstack_sizes.reserve(altstack.size());
-        for (const auto& item : altstack) {
-            altstack_ptrs.push_back(item.data());
-            altstack_sizes.push_back(item.size());
-        }
+            debug_callback(user_data,
+                    stack_ptrs.data(),
+                    stack_sizes.data(),
+                    stack.size(),
+                    script.data(),
+                    script.size(),
+                    opcode_pos,
+                    altstack_ptrs.data(),
+                    altstack_sizes.data(),
+                    altstack.size());
+        };
 
-        callback(user_data,
-                stack_ptrs.data(),
-                stack_sizes.data(),
-                stack.size(),
-                script.data(),
-                script.size(),
-                opcode_pos,
-                altstack_ptrs.data(),
-                altstack_sizes.data(),
-                altstack.size());
-    };
+    }
+    if (phase_callback) {
+        phase_wrapper = [user_data, phase_callback](std::string_view phase) {
+            phase_callback(user_data, phase.data());
+        };
+    }
 
-    RegisterDebugScriptCallback(wrapper);
+    RegisterDebugScriptCallback(debug_wrapper, phase_wrapper);
 }
 
 kernel_Transaction* kernel_transaction_create(const unsigned char* raw_transaction, size_t raw_transaction_len)

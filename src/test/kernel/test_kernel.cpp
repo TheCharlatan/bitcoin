@@ -120,6 +120,10 @@ public:
         std::cout << std::dec;  // Reset to decimal mode
         std::cout << "===============================\n";
     }
+    void ScriptDebugPhase(const char* phase)
+    {
+        std::cout << "\n===> Entered script execution phase: " << phase << ". <===\n\n";
+    }
 };
 
 struct TestDirectory {

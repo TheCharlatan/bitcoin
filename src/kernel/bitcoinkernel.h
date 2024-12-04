@@ -468,7 +468,12 @@ typedef void (*kernel_ScriptDebugCallback)(
         size_t altstack_size
 );
 
-void kernel_register_script_debug_cb(void* user_data, kernel_ScriptDebugCallback callback);
+typedef void (*kernel_ScriptDebugPhaseCallback)(
+        void* user_data,
+        const char* phase
+);
+
+void kernel_register_script_debug_cb(void* user_data, kernel_ScriptDebugCallback debug_callback, kernel_ScriptDebugPhaseCallback phase_callback);
 
 /**
  * @brief Create a script pubkey from serialized data.
