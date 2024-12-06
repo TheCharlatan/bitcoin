@@ -5157,7 +5157,10 @@ void ChainstateManager::LoadExternalBlockFile(
                 }
 
                 // Activate the genesis block so normal node progress can continue
-                if (hash == params.GetConsensus().hashGenesisBlock) {
+                // Do this only if genesis isn't activated yet, to avoid connecting many blocks
+                // without assumevalid in the case of a continuation of a reindex that
+                // was interrupted by the user.
+                if (hash == params.GetConsensus().hashGenesisBlock && WITH_LOCK(::cs_main, return ActiveHeight()) == -1) {
                     BlockValidationState state;
                     if (!ActiveChainstate().ActivateBestChain(state, nullptr)) {
                         break;
