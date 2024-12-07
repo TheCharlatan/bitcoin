@@ -5035,7 +5035,7 @@ bool ChainstateManager::LoadBlockIndex()
     return true;
 }
 
-bool Chainstate::LoadGenesisBlock()
+bool Chainstate::LoadGenesisBlock(bool write_block_to_disk)
 {
     LOCK(cs_main);
 
@@ -5049,14 +5049,18 @@ bool Chainstate::LoadGenesisBlock()
         return true;
 
     try {
+
         const CBlock& block = params.GenesisBlock();
-        FlatFilePos blockPos{m_blockman.SaveBlockToDisk(block, 0)};
-        if (blockPos.IsNull()) {
-            LogError("%s: writing genesis block to disk failed\n", __func__);
-            return false;
+        if (write_block_to_disk) {
+            FlatFilePos blockPos{m_blockman.SaveBlockToDisk(block, 0)};
+            LogInfo("Saveed block position: %d %d", blockPos.nFile, blockPos.nPos);
+            if (blockPos.IsNull()) {
+                LogError("%s: writing genesis block to disk failed\n", __func__);
+                return false;
+            }
         }
         CBlockIndex* pindex = m_blockman.AddToBlockIndex(block, m_chainman.m_best_header);
-        m_chainman.ReceivedBlockTransactions(block, pindex, blockPos);
+        m_chainman.ReceivedBlockTransactions(block, pindex, FlatFilePos(0, 8));
     } catch (const std::runtime_error& e) {
         LogError("%s: failed to write genesis block: %s\n", __func__, e.what());
         return false;
@@ -5153,17 +5157,6 @@ void ChainstateManager::LoadExternalBlockFile(
                         }
                     } else if (hash != params.GetConsensus().hashGenesisBlock && pindex->nHeight % 1000 == 0) {
                         LogDebug(BCLog::REINDEX, "Block Import: already had block %s at height %d\n", hash.ToString(), pindex->nHeight);
-                    }
-                }
-
-                // Activate the genesis block so normal node progress can continue
-                // Do this only if genesis isn't activated yet, to avoid connecting many blocks
-                // without assumevalid in the case of a continuation of a reindex that
-                // was interrupted by the user.
-                if (hash == params.GetConsensus().hashGenesisBlock && WITH_LOCK(::cs_main, return ActiveHeight()) == -1) {
-                    BlockValidationState state;
-                    if (!ActiveChainstate().ActivateBestChain(state, nullptr)) {
-                        break;
                     }
                 }
 

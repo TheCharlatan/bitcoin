@@ -89,7 +89,7 @@ static ChainstateLoadResult CompleteChainstateInitialization(
     // If we're not mid-reindex (based on disk + args), add a genesis block on disk
     // (otherwise we use the one already on disk).
     // This is called again in ImportBlocks after the reindex completes.
-    if (chainman.m_blockman.m_blockfiles_indexed && !chainman.ActiveChainstate().LoadGenesisBlock()) {
+    if (!chainman.ActiveChainstate().LoadGenesisBlock(chainman.m_blockman.m_blockfiles_indexed)) {
         return {ChainstateLoadStatus::FAILURE, _("Error initializing block database")};
     }
 
@@ -188,6 +188,7 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
         LogPrintf("Prune configured to target %u MiB on disk for block and undo files.\n", chainman.m_blockman.GetPruneTarget() / 1024 / 1024);
     }
 
+    {
     LOCK(cs_main);
 
     chainman.m_total_coinstip_cache = cache_sizes.coins;
@@ -250,6 +251,16 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
         return {ChainstateLoadStatus::FAILURE_FATAL, _(
            "UTXO snapshot failed to validate. "
            "Restart to resume normal initial block download, or try loading a different snapshot.")};
+    }
+    }
+
+    if (WITH_LOCK(::cs_main, return chainman.ActiveHeight();) == -1) {
+        LogInfo("Activating genesis");
+        BlockValidationState state;
+        if (!chainman.ActiveChainstate().ActivateBestChain(state, nullptr)) {
+            return {ChainstateLoadStatus::FAILURE_FATAL, Untranslated("Failed to load genesis.")};
+        }
+        Assert(chainman.ActiveChainstate().m_chain.Tip());
     }
 
     return {ChainstateLoadStatus::SUCCESS, {}};
