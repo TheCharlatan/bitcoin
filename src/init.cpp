@@ -1605,7 +1605,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     ReadNotificationArgs(args, kernel_notifications);
 
     // cache size calculations
-    auto [index_cache_sizes, kernel_cache_sizes] = CalculateCacheSizes(args, g_enabled_filter_types.size());
+    const auto cache_sizes = CalculateCacheSizes(args, g_enabled_filter_types.size());
+    if (!cache_sizes) {
+        return InitError(_("Failed to calculate cache sizes. Try lowering the -dbcache value."));
+    }
+    auto [index_cache_sizes, kernel_cache_sizes] = *cache_sizes;
 
     LogPrintf("Cache configuration:\n");
     LogPrintf("* Using %.1f MiB for block index database\n", kernel_cache_sizes.block_tree_db * (1.0 / 1024 / 1024));
