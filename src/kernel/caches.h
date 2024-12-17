@@ -22,7 +22,7 @@ static constexpr int64_t MAX_COINS_DB_CACHE{8};
 //! Guard against truncation of values before converting.
 constexpr size_t MiBToBytes(int64_t mib)
 {
-    Assert(std::countl_zero(static_cast<uint64_t>(mib)) >= 21); // Ensure signed bit is unset + enough zeros to shift.
+    Assert(std::countl_zero(static_cast<uint64_t>(mib)) >= 21); // Ensure sign bit is unset + enough zeros to shift.
     const int64_t bytes{mib << 20};
     Assert(static_cast<uint64_t>(bytes) <= std::numeric_limits<size_t>::max());
     return static_cast<size_t>(bytes);

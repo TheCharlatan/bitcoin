@@ -7,8 +7,10 @@
 #include <common/args.h>
 #include <index/txindex.h>
 #include <kernel/caches.h>
+#include <logging.h>
 
 #include <algorithm>
+#include <optional>
 #include <string>
 
 // Unlike for the UTXO database, for the txindex scenario the leveldb cache make
@@ -19,19 +21,27 @@ static constexpr int64_t MAX_TX_INDEX_CACHE{1024};
 static constexpr int64_t MAX_FILTER_INDEX_CACHE{1024};
 
 namespace node {
-CacheSizes CalculateCacheSizes(const ArgsManager& args, size_t n_indexes)
+std::optional<CacheSizes> CalculateCacheSizes(const ArgsManager& args, size_t n_indexes)
 {
-    int64_t nTotalCache = (args.GetIntArg("-dbcache", DEFAULT_DB_CACHE) << 20);
-    nTotalCache = std::max(nTotalCache, MIN_DB_CACHE << 20);
-    IndexCacheSizes sizes;
-    sizes.tx_index = std::min(nTotalCache / 8, args.GetBoolArg("-txindex", DEFAULT_TXINDEX) ? MAX_TX_INDEX_CACHE << 20 : 0);
-    nTotalCache -= sizes.tx_index;
-    sizes.filter_index = 0;
-    if (n_indexes > 0) {
-        int64_t max_cache = std::min(nTotalCache / 8, MAX_FILTER_INDEX_CACHE << 20);
-        sizes.filter_index = max_cache / n_indexes;
-        nTotalCache -= sizes.filter_index * n_indexes;
+    int64_t db_cache = args.GetIntArg("-dbcache", DEFAULT_DB_CACHE);
+    if (static_cast<uint64_t>(db_cache << 20) > std::numeric_limits<size_t>::max()) {
+        LogWarning("Cannot allocate more than %d MiB in total for db caches.", static_cast<double>(std::numeric_limits<size_t>::max()) * (1.0 / 1024 / 1024));
+        return std::nullopt;
     }
-    return {sizes, kernel::CacheSizes{static_cast<size_t>(nTotalCache)}};
+
+    // negative values are permitted, but interpreted as zero.
+    db_cache = std::max(int64_t{0}, db_cache);
+    size_t total_cache = std::max(MiBToBytes(db_cache), MiBToBytes(MIN_DB_CACHE));
+
+    IndexCacheSizes index_sizes;
+    index_sizes.tx_index = std::min(total_cache / 8, args.GetBoolArg("-txindex", DEFAULT_TXINDEX) ? MiBToBytes(MAX_TX_INDEX_CACHE) : 0);
+    total_cache -= index_sizes.tx_index;
+    index_sizes.filter_index = 0;
+    if (n_indexes > 0) {
+        int64_t max_cache = std::min(total_cache / 8, MiBToBytes(MAX_FILTER_INDEX_CACHE));
+        index_sizes.filter_index = max_cache / n_indexes;
+        total_cache -= index_sizes.filter_index * n_indexes;
+    }
+    return {{index_sizes, kernel::CacheSizes{total_cache}}};
 }
 } // namespace node
