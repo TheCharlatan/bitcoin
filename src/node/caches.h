@@ -6,21 +6,21 @@
 #define BITCOIN_NODE_CACHES_H
 
 #include <kernel/caches.h>
+#include <util/byte_units.h>
 
 #include <cstddef>
-#include <cstdint>
 
 class ArgsManager;
 
-//! min. -dbcache (MiB)
-static constexpr int64_t MIN_DB_CACHE{4};
-//! -dbcache default (MiB)
-static constexpr int64_t DEFAULT_DB_CACHE{DEFAULT_KERNEL_CACHE};
+//! min. -dbcache (bytes)
+static constexpr size_t MIN_DB_CACHE{4_MiB};
+//! -dbcache default (bytes)
+static constexpr size_t DEFAULT_DB_CACHE{DEFAULT_KERNEL_CACHE};
 
 namespace node {
 struct IndexCacheSizes {
-    int64_t tx_index;
-    int64_t filter_index;
+    size_t tx_index;
+    size_t filter_index;
 };
 struct CacheSizes {
     IndexCacheSizes index;
