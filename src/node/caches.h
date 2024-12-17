@@ -8,7 +8,6 @@
 #include <kernel/caches.h>
 
 #include <cstddef>
-#include <cstdint>
 
 class ArgsManager;
 
@@ -19,8 +18,8 @@ static constexpr int64_t DEFAULT_DB_CACHE{DEFAULT_KERNEL_CACHE};
 
 namespace node {
 struct IndexCacheSizes {
-    int64_t tx_index;
-    int64_t filter_index;
+    size_t tx_index;
+    size_t filter_index;
 };
 struct CacheSizes {
     IndexCacheSizes index;
