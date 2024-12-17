@@ -26,6 +26,7 @@
 #include <random.h>
 #include <script/sigcache.h>
 #include <util/chaintype.h>
+#include <util/byte_conversion.h>
 #include <util/fs.h>
 #include <util/signalinterrupt.h>
 #include <util/task_runner.h>
