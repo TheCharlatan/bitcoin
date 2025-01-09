@@ -13,6 +13,7 @@
 #include <test/util/setup_common.h>
 #include <uint256.h>
 #include <util/bitdeque.h>
+#include <util/byte_units.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
 #include <util/moneystr.h>
@@ -1875,6 +1876,71 @@ BOOST_AUTO_TEST_CASE(clearshrink_test)
         BOOST_CHECK_EQUAL(v.size(), 0);
         // std::deque has no capacity() we can observe.
     }
+}
+
+template <typename T>
+void TestCheckedLeftShift()
+{
+    BOOST_TEST_CONTEXT("Testing CheckedLeftShift with " << typeid(T).name())
+    {
+        const auto MAX = std::numeric_limits<T>::max();
+
+        // Basic operations
+        BOOST_CHECK_EQUAL(CheckedLeftShift<T>(0, 1), 0);
+        BOOST_CHECK_EQUAL(CheckedLeftShift<T>(1, 1), 2);
+        BOOST_CHECK_EQUAL(CheckedLeftShift<T>(2, 2), 8);
+        BOOST_CHECK_EQUAL(CheckedLeftShift<T>(MAX >> 1, 1), MAX - 1);
+
+        // Negative input
+        BOOST_CHECK(!CheckedLeftShift<T>(-1, 1));
+
+        // Overflow cases
+        BOOST_CHECK(!CheckedLeftShift<T>((MAX >> 1) + 1, 1));
+        BOOST_CHECK(!CheckedLeftShift<T>(MAX, 1));
+    }
+}
+
+template <typename T>
+void TestSaturatingLeftShift()
+{
+    BOOST_TEST_CONTEXT("Testing SaturatingLeftShift with " << typeid(T).name())
+    {
+        const auto MAX = std::numeric_limits<T>::max();
+
+        // Basic operations
+        BOOST_CHECK_EQUAL(SaturatingLeftShift<T>(0, 1), 0);
+        BOOST_CHECK_EQUAL(SaturatingLeftShift<T>(1, 1), 2);
+        BOOST_CHECK_EQUAL(SaturatingLeftShift<T>(2, 2), 8);
+        BOOST_CHECK_EQUAL(SaturatingLeftShift<T>(MAX >> 1, 1), MAX - 1);
+
+        // Negative input
+        BOOST_CHECK_EQUAL(SaturatingLeftShift<T>(-1, 1), 0);
+
+        // Saturation cases
+        BOOST_CHECK_EQUAL(SaturatingLeftShift<T>((MAX >> 1) + 1, 1), MAX);
+        BOOST_CHECK_EQUAL(SaturatingLeftShift<T>(MAX, 1), MAX);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(checked_left_shift_test)
+{
+    TestCheckedLeftShift<uint8_t>();
+    TestCheckedLeftShift<size_t>();
+    TestCheckedLeftShift<uint64_t>();
+}
+
+BOOST_AUTO_TEST_CASE(saturating_left_shift_test)
+{
+    TestSaturatingLeftShift<uint8_t>();
+    TestSaturatingLeftShift<size_t>();
+    TestSaturatingLeftShift<uint64_t>();
+}
+
+BOOST_AUTO_TEST_CASE(mib_string_literal_test)
+{
+    BOOST_CHECK_EQUAL(0_MiB, 0);
+    BOOST_CHECK_EQUAL(1_MiB, 1024 * 1024);
+    BOOST_CHECK_EXCEPTION(17592186044416_MiB, std::overflow_error, HasReason("mebibytes could not be converted to bytes"));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
