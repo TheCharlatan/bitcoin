@@ -47,4 +47,40 @@ template <class T>
     return i + j;
 }
 
+/**
+ * @brief Left bit shift with overflow checking.
+ * @param i The input value to be left shifted.
+ * @param shift The number of bits to left shift.
+ * @return The result of the left shift, or std::nullopt in case of
+ *         overflow or negative input value.
+ */
+template <std::unsigned_integral Output, std::integral Input>
+constexpr std::optional<Output> CheckedLeftShift(Input i, unsigned shift) noexcept
+{
+    if constexpr (std::is_signed_v<Input>) {
+        if (i < 0) return std::nullopt;
+    }
+    if (std::make_unsigned_t<Input>(i) > (std::numeric_limits<Output>::max() >> shift)) {
+        return std::nullopt;
+    }
+    return i << shift;
+}
+
+/**
+ * @brief Left bit shift with safe minimum and maximum values.
+ * @param i The input value to be left shifted.
+ * @param shift The number of bits to left shift.
+ * @return The result of the left shift, with the return value clamped
+ *         between zero and the maximum Output value if overflow occurs.
+ */
+template <std::unsigned_integral Output, std::integral Input>
+constexpr Output SaturatingLeftShift(Input i, unsigned shift) noexcept
+{
+    auto default_value{std::numeric_limits<Output>::max()};
+    if constexpr (std::is_signed_v<Input>) {
+        if (i < 0) default_value = 0;
+    }
+    return CheckedLeftShift<Output>(i, shift).value_or(default_value);
+}
+
 #endif // BITCOIN_UTIL_OVERFLOW_H
