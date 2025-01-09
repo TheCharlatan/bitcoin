@@ -13,6 +13,7 @@
 #include <test/util/setup_common.h>
 #include <uint256.h>
 #include <util/bitdeque.h>
+#include <util/byte_conversion.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
 #include <util/moneystr.h>
@@ -29,6 +30,7 @@
 #include <limits>
 #include <map>
 #include <optional>
+#include <stdexcept>
 #include <stdint.h>
 #include <string.h>
 #include <thread>
@@ -137,6 +139,19 @@ BOOST_AUTO_TEST_CASE(util_criticalsection)
 
         BOOST_ERROR("break was swallowed!");
     } while(0);
+}
+
+BOOST_AUTO_TEST_CASE(byte_conversion)
+{
+    // maximum allowed value in MiB
+    const int64_t max_cache = std::numeric_limits<size_t>::max() >> 20;
+
+    BOOST_CHECK_EXCEPTION(MiBToBytes(-1), std::out_of_range, HasReason("Value may not be negative."));
+    BOOST_CHECK_EXCEPTION(MiBToBytes(std::numeric_limits<int64_t>::max()), std::out_of_range, HasReason("Conversion to bytes of"));
+    BOOST_CHECK_EXCEPTION(MiBToBytes(max_cache + 1), std::out_of_range, HasReason("Conversion to bytes of"));
+
+    BOOST_CHECK_EQUAL(MiBToBytes(0), 0);
+    BOOST_CHECK_EQUAL(MiBToBytes(max_cache), max_cache << 20);
 }
 
 constexpr char HEX_PARSE_INPUT[] = "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f";
