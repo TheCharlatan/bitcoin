@@ -3259,6 +3259,12 @@ static RPCHelpMan loadtxoutset()
     ChainstateManager& chainman = EnsureChainman(node);
     const fs::path path{AbsPathForConfigVal(EnsureArgsman(node), fs::u8path(self.Arg<std::string>("path")))};
 
+    if (!fs::exists(path)) {
+        throw JSONRPCError(
+            RPC_INVALID_PARAMETER,
+            "Txoutset snapshot file " + path.utf8string() + " does not exist.");
+    }
+
     FILE* file{fsbridge::fopen(path, "rb")};
     AutoFile afile{file};
     if (afile.IsNull()) {

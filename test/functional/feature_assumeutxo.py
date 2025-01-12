@@ -10,6 +10,7 @@ The assumeutxo value generated and used here is committed to in
 `CRegTestParams::m_assumeutxo_data` in `src/kernel/chainparams.cpp`.
 """
 from shutil import rmtree
+import platform
 
 from dataclasses import dataclass
 from test_framework.blocktools import (
@@ -190,6 +191,12 @@ class AssumeutxoTest(BitcoinTestFramework):
         self.log.info("Test bitcoind should fail when file path is invalid.")
         node = self.nodes[0]
         path = node.datadir_path / node.chain / "invalid" / "path"
+        assert_raises_rpc_error(-8, "Txoutset snapshot file {} does not exist.".format(path), node.loadtxoutset, path)
+
+    def test_invalid_file_permissions(self):
+        self.log.info("Test bitcoind should fail when file has no read permissions.")
+        node = self.nodes[0]
+        path = "/dev/loop-control"
         assert_raises_rpc_error(-8, "Couldn't open file {} for reading.".format(path), node.loadtxoutset, path)
 
     def test_snapshot_with_less_work(self, dump_output_path):
@@ -455,6 +462,8 @@ class AssumeutxoTest(BitcoinTestFramework):
         self.test_invalid_snapshot_scenarios(dump_output['path'])
         self.test_invalid_chainstate_scenarios()
         self.test_invalid_file_path()
+        if platform.system() == "Linux":
+            self.test_invalid_file_permissions()
         self.test_snapshot_block_invalidated(dump_output['path'])
         self.test_snapshot_not_on_most_work_chain(dump_output['path'])
 
