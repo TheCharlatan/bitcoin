@@ -127,6 +127,15 @@ if(NOT BUILD_SHARED_LIBS)
   list(JOIN all_kernel_static_link_libs " " LIBS_PRIVATE)
 endif()
 
+include(${PROJECT_SOURCE_DIR}/cmake/script/GetGitInfo.cmake)
+get_git_info(${CMAKE_CURRENT_SOURCE_DIR})
+
+if(GIT_COMMIT)
+  set(BUILD_GIT_COMMIT "${GIT_COMMIT}")
+elseif(GIT_TAG)
+  set(BUILD_GIT_COMMIT "${GIT_TAG}")
+endif()
+
 configure_file(${PROJECT_SOURCE_DIR}/libbitcoinkernel.pc.in ${PROJECT_BINARY_DIR}/libbitcoinkernel.pc @ONLY)
 install(FILES ${PROJECT_BINARY_DIR}/libbitcoinkernel.pc DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig" COMPONENT Kernel)
 
