@@ -269,6 +269,8 @@ public:
 
     explicit BlockManager(const util::SignalInterrupt& interrupt, Options opts);
 
+    ~BlockManager();
+
     const util::SignalInterrupt& m_interrupt;
     std::atomic<bool> m_importing{false};
 

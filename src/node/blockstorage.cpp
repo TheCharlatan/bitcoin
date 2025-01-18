@@ -4,6 +4,8 @@
 
 #include <node/blockstorage.h>
 
+#include <bitcoin-build-config.h> // IWYU pragma: keep
+
 #include <arith_uint256.h>
 #include <chain.h>
 #include <consensus/params.h>
@@ -31,6 +33,7 @@
 #include <util/batchpriority.h>
 #include <util/check.h>
 #include <util/fs.h>
+#include <util/fs_helpers.h>
 #include <util/signalinterrupt.h>
 #include <util/strencodings.h>
 #include <util/translation.h>
@@ -1137,8 +1140,24 @@ FlatFilePos BlockManager::SaveBlockToDisk(const CBlock& block, int nHeight)
     return blockPos;
 }
 
+static void LockBlockDir(const BlockManager::Options& opts) {
+    // Make sure only a single Bitcoin process is using the data directory.
+    const fs::path& blocks_dir = opts.blocks_dir;
+    switch (util::LockDirectory(blocks_dir, ".lock", false)) {
+    case util::LockResult::ErrorWrite:
+        throw std::runtime_error(strprintf(_("Cannot write to block directory '%s'; check permissions."), fs::PathToString(blocks_dir)).original);
+    case util::LockResult::ErrorLock:
+        throw std::runtime_error(strprintf(_("Cannot obtain a lock on block directory %s. %s is probably already running."), fs::PathToString(blocks_dir), CLIENT_NAME).original);
+    case util::LockResult::Success:
+        return;
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
 static auto InitBlocksdirXorKey(const BlockManager::Options& opts)
 {
+    LockBlockDir(opts);
+
     // Bytes are serialized without length indicator, so this is also the exact
     // size of the XOR-key file.
     std::array<std::byte, 8> xor_key{};
@@ -1196,6 +1215,11 @@ BlockManager::BlockManager(const util::SignalInterrupt& interrupt, Options opts)
       m_block_file_seq{FlatFileSeq{m_opts.blocks_dir, "blk", m_opts.fast_prune ? 0x4000 /* 16kB */ : BLOCKFILE_CHUNK_SIZE}},
       m_undo_file_seq{FlatFileSeq{m_opts.blocks_dir, "rev", UNDOFILE_CHUNK_SIZE}},
       m_interrupt{interrupt} {}
+
+BlockManager::~BlockManager()
+{
+    UnlockDirectory(m_opts.blocks_dir, ".lock");
+}
 
 class ImportingNow
 {
