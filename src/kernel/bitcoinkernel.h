@@ -184,15 +184,6 @@ typedef struct kernel_BlockIndex kernel_BlockIndex;
 typedef struct kernel_ChainstateManagerOptions kernel_ChainstateManagerOptions;
 
 /**
- * Opaque data structure for holding options for creating a new chainstate
- * manager.
- *
- * The chainstate manager has an internal block manager that takes its own set
- * of parameters. It is initialized with default options.
- */
-typedef struct kernel_BlockManagerOptions kernel_BlockManagerOptions;
-
-/**
  * Opaque data structure for holding a chainstate manager.
  *
  * The chainstate manager is the central object for doing validation tasks as
@@ -770,8 +761,30 @@ BITCOINKERNEL_API void kernel_context_destroy(kernel_Context* context);
 BITCOINKERNEL_API kernel_ChainstateManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_options_create(
     const kernel_Context* context,
     const char* data_directory,
-    size_t data_directory_len
-) BITCOINKERNEL_ARG_NONNULL(1, 2);
+    size_t data_directory_len,
+    const char* blocks_directory,
+    size_t blocks_directory_len) BITCOINKERNEL_ARG_NONNULL(1, 2);
+
+/**
+ * @brief Sets wipe block tree db in the chainstate manager options.
+ *
+ * @param[in] chainstate_manager_options Non-null, options to be set.
+ * @param[in] wipe_block_tree_db    Set wipe block tree db.
+ */
+BITCOINKERNEL_API void kernel_chainstate_manager_options_set_wipe_block_tree_db(
+    kernel_ChainstateManagerOptions* chainstate_manager_options,
+    bool wipe_block_tree_db) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Sets block tree db in memory in the chainstate manager options.
+ *
+ * @param[in] chainstate_manager_options Non-null, options to be set.
+ * @param[in] block_tree_db_in_memory Set block tree db in memory.
+ */
+
+BITCOINKERNEL_API void kernel_chainstate_manager_options_set_block_tree_db_in_memory(
+    kernel_ChainstateManagerOptions* chainstate_manager_options,
+    bool block_tree_db_in_memory) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
  * @brief Sets wipe chainstate db in the chainstate manager options.
@@ -811,64 +824,6 @@ BITCOINKERNEL_API void kernel_chainstate_manager_options_set_worker_threads_num(
  */
 BITCOINKERNEL_API void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* chainstate_manager_options);
 
-///@}
-
-/** @name BlockManagerOptions
- * Functions for working with block manager options.
- */
-///@{
-
-/**
- * @brief Create options for the block manager. The block manager is used
- * internally by the chainstate manager for block storage and indexing.
- *
- * @param[in] context          Non-null, the created options will associate with this kernel context
- *                             for the duration of their lifetime. The same context needs to be used
- *                             when instantiating the chainstate manager.
- * @param[in] data_directory   Non-null, path string of the directory containing the chainstate data.
- *                             This is usually the same as the data directory used for the chainstate
- *                             manager options. If the directory does not exist yet, it will be created.
- * @param[in] blocks_directory Non-null, path string of the directory containing the block data. If
- *                             the directory does not exist yet, it will be created.
- * @return                     The allocated block manager options, or null on error.
- */
-BITCOINKERNEL_API kernel_BlockManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_manager_options_create(
-    const kernel_Context* context,
-    const char* data_directory,
-    size_t data_directory_len,
-    const char* blocks_directory,
-    size_t blocks_directory_len
-) BITCOINKERNEL_ARG_NONNULL(1, 2);
-
-/**
- * @brief Sets wipe block tree db in the block manager options.
- *
- * @param[in] block_manager_options Non-null, created by @ref kernel_block_manager_options_create.
- * @param[in] wipe_block_tree_db    Set wipe block tree db.
- */
-BITCOINKERNEL_API void kernel_block_manager_options_set_wipe_block_tree_db(
-    kernel_BlockManagerOptions* block_manager_options,
-    bool wipe_block_tree_db
-) BITCOINKERNEL_ARG_NONNULL(1);
-
-/**
- * @brief Sets block tree db in memory in the block manager options.
- *
- * @param[in] block_manager_options   Non-null, created by @ref kernel_block_manager_options_create.
- * @param[in] block_tree_db_in_memory Set block tree db in memory.
- */
-BITCOINKERNEL_API void kernel_block_manager_options_set_block_tree_db_in_memory(
-    kernel_BlockManagerOptions* block_manager_options,
-    bool block_tree_db_in_memory
-) BITCOINKERNEL_ARG_NONNULL(1);
-
-/**
- * Destroy the block manager options.
- */
-BITCOINKERNEL_API void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* block_manager_options);
-
-///@}
-
 /** @name ChainstateManager
  * Functions for chainstate management.
  */
@@ -881,7 +836,6 @@ BITCOINKERNEL_API void kernel_block_manager_options_destroy(kernel_BlockManagerO
  * the passed in context also remains in memory.
  *
  * @param[in] chainstate_manager_options Non-null, created by @ref kernel_chainstate_manager_options_create.
- * @param[in] block_manager_options      Non-null, created by @ref kernel_block_manager_options_create.
  * @param[in] context                    Non-null, the created chainstate manager will associate with this
  *                                       kernel context for the duration of its lifetime. The same context
  *                                       needs to be used for later interactions with the chainstate manager.
@@ -889,8 +843,7 @@ BITCOINKERNEL_API void kernel_block_manager_options_destroy(kernel_BlockManagerO
  */
 BITCOINKERNEL_API kernel_ChainstateManager* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_create(
     const kernel_Context* context,
-    const kernel_ChainstateManagerOptions* chainstate_manager_options,
-    const kernel_BlockManagerOptions* block_manager_options) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
+    const kernel_ChainstateManagerOptions* chainstate_manager_options) BITCOINKERNEL_ARG_NONNULL(1, 2);
 
 /**
  * @brief May be called after kernel_chainstate_manager_load_chainstate to

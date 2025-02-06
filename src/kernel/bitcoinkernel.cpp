@@ -275,19 +275,31 @@ public:
 struct ChainstateManagerOptionsWrapper {
     ChainstateManager::Options* chainman_options;
     node::ChainstateLoadOptions* chainstate_load_options;
+    node::BlockManager::Options* blockman_options;
 
-    ChainstateManagerOptionsWrapper(const Context* context, const fs::path& data_dir)
+    ChainstateManagerOptionsWrapper(const Context* context, const fs::path& data_dir, const fs::path& blocks_dir)
         : chainman_options{new ChainstateManager::Options{
               .chainparams = *context->m_chainparams,
               .datadir = data_dir,
               .notifications = *context->m_notifications,
               .signals = context->m_signals.get()}},
-          chainstate_load_options{new node::ChainstateLoadOptions{}} {}
+          chainstate_load_options{new node::ChainstateLoadOptions{}},
+          blockman_options{new node::BlockManager::Options{
+              .chainparams = *context->m_chainparams,
+              .blocks_dir = blocks_dir,
+              .notifications = *context->m_notifications,
+              .block_tree_db_params = DBParams{
+                  .path = data_dir / "blocks" / "index",
+                  .cache_bytes = kernel::CacheSizes{DEFAULT_KERNEL_CACHE}.block_tree_db,
+              }}}
+    {
+    }
 
     ~ChainstateManagerOptionsWrapper()
     {
         delete chainman_options;
         delete chainstate_load_options;
+        delete blockman_options;
     }
 
     // Prevent copying
@@ -355,16 +367,16 @@ ChainstateManager::Options* cast_chainstate_manager_options(kernel_ChainstateMan
     return reinterpret_cast<ChainstateManagerOptionsWrapper*>(options)->chainman_options;
 }
 
-const node::BlockManager::Options* cast_const_block_manager_options(const kernel_BlockManagerOptions* options)
+const node::BlockManager::Options* cast_const_block_manager_options(const kernel_ChainstateManagerOptions* options)
 {
     assert(options);
-    return reinterpret_cast<const node::BlockManager::Options*>(options);
+    return reinterpret_cast<const ChainstateManagerOptionsWrapper*>(options)->blockman_options;
 }
 
-node::BlockManager::Options* cast_block_manager_options(kernel_BlockManagerOptions* options)
+node::BlockManager::Options* cast_block_manager_options(kernel_ChainstateManagerOptions* options)
 {
     assert(options);
-    return reinterpret_cast<node::BlockManager::Options*>(options);
+    return reinterpret_cast<ChainstateManagerOptionsWrapper*>(options)->blockman_options;
 }
 
 ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman)
@@ -733,16 +745,23 @@ kernel_BlockValidationResult kernel_get_block_validation_result_from_block_valid
     assert(false);
 }
 
-kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len)
+kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(
+    const kernel_Context* context_,
+    const char* data_dir,
+    size_t data_dir_len,
+    const char* blocks_dir,
+    size_t blocks_dir_len)
 {
     try {
+        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString({blocks_dir, blocks_dir_len}))};
+        fs::create_directories(abs_blocks_dir);
         fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
         fs::create_directories(abs_data_dir);
         auto context{cast_const_context(context_)};
         if (!context) {
             return nullptr;
         }
-        auto wrapper = new ChainstateManagerOptionsWrapper(context, abs_data_dir);
+        auto wrapper = new ChainstateManagerOptionsWrapper(context, abs_data_dir, abs_blocks_dir);
         return reinterpret_cast<kernel_ChainstateManagerOptions*>(wrapper);
     } catch (const std::exception& e) {
         LogError("Failed to create chainstate manager options: %s", e.what());
@@ -779,62 +798,28 @@ void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* 
     }
 }
 
-kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len, const char* blocks_dir, size_t blocks_dir_len)
-{
-    try {
-        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString({blocks_dir, blocks_dir_len}))};
-        fs::create_directories(abs_blocks_dir);
-        fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
-        fs::create_directories(abs_data_dir);
-        auto context{cast_const_context(context_)};
-        if (!context) {
-            return nullptr;
-        }
-        kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
-        return reinterpret_cast<kernel_BlockManagerOptions*>(new node::BlockManager::Options{
-            .chainparams = *context->m_chainparams,
-            .blocks_dir = abs_blocks_dir,
-            .notifications = *context->m_notifications,
-            .block_tree_db_params = DBParams{
-                .path = abs_data_dir / "blocks" / "index",
-                .cache_bytes = cache_sizes.block_tree_db,
-            }});
-    } catch (const std::exception& e) {
-        LogError("Failed to create block manager options; %s", e.what());
-        return nullptr;
-    }
-}
-
-void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* options)
-{
-    if (options) {
-        delete cast_const_block_manager_options(options);
-    }
-}
-
-void kernel_block_manager_options_set_wipe_block_tree_db(
-    kernel_BlockManagerOptions* block_manager_options_,
+void kernel_chainstate_manager_options_set_wipe_block_tree_db(
+    kernel_ChainstateManagerOptions* chainstate_manager_opts_,
     bool wipe_block_tree_db)
 {
-    auto block_manager_options{cast_block_manager_options(block_manager_options_)};
+    auto block_manager_options{cast_block_manager_options(chainstate_manager_opts_)};
     block_manager_options->block_tree_db_params.wipe_data = wipe_block_tree_db;
 }
 
-void kernel_block_manager_options_set_block_tree_db_in_memory(
-    kernel_BlockManagerOptions* chainstate_load_opts_,
+void kernel_chainstate_manager_options_set_block_tree_db_in_memory(
+    kernel_ChainstateManagerOptions* chainstate_manager_opts_,
     bool block_tree_db_in_memory)
 {
-    auto block_manager_options{cast_block_manager_options(chainstate_load_opts_)};
+    auto block_manager_options{cast_block_manager_options(chainstate_manager_opts_)};
     block_manager_options->block_tree_db_params.memory_only = block_tree_db_in_memory;
 }
 
 kernel_ChainstateManager* kernel_chainstate_manager_create(
     const kernel_Context* context_,
-    const kernel_ChainstateManagerOptions* chainman_opts_,
-    const kernel_BlockManagerOptions* blockman_opts_)
+    const kernel_ChainstateManagerOptions* chainman_opts_)
 {
     auto chainman_opts{cast_const_chainstate_manager_options(chainman_opts_)};
-    auto blockman_opts{cast_const_block_manager_options(blockman_opts_)};
+    auto blockman_opts{cast_const_block_manager_options(chainman_opts_)};
     auto context{cast_const_context(context_)};
 
     ChainstateManager* chainman;
