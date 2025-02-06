@@ -271,6 +271,42 @@ public:
     }
 };
 
+//! Helper struct to wrap the ChainstateManager-related Options objects
+struct ChainstateManagerOptionsWrapper {
+    ChainstateManager::Options* chainman_options;
+    node::ChainstateLoadOptions* chainstate_load_options;
+    node::BlockManager::Options* blockman_options;
+
+    ChainstateManagerOptionsWrapper(const Context* context, const fs::path& data_dir, const fs::path& blocks_dir)
+        : chainman_options{new ChainstateManager::Options{
+              .chainparams = *context->m_chainparams,
+              .datadir = data_dir,
+              .notifications = *context->m_notifications,
+              .signals = context->m_signals.get()}},
+          chainstate_load_options{new node::ChainstateLoadOptions{}},
+          blockman_options{new node::BlockManager::Options{
+              .chainparams = *context->m_chainparams,
+              .blocks_dir = blocks_dir,
+              .notifications = *context->m_notifications,
+              .block_tree_db_params = DBParams{
+                  .path = data_dir / "blocks" / "index",
+                  .cache_bytes = kernel::CacheSizes{DEFAULT_KERNEL_CACHE}.block_tree_db,
+              }}}
+    {
+    }
+
+    ~ChainstateManagerOptionsWrapper()
+    {
+        delete chainman_options;
+        delete chainstate_load_options;
+        delete blockman_options;
+    }
+
+    // Prevent copying
+    ChainstateManagerOptionsWrapper(const ChainstateManagerOptionsWrapper&) = delete;
+    ChainstateManagerOptionsWrapper& operator=(const ChainstateManagerOptionsWrapper&) = delete;
+};
+
 const CTransaction* cast_transaction(const kernel_Transaction* transaction)
 {
     assert(transaction);
@@ -322,25 +358,25 @@ const Context* cast_const_context(const kernel_Context* context)
 const ChainstateManager::Options* cast_const_chainstate_manager_options(const kernel_ChainstateManagerOptions* options)
 {
     assert(options);
-    return reinterpret_cast<const ChainstateManager::Options*>(options);
+    return reinterpret_cast<const ChainstateManagerOptionsWrapper*>(options)->chainman_options;
 }
 
 ChainstateManager::Options* cast_chainstate_manager_options(kernel_ChainstateManagerOptions* options)
 {
     assert(options);
-    return reinterpret_cast<ChainstateManager::Options*>(options);
+    return reinterpret_cast<ChainstateManagerOptionsWrapper*>(options)->chainman_options;
 }
 
-const node::BlockManager::Options* cast_const_block_manager_options(const kernel_BlockManagerOptions* options)
+const node::BlockManager::Options* cast_const_block_manager_options(const kernel_ChainstateManagerOptions* options)
 {
     assert(options);
-    return reinterpret_cast<const node::BlockManager::Options*>(options);
+    return reinterpret_cast<const ChainstateManagerOptionsWrapper*>(options)->blockman_options;
 }
 
-node::BlockManager::Options* cast_block_manager_options(kernel_BlockManagerOptions* options)
+node::BlockManager::Options* cast_block_manager_options(kernel_ChainstateManagerOptions* options)
 {
     assert(options);
-    return reinterpret_cast<node::BlockManager::Options*>(options);
+    return reinterpret_cast<ChainstateManagerOptionsWrapper*>(options)->blockman_options;
 }
 
 ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman)
@@ -349,16 +385,16 @@ ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman)
     return reinterpret_cast<ChainstateManager*>(chainman);
 }
 
-node::ChainstateLoadOptions* cast_chainstate_load_options(kernel_ChainstateLoadOptions* options)
+node::ChainstateLoadOptions* cast_chainstate_load_options(kernel_ChainstateManagerOptions* options)
 {
     assert(options);
-    return reinterpret_cast<node::ChainstateLoadOptions*>(options);
+    return reinterpret_cast<ChainstateManagerOptionsWrapper*>(options)->chainstate_load_options;
 }
 
-const node::ChainstateLoadOptions* cast_const_chainstate_load_options(const kernel_ChainstateLoadOptions* options)
+const node::ChainstateLoadOptions* cast_const_chainstate_load_options(const kernel_ChainstateManagerOptions* options)
 {
     assert(options);
-    return reinterpret_cast<const node::ChainstateLoadOptions*>(options);
+    return reinterpret_cast<const ChainstateManagerOptionsWrapper*>(options)->chainstate_load_options;
 }
 
 std::shared_ptr<CBlock>* cast_cblocksharedpointer(kernel_Block* block)
@@ -709,21 +745,50 @@ kernel_BlockValidationResult kernel_get_block_validation_result_from_block_valid
     assert(false);
 }
 
-kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len)
+kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(
+    const kernel_Context* context_,
+    const char* data_dir,
+    size_t data_dir_len,
+    const char* blocks_dir,
+    size_t blocks_dir_len)
 {
     try {
+        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString({blocks_dir, blocks_dir_len}))};
+        fs::create_directories(abs_blocks_dir);
         fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
         fs::create_directories(abs_data_dir);
         auto context{cast_const_context(context_)};
-        return reinterpret_cast<kernel_ChainstateManagerOptions*>(new ChainstateManager::Options{
-            .chainparams = *context->m_chainparams,
-            .datadir = abs_data_dir,
-            .notifications = *context->m_notifications,
-            .signals = context->m_signals.get()});
+        if (!context) {
+            return nullptr;
+        }
+        auto wrapper = new ChainstateManagerOptionsWrapper(context, abs_data_dir, abs_blocks_dir);
+        return reinterpret_cast<kernel_ChainstateManagerOptions*>(wrapper);
     } catch (const std::exception& e) {
         LogError("Failed to create chainstate manager options: %s", e.what());
         return nullptr;
     }
+}
+
+bool kernel_chainstate_manager_options_set_wipe_chainstate_db(
+    kernel_ChainstateManagerOptions* chainstate_manager_opts_,
+    bool wipe_chainstate_db)
+{
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_manager_opts_)};
+    auto block_manager_opts{cast_block_manager_options(chainstate_manager_opts_)};
+    if (block_manager_opts->block_tree_db_params.wipe_data && !wipe_chainstate_db) {
+        LogWarning("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
+        return false;
+    }
+    chainstate_load_opts->wipe_chainstate_db = wipe_chainstate_db;
+    return true;
+}
+
+void kernel_chainstate_manager_options_set_chainstate_db_in_memory(
+    kernel_ChainstateManagerOptions* chainstate_manager_opts_,
+    bool chainstate_db_in_memory)
+{
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_manager_opts_)};
+    chainstate_load_opts->coins_db_in_memory = chainstate_db_in_memory;
 }
 
 void kernel_chainstate_manager_options_set_worker_threads_num(kernel_ChainstateManagerOptions* opts_, int worker_threads)
@@ -735,96 +800,38 @@ void kernel_chainstate_manager_options_set_worker_threads_num(kernel_ChainstateM
 void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* options)
 {
     if (options) {
-        delete cast_const_chainstate_manager_options(options);
+        delete reinterpret_cast<ChainstateManagerOptionsWrapper*>(options);
     }
 }
 
-kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len, const char* blocks_dir, size_t blocks_dir_len)
-{
-    try {
-        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString({blocks_dir, blocks_dir_len}))};
-        fs::create_directories(abs_blocks_dir);
-        fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
-        fs::create_directories(abs_data_dir);
-        auto context{cast_const_context(context_)};
-        if (!context) {
-            return nullptr;
-        }
-        kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
-        return reinterpret_cast<kernel_BlockManagerOptions*>(new node::BlockManager::Options{
-            .chainparams = *context->m_chainparams,
-            .blocks_dir = abs_blocks_dir,
-            .notifications = *context->m_notifications,
-            .block_tree_db_params = DBParams{
-                .path = abs_data_dir / "blocks" / "index",
-                .cache_bytes = cache_sizes.block_tree_db,
-            }});
-    } catch (const std::exception& e) {
-        LogError("Failed to create block manager options; %s", e.what());
-        return nullptr;
-    }
-}
-
-void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* options)
-{
-    if (options) {
-        delete cast_const_block_manager_options(options);
-    }
-}
-
-kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()
-{
-    return reinterpret_cast<kernel_ChainstateLoadOptions*>(new node::ChainstateLoadOptions);
-}
-
-
-void kernel_block_manager_options_set_wipe_block_tree_db(
-    kernel_BlockManagerOptions* block_manager_options_,
+bool kernel_chainstate_manager_options_set_wipe_block_tree_db(
+    kernel_ChainstateManagerOptions* chainstate_manager_opts_,
     bool wipe_block_tree_db)
 {
-    auto block_manager_options{cast_block_manager_options(block_manager_options_)};
+    auto block_manager_options{cast_block_manager_options(chainstate_manager_opts_)};
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_manager_opts_)};
+    if (wipe_block_tree_db && !chainstate_load_opts->wipe_chainstate_db) {
+        LogWarning("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
+        return false;
+    }
     block_manager_options->block_tree_db_params.wipe_data = wipe_block_tree_db;
+    return true;
 }
 
-void kernel_chainstate_load_options_set_wipe_chainstate_db(
-    kernel_ChainstateLoadOptions* chainstate_load_opts_,
-    bool wipe_chainstate_db)
-{
-    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
-    chainstate_load_opts->wipe_chainstate_db = wipe_chainstate_db;
-}
-
-void kernel_block_manager_options_set_block_tree_db_in_memory(
-    kernel_BlockManagerOptions* chainstate_load_opts_,
+void kernel_chainstate_manager_options_set_block_tree_db_in_memory(
+    kernel_ChainstateManagerOptions* chainstate_manager_opts_,
     bool block_tree_db_in_memory)
 {
-    auto block_manager_options{cast_block_manager_options(chainstate_load_opts_)};
+    auto block_manager_options{cast_block_manager_options(chainstate_manager_opts_)};
     block_manager_options->block_tree_db_params.memory_only = block_tree_db_in_memory;
-}
-
-void kernel_chainstate_load_options_set_chainstate_db_in_memory(
-    kernel_ChainstateLoadOptions* chainstate_load_opts_,
-    bool chainstate_db_in_memory)
-{
-    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
-    chainstate_load_opts->coins_db_in_memory = chainstate_db_in_memory;
-}
-
-void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_opts)
-{
-    if (chainstate_load_opts) {
-        delete cast_const_chainstate_load_options(chainstate_load_opts);
-    }
 }
 
 kernel_ChainstateManager* kernel_chainstate_manager_create(
     const kernel_Context* context_,
-    const kernel_ChainstateManagerOptions* chainman_opts_,
-    const kernel_BlockManagerOptions* blockman_opts_,
-    const kernel_ChainstateLoadOptions* chainstate_load_opts_)
+    const kernel_ChainstateManagerOptions* chainman_opts_)
 {
     auto chainman_opts{cast_const_chainstate_manager_options(chainman_opts_)};
-    auto blockman_opts{cast_const_block_manager_options(blockman_opts_)};
+    auto blockman_opts{cast_const_block_manager_options(chainman_opts_)};
     auto context{cast_const_context(context_)};
 
     ChainstateManager* chainman;
@@ -837,7 +844,7 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
     }
 
     try {
-        const auto& chainstate_load_opts{*cast_const_chainstate_load_options(chainstate_load_opts_)};
+        const auto& chainstate_load_opts{*cast_const_chainstate_load_options(chainman_opts_)};
 
         if (blockman_opts->block_tree_db_params.wipe_data && !chainstate_load_opts.wipe_chainstate_db) {
             LogWarning("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
