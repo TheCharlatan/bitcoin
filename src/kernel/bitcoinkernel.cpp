@@ -271,6 +271,27 @@ public:
     }
 };
 
+//! Helper struct to wrap the ChainstateManager-related Options objects
+struct ChainstateManagerOptionsWrapper {
+    ChainstateManager::Options* chainman_options;
+
+    ChainstateManagerOptionsWrapper(const Context* context, const fs::path& data_dir)
+        : chainman_options{new ChainstateManager::Options{
+              .chainparams = *context->m_chainparams,
+              .datadir = data_dir,
+              .notifications = *context->m_notifications,
+              .signals = context->m_signals.get()}} {}
+
+    ~ChainstateManagerOptionsWrapper()
+    {
+        delete chainman_options;
+    }
+
+    // Prevent copying
+    ChainstateManagerOptionsWrapper(const ChainstateManagerOptionsWrapper&) = delete;
+    ChainstateManagerOptionsWrapper& operator=(const ChainstateManagerOptionsWrapper&) = delete;
+};
+
 const CTransaction* cast_transaction(const kernel_Transaction* transaction)
 {
     assert(transaction);
@@ -322,13 +343,13 @@ const Context* cast_const_context(const kernel_Context* context)
 const ChainstateManager::Options* cast_const_chainstate_manager_options(const kernel_ChainstateManagerOptions* options)
 {
     assert(options);
-    return reinterpret_cast<const ChainstateManager::Options*>(options);
+    return reinterpret_cast<const ChainstateManagerOptionsWrapper*>(options)->chainman_options;
 }
 
 ChainstateManager::Options* cast_chainstate_manager_options(kernel_ChainstateManagerOptions* options)
 {
     assert(options);
-    return reinterpret_cast<ChainstateManager::Options*>(options);
+    return reinterpret_cast<ChainstateManagerOptionsWrapper*>(options)->chainman_options;
 }
 
 const node::BlockManager::Options* cast_const_block_manager_options(const kernel_BlockManagerOptions* options)
@@ -715,11 +736,8 @@ kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const 
         fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
         fs::create_directories(abs_data_dir);
         auto context{cast_const_context(context_)};
-        return reinterpret_cast<kernel_ChainstateManagerOptions*>(new ChainstateManager::Options{
-            .chainparams = *context->m_chainparams,
-            .datadir = abs_data_dir,
-            .notifications = *context->m_notifications,
-            .signals = context->m_signals.get()});
+        auto wrapper = new ChainstateManagerOptionsWrapper(context, abs_data_dir);
+        return reinterpret_cast<kernel_ChainstateManagerOptions*>(wrapper);
     } catch (const std::exception& e) {
         LogError("Failed to create chainstate manager options: %s", e.what());
         return nullptr;
@@ -735,7 +753,7 @@ void kernel_chainstate_manager_options_set_worker_threads_num(kernel_ChainstateM
 void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* options)
 {
     if (options) {
-        delete cast_const_chainstate_manager_options(options);
+        delete reinterpret_cast<ChainstateManagerOptionsWrapper*>(options);
     }
 }
 
