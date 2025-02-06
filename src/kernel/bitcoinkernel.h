@@ -767,11 +767,16 @@ BITCOINKERNEL_API kernel_ChainstateManagerOptions* BITCOINKERNEL_WARN_UNUSED_RES
 
 /**
  * @brief Sets wipe block tree db in the chainstate manager options.
+ *        If wipe_chainstate_db is set to False, this option may not be
+ *        set to True.
  *
  * @param[in] chainstate_manager_options Non-null, options to be set.
  * @param[in] wipe_block_tree_db    Set wipe block tree db.
+ *
+ * @return  True if the set was successful, False if the set failed
+ *          due to wipe_chainstate_db incompatibility.
  */
-BITCOINKERNEL_API void kernel_chainstate_manager_options_set_wipe_block_tree_db(
+BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_options_set_wipe_block_tree_db(
     kernel_ChainstateManagerOptions* chainstate_manager_options,
     bool wipe_block_tree_db) BITCOINKERNEL_ARG_NONNULL(1);
 
@@ -788,11 +793,15 @@ BITCOINKERNEL_API void kernel_chainstate_manager_options_set_block_tree_db_in_me
 
 /**
  * @brief Sets wipe chainstate db in the chainstate manager options.
+ *        If wipe_block_tree_db is set to True, this must be set to True.
  *
  * @param[in] chainstate_manager_options Non-null, options to be set.
  * @param[in] wipe_chainstate_db      Set wipe chainstate db.
+ *
+ * @return  True if the set was successful, False if the set failed
+ *          due to wipe_block_tree_db incompatibility.
  */
-BITCOINKERNEL_API void kernel_chainstate_manager_options_set_wipe_chainstate_db(
+BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_options_set_wipe_chainstate_db(
     kernel_ChainstateManagerOptions* chainstate_manager_options,
     bool wipe_chainstate_db) BITCOINKERNEL_ARG_NONNULL(1);
 

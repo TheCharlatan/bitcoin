@@ -769,12 +769,18 @@ kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(
     }
 }
 
-void kernel_chainstate_manager_options_set_wipe_chainstate_db(
+bool kernel_chainstate_manager_options_set_wipe_chainstate_db(
     kernel_ChainstateManagerOptions* chainstate_manager_opts_,
     bool wipe_chainstate_db)
 {
     auto chainstate_load_opts{cast_chainstate_load_options(chainstate_manager_opts_)};
+    auto block_manager_opts{cast_block_manager_options(chainstate_manager_opts_)};
+    if (block_manager_opts->block_tree_db_params.wipe_data && !wipe_chainstate_db) {
+        LogWarning("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
+        return false;
+    }
     chainstate_load_opts->wipe_chainstate_db = wipe_chainstate_db;
+    return true;
 }
 
 void kernel_chainstate_manager_options_set_chainstate_db_in_memory(
@@ -798,12 +804,18 @@ void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* 
     }
 }
 
-void kernel_chainstate_manager_options_set_wipe_block_tree_db(
+bool kernel_chainstate_manager_options_set_wipe_block_tree_db(
     kernel_ChainstateManagerOptions* chainstate_manager_opts_,
     bool wipe_block_tree_db)
 {
     auto block_manager_options{cast_block_manager_options(chainstate_manager_opts_)};
+    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_manager_opts_)};
+    if (wipe_block_tree_db && !chainstate_load_opts->wipe_chainstate_db) {
+        LogWarning("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
+        return false;
+    }
     block_manager_options->block_tree_db_params.wipe_data = wipe_block_tree_db;
+    return true;
 }
 
 void kernel_chainstate_manager_options_set_block_tree_db_in_memory(

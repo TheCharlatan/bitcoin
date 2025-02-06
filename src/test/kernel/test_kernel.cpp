@@ -375,6 +375,7 @@ void chainman_test()
 
     ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     assert(chainman_opts);
+    assert(!chainman_opts.SetWipeBlockTreeDb(true)); // Can't set wipe_block_tree_db to true when wipe_chainstate_db is false
     chainman_opts.SetWorkerThreads(4);
 
     ChainMan chainman{context, chainman_opts};
@@ -392,11 +393,11 @@ std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
     assert(chainman_opts);
 
     if (reindex) {
-        chainman_opts.SetWipeBlockTreeDb(reindex);
-        chainman_opts.SetWipeChainstateDb(reindex);
+        assert(chainman_opts.SetWipeChainstateDb(reindex));
+        assert(chainman_opts.SetWipeBlockTreeDb(reindex));
     }
     if (wipe_chainstate) {
-        chainman_opts.SetWipeChainstateDb(wipe_chainstate);
+        assert(chainman_opts.SetWipeChainstateDb(wipe_chainstate));
     }
     if (block_tree_db_in_memory) {
         chainman_opts.SetBlockTreeDbInMemory(block_tree_db_in_memory);

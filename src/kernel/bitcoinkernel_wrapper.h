@@ -401,9 +401,9 @@ public:
     {
     }
 
-    void SetWipeBlockTreeDb(bool wipe_block_tree) const noexcept
+    bool SetWipeBlockTreeDb(bool wipe_block_tree) const noexcept
     {
-        kernel_chainstate_manager_options_set_wipe_block_tree_db(m_options.get(), wipe_block_tree);
+        return kernel_chainstate_manager_options_set_wipe_block_tree_db(m_options.get(), wipe_block_tree);
     }
 
     void SetBlockTreeDbInMemory(bool block_tree_db_in_memory) const noexcept
@@ -411,9 +411,9 @@ public:
         kernel_chainstate_manager_options_set_block_tree_db_in_memory(m_options.get(), block_tree_db_in_memory);
     }
 
-    void SetWipeChainstateDb(bool wipe_chainstate) const noexcept
+    bool SetWipeChainstateDb(bool wipe_chainstate) const noexcept
     {
-        kernel_chainstate_manager_options_set_wipe_chainstate_db(m_options.get(), wipe_chainstate);
+        return kernel_chainstate_manager_options_set_wipe_chainstate_db(m_options.get(), wipe_chainstate);
     }
 
     void SetChainstateDbInMemory(bool chainstate_db_in_memory) const noexcept
