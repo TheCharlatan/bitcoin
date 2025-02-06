@@ -207,14 +207,6 @@ typedef struct kernel_BlockManagerOptions kernel_BlockManagerOptions;
 typedef struct kernel_ChainstateManager kernel_ChainstateManager;
 
 /**
- * Opaque data structure for holding parameters used for loading the chainstate
- * of a chainstate manager.
- *
- * Is initialized with default parameters.
- */
-typedef struct kernel_ChainstateLoadOptions kernel_ChainstateLoadOptions;
-
-/**
  * Opaque data structure for holding a block.
  */
 typedef struct kernel_Block kernel_Block;
@@ -782,6 +774,26 @@ BITCOINKERNEL_API kernel_ChainstateManagerOptions* BITCOINKERNEL_WARN_UNUSED_RES
 ) BITCOINKERNEL_ARG_NONNULL(1, 2);
 
 /**
+ * @brief Sets wipe chainstate db in the chainstate manager options.
+ *
+ * @param[in] chainstate_manager_options Non-null, options to be set.
+ * @param[in] wipe_chainstate_db      Set wipe chainstate db.
+ */
+BITCOINKERNEL_API void kernel_chainstate_manager_options_set_wipe_chainstate_db(
+    kernel_ChainstateManagerOptions* chainstate_manager_options,
+    bool wipe_chainstate_db) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Sets chainstate db in memory in the chainstate manager options.
+ *
+ * @param[in] chainstate_manager_options Non-null, options to be set.
+ * @param[in] chainstate_db_in_memory Set chainstate db in memory.
+ */
+BITCOINKERNEL_API void kernel_chainstate_manager_options_set_chainstate_db_in_memory(
+    kernel_ChainstateManagerOptions* chainstate_manager_options,
+    bool chainstate_db_in_memory) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * @brief Set the number of available worker threads used during validation.
  *
  * @param[in] chainstate_manager_options Non-null, options to be set.
@@ -857,45 +869,6 @@ BITCOINKERNEL_API void kernel_block_manager_options_destroy(kernel_BlockManagerO
 
 ///@}
 
-/** @name ChainstateLoadOptions
- * Functions for working with chainstate load options.
- */
-///@{
-
-/**
- * Create options for loading the chainstate.
- */
-BITCOINKERNEL_API kernel_ChainstateLoadOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_load_options_create();
-
-/**
- * @brief Sets wipe chainstate db in the chainstate load options.
- *
- * @param[in] chainstate_load_options Non-null, created by @ref kernel_chainstate_load_options_create.
- * @param[in] wipe_chainstate_db      Set wipe chainstate db.
- */
-BITCOINKERNEL_API void kernel_chainstate_load_options_set_wipe_chainstate_db(
-    kernel_ChainstateLoadOptions* chainstate_load_options,
-    bool wipe_chainstate_db
-) BITCOINKERNEL_ARG_NONNULL(1);
-
-/**
- * @brief Sets chainstate db in memory in the chainstate load options.
- *
- * @param[in] chainstate_load_options Non-null, created by @ref kernel_chainstate_load_options_create.
- * @param[in] chainstate_db_in_memory Set chainstate db in memory.
- */
-BITCOINKERNEL_API void kernel_chainstate_load_options_set_chainstate_db_in_memory(
-    kernel_ChainstateLoadOptions* chainstate_load_options,
-    bool chainstate_db_in_memory
-) BITCOINKERNEL_ARG_NONNULL(1);
-
-/**
- * Destroy the chainstate load options
- */
-BITCOINKERNEL_API void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_options);
-
-///@}
-
 /** @name ChainstateManager
  * Functions for chainstate management.
  */
@@ -917,9 +890,7 @@ BITCOINKERNEL_API void kernel_chainstate_load_options_destroy(kernel_ChainstateL
 BITCOINKERNEL_API kernel_ChainstateManager* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_create(
     const kernel_Context* context,
     const kernel_ChainstateManagerOptions* chainstate_manager_options,
-    const kernel_BlockManagerOptions* block_manager_options,
-    const kernel_ChainstateLoadOptions* chainstate_load_options
-) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
+    const kernel_BlockManagerOptions* block_manager_options) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
 
 /**
  * @brief May be called after kernel_chainstate_manager_load_chainstate to

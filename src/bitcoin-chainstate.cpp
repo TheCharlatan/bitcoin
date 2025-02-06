@@ -169,9 +169,8 @@ int main(int argc, char* argv[])
     chainman_opts.SetWorkerThreads(4);
     BlockManagerOptions blockman_opts{context, abs_datadir.string(), (abs_datadir / "blocks").string()};
     assert(blockman_opts);
-    ChainstateLoadOptions chainstate_load_opts{};
 
-    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts, chainstate_load_opts)};
+    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts)};
     if (!*chainman) {
         return 1;
     }

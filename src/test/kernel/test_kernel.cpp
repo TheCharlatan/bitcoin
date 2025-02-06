@@ -378,9 +378,8 @@ void chainman_test()
     chainman_opts.SetWorkerThreads(4);
     BlockManagerOptions blockman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     assert(blockman_opts);
-    ChainstateLoadOptions chainstate_load_opts{};
 
-    ChainMan chainman{context, chainman_opts, blockman_opts, chainstate_load_opts};
+    ChainMan chainman{context, chainman_opts, blockman_opts};
     assert(chainman);
 }
 
@@ -395,23 +394,22 @@ std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
     assert(chainman_opts);
     BlockManagerOptions blockman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     assert(blockman_opts);
-    ChainstateLoadOptions chainstate_load_opts{};
 
     if (reindex) {
         blockman_opts.SetWipeBlockTreeDb(reindex);
-        chainstate_load_opts.SetWipeChainstateDb(reindex);
+        chainman_opts.SetWipeChainstateDb(reindex);
     }
     if (wipe_chainstate) {
-        chainstate_load_opts.SetWipeChainstateDb(wipe_chainstate);
+        chainman_opts.SetWipeChainstateDb(wipe_chainstate);
     }
     if (block_tree_db_in_memory) {
         blockman_opts.SetBlockTreeDbInMemory(block_tree_db_in_memory);
     }
     if (chainstate_db_in_memory) {
-        chainstate_load_opts.SetChainstateDbInMemory(chainstate_db_in_memory);
+        chainman_opts.SetChainstateDbInMemory(chainstate_db_in_memory);
     }
 
-    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts, chainstate_load_opts)};
+    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts)};
     assert(chainman);
     return chainman;
 }

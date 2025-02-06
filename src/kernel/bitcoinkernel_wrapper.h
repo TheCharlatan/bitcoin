@@ -398,6 +398,16 @@ public:
     {
     }
 
+    void SetWipeChainstateDb(bool wipe_chainstate) const noexcept
+    {
+        kernel_chainstate_manager_options_set_wipe_chainstate_db(m_options.get(), wipe_chainstate);
+    }
+
+    void SetChainstateDbInMemory(bool chainstate_db_in_memory) const noexcept
+    {
+        kernel_chainstate_manager_options_set_chainstate_db_in_memory(m_options.get(), chainstate_db_in_memory);
+    }
+
     void SetWorkerThreads(int worker_threads) const noexcept
     {
         kernel_chainstate_manager_options_set_worker_threads_num(m_options.get(), worker_threads);
@@ -439,37 +449,6 @@ public:
 
     /** Check whether this BlockManagerOptions object is valid. */
     explicit operator bool() const noexcept { return bool{m_options}; }
-
-    friend class ChainMan;
-};
-
-class ChainstateLoadOptions
-{
-private:
-    struct Deleter {
-        void operator()(kernel_ChainstateLoadOptions* ptr) const
-        {
-            kernel_chainstate_load_options_destroy(ptr);
-        }
-    };
-
-    const std::unique_ptr<kernel_ChainstateLoadOptions, Deleter> m_options;
-
-public:
-    ChainstateLoadOptions() noexcept
-        : m_options{kernel_chainstate_load_options_create()}
-    {
-    }
-
-    void SetWipeChainstateDb(bool wipe_chainstate) const noexcept
-    {
-        kernel_chainstate_load_options_set_wipe_chainstate_db(m_options.get(), wipe_chainstate);
-    }
-
-    void SetChainstateDbInMemory(bool chainstate_db_in_memory) const noexcept
-    {
-        kernel_chainstate_load_options_set_chainstate_db_in_memory(m_options.get(), chainstate_db_in_memory);
-    }
 
     friend class ChainMan;
 };
@@ -606,12 +585,11 @@ private:
     const Context& m_context;
 
 public:
-    ChainMan(const Context& context, const ChainstateManagerOptions& chainman_opts, const BlockManagerOptions& blockman_opts, ChainstateLoadOptions& chainstate_load_opts) noexcept
+    ChainMan(const Context& context, const ChainstateManagerOptions& chainman_opts, const BlockManagerOptions& blockman_opts) noexcept
         : m_chainman{kernel_chainstate_manager_create(
-                context.m_context.get(),
-                chainman_opts.m_options.get(),
-                blockman_opts.m_options.get(),
-                chainstate_load_opts.m_options.get())},
+              context.m_context.get(),
+              chainman_opts.m_options.get(),
+              blockman_opts.m_options.get())},
           m_context{context}
     {
     }
