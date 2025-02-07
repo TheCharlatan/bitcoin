@@ -354,6 +354,17 @@ void context_test()
     }
 }
 
+void locked_dir_test()
+{
+    auto test_directory{TestDirectory{"lock_test"}};
+    LockedDirectory dir{test_directory.m_directory.string()};
+    assert(dir);
+    // TO DO: we probably need a separate process to test this, because
+    // locks are cached in the static `dir_locks` map in fs_helpers.cpp.
+    // LockedDirectory dir_duplicate{test_directory.m_directory.string()};
+    // assert(!dir_duplicate);
+}
+
 Context create_context(TestKernelNotifications& notifications, kernel_ChainType chain_type, TestValidationInterface* validation_interface = nullptr)
 {
     ContextOptions options{};
@@ -373,14 +384,17 @@ void chainman_test()
     TestKernelNotifications notifications{};
     auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
 
-    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string()};
+    LockedDirectory data_dir{test_directory.m_directory.string()};
+    ChainstateManagerOptions chainman_opts{context, data_dir};
     assert(chainman_opts);
     chainman_opts.SetWorkerThreads(4);
-    BlockManagerOptions blockman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+    LockedDirectory blocks_dir{test_directory.m_directory / "blocks"};
+    assert(blocks_dir);
+    BlockManagerOptions blockman_opts{context, data_dir, blocks_dir};
     assert(blockman_opts);
     ChainstateLoadOptions chainstate_load_opts{};
 
-    ChainMan chainman{context, chainman_opts, blockman_opts, chainstate_load_opts};
+    ChainMan chainman{context, chainman_opts, blockman_opts, chainstate_load_opts, data_dir, blocks_dir};
     assert(chainman);
 }
 
@@ -391,9 +405,12 @@ std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
                                           bool chainstate_db_in_memory,
                                           Context& context)
 {
-    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string()};
+    LockedDirectory data_dir{test_directory.m_directory.string()};
+    ChainstateManagerOptions chainman_opts{context, data_dir};
     assert(chainman_opts);
-    BlockManagerOptions blockman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+    LockedDirectory blocks_dir{test_directory.m_directory / "blocks"};
+    assert(blocks_dir);
+    BlockManagerOptions blockman_opts{context, data_dir, blocks_dir};
     assert(blockman_opts);
     ChainstateLoadOptions chainstate_load_opts{};
 
@@ -411,7 +428,7 @@ std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
         chainstate_load_opts.SetChainstateDbInMemory(chainstate_db_in_memory);
     }
 
-    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts, chainstate_load_opts)};
+    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts, chainstate_load_opts, data_dir, blocks_dir)};
     assert(chainman);
     return chainman;
 }
@@ -602,7 +619,7 @@ int main()
     Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
 
     context_test();
-
+    locked_dir_test();
     chainman_test();
 
     auto mainnet_test_directory{TestDirectory{"mainnet_test_bitcoin_kernel"}};

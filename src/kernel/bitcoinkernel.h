@@ -166,6 +166,21 @@ typedef struct kernel_ContextOptions kernel_ContextOptions;
 typedef struct kernel_Context kernel_Context;
 
 /**
+ * Handle for managing and locking a filesystem directory used by the
+ * kernel.
+ *
+ * Provides kernel with exclusive access to the directory while the
+ * handle exists. Once other validation objects such as
+ * kernel_ChainstateManager are (directly or indirectly) created from
+ * it, the handle needs to be kept in memory for the duration of their
+ * lifetimes.
+ *
+ * Multiple validation interfaces can be registered with the same
+ * kernel_LockedDirectory.
+ */
+typedef struct kernel_LockedDirectory kernel_LockedDirectory;
+
+/**
  * Opaque data structure for holding a block index pointer.
  *
  * This is a pointer to an element in the block index currently in memory of the
@@ -760,6 +775,31 @@ BITCOINKERNEL_API void kernel_context_destroy(kernel_Context* context);
 
 ///@}
 
+/** @name KernelDirectory
+ * Functions for working with directories managed by the kernel.
+ */
+///@{
+
+/**
+ * @brief Acquire a directory for kernel use, creating it if needed and obtaining a lock.
+ *
+ * The directory will remain locked until the kernel_LockedDirectory is destroyed.
+ *
+ * @param[in] path     Non-null, path string of the directory to acquire.
+ * @return             The allocated kernel_LockedDirectory if successful in creating/acquiring
+ *                     and locking the directory, or null on error.
+ */
+BITCOINKERNEL_API kernel_LockedDirectory* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_locked_directory_create(
+    const char* path,
+    size_t path_len) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * Destroy the directory handle, releasing any locks.
+ */
+BITCOINKERNEL_API void kernel_directory_destroy(kernel_LockedDirectory* directory);
+
+///@}
+
 /** @name ChainstateManagerOptions
  * Functions for working with chainstate manager options.
  */
@@ -771,15 +811,12 @@ BITCOINKERNEL_API void kernel_context_destroy(kernel_Context* context);
  * @param[in] context        Non-null, the created options will associate with this kernel context
  *                           for the duration of their lifetime. The same context needs to be used
  *                           when instantiating the chainstate manager.
- * @param[in] data_directory Non-null, path string of the directory containing the chainstate data.
- *                           If the directory does not exist yet, it will be created.
+ * @param[in] data_directory Non-null, directory containing the chainstate data.
  * @return                   The allocated chainstate manager options, or null on error.
  */
 BITCOINKERNEL_API kernel_ChainstateManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_options_create(
     const kernel_Context* context,
-    const char* data_directory,
-    size_t data_directory_len
-) BITCOINKERNEL_ARG_NONNULL(1, 2);
+    const kernel_LockedDirectory* data_directory) BITCOINKERNEL_ARG_NONNULL(1, 2);
 
 /**
  * @brief Set the number of available worker threads used during validation.
@@ -813,20 +850,16 @@ BITCOINKERNEL_API void kernel_chainstate_manager_options_destroy(kernel_Chainsta
  * @param[in] context          Non-null, the created options will associate with this kernel context
  *                             for the duration of their lifetime. The same context needs to be used
  *                             when instantiating the chainstate manager.
- * @param[in] data_directory   Non-null, path string of the directory containing the chainstate data.
+ * @param[in] data_directory   Non-null, directory containing the chainstate data.
  *                             This is usually the same as the data directory used for the chainstate
- *                             manager options. If the directory does not exist yet, it will be created.
- * @param[in] blocks_directory Non-null, path string of the directory containing the block data. If
- *                             the directory does not exist yet, it will be created.
+ *                             manager options.
+ * @param[in] blocks_directory Non-null, directory containing the block data.
  * @return                     The allocated block manager options, or null on error.
  */
 BITCOINKERNEL_API kernel_BlockManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_manager_options_create(
     const kernel_Context* context,
-    const char* data_directory,
-    size_t data_directory_len,
-    const char* blocks_directory,
-    size_t blocks_directory_len
-) BITCOINKERNEL_ARG_NONNULL(1, 2);
+    const kernel_LockedDirectory* data_directory,
+    const kernel_LockedDirectory* blocks_directory) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
 
 /**
  * @brief Sets wipe block tree db in the block manager options.
@@ -961,7 +994,11 @@ BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manage
 /**
  * Destroy the chainstate manager.
  */
-BITCOINKERNEL_API void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainstate_manager, const kernel_Context* context);
+BITCOINKERNEL_API void kernel_chainstate_manager_destroy(
+    kernel_ChainstateManager* chainstate_manager,
+    const kernel_Context* context,
+    const kernel_LockedDirectory* data_dir,
+    const kernel_LockedDirectory* blocks_dir) BITCOINKERNEL_ARG_NONNULL(1, 2, 3, 4);
 
 ///@}
 
@@ -1171,7 +1208,6 @@ BITCOINKERNEL_API kernel_BlockIndex* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_get
 BITCOINKERNEL_API int32_t BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_index_get_height(
     const kernel_BlockIndex* block_index
 ) BITCOINKERNEL_ARG_NONNULL(1);
-
 
 /**
  * @brief Destroy the block index.

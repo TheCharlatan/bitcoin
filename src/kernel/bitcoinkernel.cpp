@@ -30,6 +30,7 @@
 #include <uint256.h>
 #include <undo.h>
 #include <util/fs.h>
+#include <util/fs_helpers.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
 #include <util/task_runner.h>
@@ -271,6 +272,23 @@ public:
     }
 };
 
+struct LockedDirectory {
+    fs::path path;
+
+    explicit LockedDirectory(const fs::path& dir_path) : path(dir_path)
+    {
+        TryCreateDirectories(path);
+        if (util::LockDirectory(path, ".lock", false) != util::LockResult::Success) {
+            throw std::runtime_error("Failed to lock directory: " + fs::PathToString(path));
+        }
+    }
+
+    ~LockedDirectory()
+    {
+        UnlockDirectory(path, ".lock");
+    }
+};
+
 const CTransaction* cast_transaction(const kernel_Transaction* transaction)
 {
     assert(transaction);
@@ -317,6 +335,18 @@ const Context* cast_const_context(const kernel_Context* context)
 {
     assert(context);
     return reinterpret_cast<const Context*>(context);
+}
+
+LockedDirectory* cast_locked_directory(kernel_LockedDirectory* directory)
+{
+    assert(directory);
+    return reinterpret_cast<LockedDirectory*>(directory);
+}
+
+const LockedDirectory* cast_const_locked_directory(const kernel_LockedDirectory* directory)
+{
+    assert(directory);
+    return reinterpret_cast<const LockedDirectory*>(directory);
 }
 
 const ChainstateManager::Options* cast_const_chainstate_manager_options(const kernel_ChainstateManagerOptions* options)
@@ -673,6 +703,25 @@ void kernel_context_destroy(kernel_Context* context)
     }
 }
 
+kernel_LockedDirectory* kernel_locked_directory_create(const char* path_, size_t path_len_)
+{
+    assert(path_);
+    try {
+        const fs::path path{fs::PathFromString({path_, path_len_})};
+        return reinterpret_cast<kernel_LockedDirectory*>(new LockedDirectory(path));
+    } catch (const std::exception& e) {
+        LogError("Failed to acquire directory: %s", e.what());
+        return nullptr;
+    }
+}
+
+void kernel_directory_destroy(kernel_LockedDirectory* directory)
+{
+    if (directory) {
+        delete cast_locked_directory(directory);
+    }
+}
+
 kernel_ValidationMode kernel_get_validation_mode_from_block_validation_state(const kernel_BlockValidationState* block_validation_state_)
 {
     auto& block_validation_state = *cast_block_validation_state(block_validation_state_);
@@ -709,15 +758,14 @@ kernel_BlockValidationResult kernel_get_block_validation_result_from_block_valid
     assert(false);
 }
 
-kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len)
+kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const kernel_LockedDirectory* data_dir_)
 {
     try {
-        fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
-        fs::create_directories(abs_data_dir);
+        const auto data_dir{cast_const_locked_directory(data_dir_)};
         auto context{cast_const_context(context_)};
         return reinterpret_cast<kernel_ChainstateManagerOptions*>(new ChainstateManager::Options{
             .chainparams = *context->m_chainparams,
-            .datadir = abs_data_dir,
+            .datadir = data_dir->path,
             .notifications = *context->m_notifications,
             .signals = context->m_signals.get()});
     } catch (const std::exception& e) {
@@ -739,13 +787,11 @@ void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* 
     }
 }
 
-kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len, const char* blocks_dir, size_t blocks_dir_len)
+kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Context* context_, const kernel_LockedDirectory* data_dir_, const kernel_LockedDirectory* blocks_dir_)
 {
     try {
-        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString({blocks_dir, blocks_dir_len}))};
-        fs::create_directories(abs_blocks_dir);
-        fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
-        fs::create_directories(abs_data_dir);
+        const auto data_dir{cast_const_locked_directory(data_dir_)};
+        const auto blocks_dir{cast_const_locked_directory(blocks_dir_)};
         auto context{cast_const_context(context_)};
         if (!context) {
             return nullptr;
@@ -753,10 +799,10 @@ kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Con
         kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
         return reinterpret_cast<kernel_BlockManagerOptions*>(new node::BlockManager::Options{
             .chainparams = *context->m_chainparams,
-            .blocks_dir = abs_blocks_dir,
+            .blocks_dir = blocks_dir->path,
             .notifications = *context->m_notifications,
             .block_tree_db_params = DBParams{
-                .path = abs_data_dir / "blocks" / "index",
+                .path = data_dir->path / "blocks" / "index",
                 .cache_bytes = cache_sizes.block_tree_db,
             }});
     } catch (const std::exception& e) {
@@ -838,10 +884,20 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
 
     try {
         const auto& chainstate_load_opts{*cast_const_chainstate_load_options(chainstate_load_opts_)};
+        const LockedDirectory data_dir{chainman_opts->datadir};
+        const LockedDirectory blocks_dir{blockman_opts->blocks_dir};
+
+        auto cleanup_chainman = [&]() {
+            kernel_chainstate_manager_destroy(
+                reinterpret_cast<kernel_ChainstateManager*>(chainman),
+                context_,
+                reinterpret_cast<const kernel_LockedDirectory*>(&data_dir),
+                reinterpret_cast<const kernel_LockedDirectory*>(&blocks_dir));
+        };
 
         if (blockman_opts->block_tree_db_params.wipe_data && !chainstate_load_opts.wipe_chainstate_db) {
             LogWarning("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
-            kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+            cleanup_chainman();
             return nullptr;
         }
 
@@ -849,13 +905,13 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
         auto [status, chainstate_err]{node::LoadChainstate(*chainman, cache_sizes, chainstate_load_opts)};
         if (status != node::ChainstateLoadStatus::SUCCESS) {
             LogError("Failed to load chain state from your data directory: %s", chainstate_err.original);
-            kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+            cleanup_chainman();
             return nullptr;
         }
         std::tie(status, chainstate_err) = node::VerifyLoadedChainstate(*chainman, chainstate_load_opts);
         if (status != node::ChainstateLoadStatus::SUCCESS) {
             LogError("Failed to verify loaded chain state from your datadir: %s", chainstate_err.original);
-            kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+            cleanup_chainman();
             return nullptr;
         }
 
@@ -863,7 +919,7 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
             BlockValidationState state;
             if (!chainstate->ActivateBestChain(state, nullptr)) {
                 LogError("Failed to connect best block: %s", state.ToString());
-                kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+                cleanup_chainman();
                 return nullptr;
             }
         }
@@ -875,7 +931,11 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
     return reinterpret_cast<kernel_ChainstateManager*>(chainman);
 }
 
-void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainman_, const kernel_Context* context_)
+void kernel_chainstate_manager_destroy(
+    kernel_ChainstateManager* chainman_,
+    const kernel_Context* context_,
+    const kernel_LockedDirectory* data_dir_,
+    const kernel_LockedDirectory* blocks_dir_)
 {
     if (!chainman_) return;
 
