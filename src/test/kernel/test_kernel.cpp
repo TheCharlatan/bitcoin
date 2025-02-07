@@ -384,14 +384,15 @@ void chainman_test()
     TestKernelNotifications notifications{};
     auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
 
-    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string()};
+    LockedDirectory data_dir{test_directory.m_directory.string()};
+    ChainstateManagerOptions chainman_opts{context, data_dir};
     assert(chainman_opts);
     chainman_opts.SetWorkerThreads(4);
     BlockManagerOptions blockman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     assert(blockman_opts);
     ChainstateLoadOptions chainstate_load_opts{};
 
-    ChainMan chainman{context, chainman_opts, blockman_opts, chainstate_load_opts};
+    ChainMan chainman{context, chainman_opts, blockman_opts, chainstate_load_opts, data_dir};
     assert(chainman);
 }
 
@@ -402,7 +403,8 @@ std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
                                           bool chainstate_db_in_memory,
                                           Context& context)
 {
-    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string()};
+    LockedDirectory data_dir{test_directory.m_directory.string()};
+    ChainstateManagerOptions chainman_opts{context, data_dir};
     assert(chainman_opts);
     BlockManagerOptions blockman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     assert(blockman_opts);
@@ -422,7 +424,7 @@ std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
         chainstate_load_opts.SetChainstateDbInMemory(chainstate_db_in_memory);
     }
 
-    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts, chainstate_load_opts)};
+    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts, chainstate_load_opts, data_dir)};
     assert(chainman);
     return chainman;
 }

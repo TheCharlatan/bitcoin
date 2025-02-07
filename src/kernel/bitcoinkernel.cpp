@@ -758,15 +758,14 @@ kernel_BlockValidationResult kernel_get_block_validation_result_from_block_valid
     assert(false);
 }
 
-kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len)
+kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const kernel_LockedDirectory* data_dir_)
 {
     try {
-        fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
-        fs::create_directories(abs_data_dir);
+        const auto data_dir{cast_const_locked_directory(data_dir_)};
         auto context{cast_const_context(context_)};
         return reinterpret_cast<kernel_ChainstateManagerOptions*>(new ChainstateManager::Options{
             .chainparams = *context->m_chainparams,
-            .datadir = abs_data_dir,
+            .datadir = data_dir->path,
             .notifications = *context->m_notifications,
             .signals = context->m_signals.get()});
     } catch (const std::exception& e) {
@@ -887,10 +886,18 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
 
     try {
         const auto& chainstate_load_opts{*cast_const_chainstate_load_options(chainstate_load_opts_)};
+        const LockedDirectory data_dir{chainman_opts->datadir};
+
+        auto cleanup_chainman = [&]() {
+            kernel_chainstate_manager_destroy(
+                reinterpret_cast<kernel_ChainstateManager*>(chainman),
+                context_,
+                reinterpret_cast<const kernel_LockedDirectory*>(&data_dir));
+        };
 
         if (blockman_opts->block_tree_db_params.wipe_data && !chainstate_load_opts.wipe_chainstate_db) {
             LogWarning("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
-            kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+            cleanup_chainman();
             return nullptr;
         }
 
@@ -898,13 +905,13 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
         auto [status, chainstate_err]{node::LoadChainstate(*chainman, cache_sizes, chainstate_load_opts)};
         if (status != node::ChainstateLoadStatus::SUCCESS) {
             LogError("Failed to load chain state from your data directory: %s", chainstate_err.original);
-            kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+            cleanup_chainman();
             return nullptr;
         }
         std::tie(status, chainstate_err) = node::VerifyLoadedChainstate(*chainman, chainstate_load_opts);
         if (status != node::ChainstateLoadStatus::SUCCESS) {
             LogError("Failed to verify loaded chain state from your datadir: %s", chainstate_err.original);
-            kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+            cleanup_chainman();
             return nullptr;
         }
 
@@ -912,7 +919,7 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
             BlockValidationState state;
             if (!chainstate->ActivateBestChain(state, nullptr)) {
                 LogError("Failed to connect best block: %s", state.ToString());
-                kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
+                cleanup_chainman();
                 return nullptr;
             }
         }
@@ -924,7 +931,10 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
     return reinterpret_cast<kernel_ChainstateManager*>(chainman);
 }
 
-void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainman_, const kernel_Context* context_)
+void kernel_chainstate_manager_destroy(
+    kernel_ChainstateManager* chainman_,
+    const kernel_Context* context_,
+    const kernel_LockedDirectory* data_dir_)
 {
     if (!chainman_) return;
 

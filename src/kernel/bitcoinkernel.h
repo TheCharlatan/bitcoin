@@ -811,15 +811,12 @@ BITCOINKERNEL_API void kernel_directory_destroy(kernel_LockedDirectory* director
  * @param[in] context        Non-null, the created options will associate with this kernel context
  *                           for the duration of their lifetime. The same context needs to be used
  *                           when instantiating the chainstate manager.
- * @param[in] data_directory Non-null, path string of the directory containing the chainstate data.
- *                           If the directory does not exist yet, it will be created.
+ * @param[in] data_directory Non-null, directory containing the chainstate data.
  * @return                   The allocated chainstate manager options, or null on error.
  */
 BITCOINKERNEL_API kernel_ChainstateManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_options_create(
     const kernel_Context* context,
-    const char* data_directory,
-    size_t data_directory_len
-) BITCOINKERNEL_ARG_NONNULL(1, 2);
+    const kernel_LockedDirectory* data_directory) BITCOINKERNEL_ARG_NONNULL(1, 2);
 
 /**
  * @brief Set the number of available worker threads used during validation.
@@ -1001,7 +998,10 @@ BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manage
 /**
  * Destroy the chainstate manager.
  */
-BITCOINKERNEL_API void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainstate_manager, const kernel_Context* context);
+BITCOINKERNEL_API void kernel_chainstate_manager_destroy(
+    kernel_ChainstateManager* chainstate_manager,
+    const kernel_Context* context,
+    const kernel_LockedDirectory* data_dir);
 
 ///@}
 
