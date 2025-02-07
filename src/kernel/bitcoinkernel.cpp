@@ -787,13 +787,11 @@ void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* 
     }
 }
 
-kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len, const char* blocks_dir, size_t blocks_dir_len)
+kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Context* context_, const kernel_LockedDirectory* data_dir_, const kernel_LockedDirectory* blocks_dir_)
 {
     try {
-        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString({blocks_dir, blocks_dir_len}))};
-        fs::create_directories(abs_blocks_dir);
-        fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
-        fs::create_directories(abs_data_dir);
+        const auto data_dir{cast_const_locked_directory(data_dir_)};
+        const auto blocks_dir{cast_const_locked_directory(blocks_dir_)};
         auto context{cast_const_context(context_)};
         if (!context) {
             return nullptr;
@@ -801,10 +799,10 @@ kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Con
         kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
         return reinterpret_cast<kernel_BlockManagerOptions*>(new node::BlockManager::Options{
             .chainparams = *context->m_chainparams,
-            .blocks_dir = abs_blocks_dir,
+            .blocks_dir = blocks_dir->path,
             .notifications = *context->m_notifications,
             .block_tree_db_params = DBParams{
-                .path = abs_data_dir / "blocks" / "index",
+                .path = data_dir->path / "blocks" / "index",
                 .cache_bytes = cache_sizes.block_tree_db,
             }});
     } catch (const std::exception& e) {
@@ -887,12 +885,14 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
     try {
         const auto& chainstate_load_opts{*cast_const_chainstate_load_options(chainstate_load_opts_)};
         const LockedDirectory data_dir{chainman_opts->datadir};
+        const LockedDirectory blocks_dir{blockman_opts->blocks_dir};
 
         auto cleanup_chainman = [&]() {
             kernel_chainstate_manager_destroy(
                 reinterpret_cast<kernel_ChainstateManager*>(chainman),
                 context_,
-                reinterpret_cast<const kernel_LockedDirectory*>(&data_dir));
+                reinterpret_cast<const kernel_LockedDirectory*>(&data_dir),
+                reinterpret_cast<const kernel_LockedDirectory*>(&blocks_dir));
         };
 
         if (blockman_opts->block_tree_db_params.wipe_data && !chainstate_load_opts.wipe_chainstate_db) {
@@ -934,7 +934,8 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
 void kernel_chainstate_manager_destroy(
     kernel_ChainstateManager* chainman_,
     const kernel_Context* context_,
-    const kernel_LockedDirectory* data_dir_)
+    const kernel_LockedDirectory* data_dir_,
+    const kernel_LockedDirectory* blocks_dir_)
 {
     if (!chainman_) return;
 

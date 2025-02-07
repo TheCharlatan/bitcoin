@@ -398,6 +398,7 @@ public:
     /** Check whether this LockedDirectory object is valid. */
     explicit operator bool() const noexcept { return bool{m_directory}; }
 
+    friend class BlockManagerOptions;
     friend class ChainMan;
     friend class ChainstateManagerOptions;
 };
@@ -444,8 +445,8 @@ private:
     std::unique_ptr<kernel_BlockManagerOptions, Deleter> m_options;
 
 public:
-    BlockManagerOptions(const Context& context, const std::string& data_dir, const std::string& blocks_dir) noexcept
-        : m_options{kernel_block_manager_options_create(context.m_context.get(), data_dir.c_str(), data_dir.length(), blocks_dir.c_str(), blocks_dir.length())}
+    BlockManagerOptions(const Context& context, const LockedDirectory& data_dir, const LockedDirectory& blocks_dir) noexcept
+        : m_options{kernel_block_manager_options_create(context.m_context.get(), data_dir.m_directory.get(), blocks_dir.m_directory.get())}
     {
     }
 
@@ -627,6 +628,7 @@ private:
     kernel_ChainstateManager* m_chainman;
     const Context& m_context;
     const LockedDirectory& m_data_dir;
+    const LockedDirectory& m_blocks_dir;
 
 public:
     ChainMan(
@@ -634,14 +636,16 @@ public:
         const ChainstateManagerOptions& chainman_opts,
         const BlockManagerOptions& blockman_opts,
         ChainstateLoadOptions& chainstate_load_opts,
-        const LockedDirectory& data_dir) noexcept // TODO: data_dir is also a member of (opaque) chainman_opts, should ideally be de-duplicated.
+        const LockedDirectory& data_dir,            // TODO: data_dir is also a member of (opaque) chainman_opts, should ideally be de-duplicated.
+        const LockedDirectory& blocks_dir) noexcept // TODO: blocks_dir is also a member of (opaque) blockman_opts, should ideally be de-duplicated.
         : m_chainman{kernel_chainstate_manager_create(
               context.m_context.get(),
               chainman_opts.m_options.get(),
               blockman_opts.m_options.get(),
               chainstate_load_opts.m_options.get())},
           m_context{context},
-          m_data_dir{data_dir}
+          m_data_dir{data_dir},
+          m_blocks_dir{blocks_dir}
     {
     }
 
@@ -715,7 +719,7 @@ public:
 
     ~ChainMan()
     {
-        kernel_chainstate_manager_destroy(m_chainman, m_context.m_context.get(), m_data_dir.m_directory.get());
+        kernel_chainstate_manager_destroy(m_chainman, m_context.m_context.get(), m_data_dir.m_directory.get(), m_blocks_dir.m_directory.get());
     }
 };
 

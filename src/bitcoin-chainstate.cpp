@@ -169,11 +169,14 @@ int main(int argc, char* argv[])
     ChainstateManagerOptions chainman_opts{context, data_dir};
     assert(chainman_opts);
     chainman_opts.SetWorkerThreads(4);
-    BlockManagerOptions blockman_opts{context, abs_datadir.string(), (abs_datadir / "blocks").string()};
+
+    LockedDirectory blocks_dir{abs_datadir / "blocks"};
+    assert(blocks_dir);
+    BlockManagerOptions blockman_opts{context, data_dir, blocks_dir};
     assert(blockman_opts);
     ChainstateLoadOptions chainstate_load_opts{};
 
-    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts, chainstate_load_opts, data_dir)};
+    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts, chainstate_load_opts, data_dir, blocks_dir)};
     if (!*chainman) {
         return 1;
     }

@@ -850,20 +850,16 @@ BITCOINKERNEL_API void kernel_chainstate_manager_options_destroy(kernel_Chainsta
  * @param[in] context          Non-null, the created options will associate with this kernel context
  *                             for the duration of their lifetime. The same context needs to be used
  *                             when instantiating the chainstate manager.
- * @param[in] data_directory   Non-null, path string of the directory containing the chainstate data.
+ * @param[in] data_directory   Non-null, directory containing the chainstate data.
  *                             This is usually the same as the data directory used for the chainstate
- *                             manager options. If the directory does not exist yet, it will be created.
- * @param[in] blocks_directory Non-null, path string of the directory containing the block data. If
- *                             the directory does not exist yet, it will be created.
+ *                             manager options.
+ * @param[in] blocks_directory Non-null, directory containing the block data.
  * @return                     The allocated block manager options, or null on error.
  */
 BITCOINKERNEL_API kernel_BlockManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_manager_options_create(
     const kernel_Context* context,
-    const char* data_directory,
-    size_t data_directory_len,
-    const char* blocks_directory,
-    size_t blocks_directory_len
-) BITCOINKERNEL_ARG_NONNULL(1, 2);
+    const kernel_LockedDirectory* data_directory,
+    const kernel_LockedDirectory* blocks_directory) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
 
 /**
  * @brief Sets wipe block tree db in the block manager options.
@@ -1001,7 +997,8 @@ BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manage
 BITCOINKERNEL_API void kernel_chainstate_manager_destroy(
     kernel_ChainstateManager* chainstate_manager,
     const kernel_Context* context,
-    const kernel_LockedDirectory* data_dir);
+    const kernel_LockedDirectory* data_dir,
+    const kernel_LockedDirectory* blocks_dir) BITCOINKERNEL_ARG_NONNULL(1, 2, 3, 4);
 
 ///@}
 
