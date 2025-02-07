@@ -30,6 +30,7 @@
 #include <uint256.h>
 #include <undo.h>
 #include <util/fs.h>
+#include <util/fs_helpers.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
 #include <util/task_runner.h>
@@ -271,6 +272,23 @@ public:
     }
 };
 
+struct LockedDirectory {
+    fs::path path;
+
+    explicit LockedDirectory(const fs::path& dir_path) : path(dir_path)
+    {
+        TryCreateDirectories(path);
+        if (util::LockDirectory(path, ".lock", false) != util::LockResult::Success) {
+            throw std::runtime_error("Failed to lock directory: " + fs::PathToString(path));
+        }
+    }
+
+    ~LockedDirectory()
+    {
+        UnlockDirectory(path, ".lock");
+    }
+};
+
 const CTransaction* cast_transaction(const kernel_Transaction* transaction)
 {
     assert(transaction);
@@ -317,6 +335,18 @@ const Context* cast_const_context(const kernel_Context* context)
 {
     assert(context);
     return reinterpret_cast<const Context*>(context);
+}
+
+LockedDirectory* cast_locked_directory(kernel_LockedDirectory* directory)
+{
+    assert(directory);
+    return reinterpret_cast<LockedDirectory*>(directory);
+}
+
+const LockedDirectory* cast_const_locked_directory(const kernel_LockedDirectory* directory)
+{
+    assert(directory);
+    return reinterpret_cast<const LockedDirectory*>(directory);
 }
 
 const ChainstateManager::Options* cast_const_chainstate_manager_options(const kernel_ChainstateManagerOptions* options)
@@ -670,6 +700,25 @@ void kernel_context_destroy(kernel_Context* context)
 {
     if (context) {
         delete cast_context(context);
+    }
+}
+
+kernel_LockedDirectory* kernel_locked_directory_create(const char* path_, size_t path_len_)
+{
+    assert(path_);
+    try {
+        const fs::path path{fs::PathFromString({path_, path_len_})};
+        return reinterpret_cast<kernel_LockedDirectory*>(new LockedDirectory(path));
+    } catch (const std::exception& e) {
+        LogError("Failed to acquire directory: %s", e.what());
+        return nullptr;
+    }
+}
+
+void kernel_directory_destroy(kernel_LockedDirectory* directory)
+{
+    if (directory) {
+        delete cast_locked_directory(directory);
     }
 }
 

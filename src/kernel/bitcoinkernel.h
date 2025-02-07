@@ -166,6 +166,21 @@ typedef struct kernel_ContextOptions kernel_ContextOptions;
 typedef struct kernel_Context kernel_Context;
 
 /**
+ * Handle for managing and locking a filesystem directory used by the
+ * kernel.
+ *
+ * Provides kernel with exclusive access to the directory while the
+ * handle exists. Once other validation objects such as
+ * kernel_ChainstateManager are (directly or indirectly) created from
+ * it, the handle needs to be kept in memory for the duration of their
+ * lifetimes.
+ *
+ * Multiple validation interfaces can be registered with the same
+ * kernel_LockedDirectory.
+ */
+typedef struct kernel_LockedDirectory kernel_LockedDirectory;
+
+/**
  * Opaque data structure for holding a block index pointer.
  *
  * This is a pointer to an element in the block index currently in memory of the
@@ -760,6 +775,31 @@ BITCOINKERNEL_API void kernel_context_destroy(kernel_Context* context);
 
 ///@}
 
+/** @name KernelDirectory
+ * Functions for working with directories managed by the kernel.
+ */
+///@{
+
+/**
+ * @brief Acquire a directory for kernel use, creating it if needed and obtaining a lock.
+ *
+ * The directory will remain locked until the kernel_LockedDirectory is destroyed.
+ *
+ * @param[in] path     Non-null, path string of the directory to acquire.
+ * @return             The allocated kernel_LockedDirectory if successful in creating/acquiring
+ *                     and locking the directory, or null on error.
+ */
+BITCOINKERNEL_API kernel_LockedDirectory* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_locked_directory_create(
+    const char* path,
+    size_t path_len) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * Destroy the directory handle, releasing any locks.
+ */
+BITCOINKERNEL_API void kernel_directory_destroy(kernel_LockedDirectory* directory);
+
+///@}
+
 /** @name ChainstateManagerOptions
  * Functions for working with chainstate manager options.
  */
@@ -1171,7 +1211,6 @@ BITCOINKERNEL_API kernel_BlockIndex* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_get
 BITCOINKERNEL_API int32_t BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_index_get_height(
     const kernel_BlockIndex* block_index
 ) BITCOINKERNEL_ARG_NONNULL(1);
-
 
 /**
  * @brief Destroy the block index.

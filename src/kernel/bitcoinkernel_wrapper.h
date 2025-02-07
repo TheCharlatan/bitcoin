@@ -380,6 +380,25 @@ public:
     explicit operator bool() const noexcept { return bool{m_context}; }
 };
 
+class LockedDirectory
+{
+private:
+    struct Deleter {
+        void operator()(kernel_LockedDirectory* ptr) const
+        {
+            kernel_directory_destroy(ptr);
+        }
+    };
+
+    std::unique_ptr<kernel_LockedDirectory, Deleter> m_directory;
+
+public:
+    LockedDirectory(const std::string& path) noexcept : m_directory{kernel_locked_directory_create(path.c_str(), path.length())} {}
+
+    /** Check whether this LockedDirectory object is valid. */
+    explicit operator bool() const noexcept { return bool{m_directory}; }
+};
+
 class ChainstateManagerOptions
 {
 private:

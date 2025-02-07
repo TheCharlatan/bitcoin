@@ -354,6 +354,17 @@ void context_test()
     }
 }
 
+void locked_dir_test()
+{
+    auto test_directory{TestDirectory{"lock_test"}};
+    LockedDirectory dir{test_directory.m_directory.string()};
+    assert(dir);
+    // TO DO: we probably need a separate process to test this, because
+    // locks are cached in the static `dir_locks` map in fs_helpers.cpp.
+    // LockedDirectory dir_duplicate{test_directory.m_directory.string()};
+    // assert(!dir_duplicate);
+}
+
 Context create_context(TestKernelNotifications& notifications, kernel_ChainType chain_type, TestValidationInterface* validation_interface = nullptr)
 {
     ContextOptions options{};
@@ -602,7 +613,7 @@ int main()
     Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
 
     context_test();
-
+    locked_dir_test();
     chainman_test();
 
     auto mainnet_test_directory{TestDirectory{"mainnet_test_bitcoin_kernel"}};
