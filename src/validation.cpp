@@ -1981,21 +1981,23 @@ void Chainstate::InitCoinsDB(
     size_t cache_size_bytes,
     bool in_memory,
     bool should_wipe,
-    fs::path leveldb_name)
+    fs::path leveldb_dir,
+    const DBOptions& coins_db,
+    const CoinsViewOptions& coins_view)
 {
     if (m_from_snapshot_blockhash) {
-        leveldb_name += node::SNAPSHOT_CHAINSTATE_SUFFIX;
+        leveldb_dir+= node::SNAPSHOT_CHAINSTATE_SUFFIX;
     }
 
     m_coins_views = std::make_unique<CoinsViews>(
         DBParams{
-            .path = m_chainman.m_options.datadir / leveldb_name,
+            .path = leveldb_dir,
             .cache_bytes = cache_size_bytes,
             .memory_only = in_memory,
             .wipe_data = should_wipe,
             .obfuscate = true,
-            .options = m_chainman.m_options.coins_db},
-        m_chainman.m_options.coins_view);
+            .options = coins_db},
+        coins_view);
 
     m_coinsdb_cache_size_bytes = cache_size_bytes;
 }
@@ -5789,7 +5791,7 @@ util::Result<CBlockIndex*> ChainstateManager::ActivateSnapshot(
         LOCK(::cs_main);
         snapshot_chainstate->InitCoinsDB(
             static_cast<size_t>(current_coinsdb_cache_size * SNAPSHOT_CACHE_PERC),
-            in_memory, false, "chainstate");
+            in_memory, false, m_options.datadir / "chainstate", m_options.coins_db, m_options.coins_view);
         snapshot_chainstate->InitCoinsCache(
             static_cast<size_t>(current_coinstip_cache_size * SNAPSHOT_CACHE_PERC));
     }

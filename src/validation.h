@@ -566,7 +566,9 @@ public:
         size_t cache_size_bytes,
         bool in_memory,
         bool should_wipe,
-        fs::path leveldb_name = "chainstate");
+        fs::path leveldb_dir,
+        const DBOptions& coins_db,
+        const CoinsViewOptions& coins_view);
 
     //! Initialize the in-memory coins cache (to be done after the health of the on-disk database
     //! is verified).
