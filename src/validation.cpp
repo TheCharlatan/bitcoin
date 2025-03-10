@@ -1972,6 +1972,7 @@ Chainstate::Chainstate(
       m_signals(chainman.m_options.signals),
       m_blockman(blockman),
       m_chainman(chainman),
+      m_interrupt(chainman.m_interrupt),
       m_from_snapshot_blockhash(from_snapshot_blockhash) {}
 
 const CBlockIndex* Chainstate::SnapshotBase()
@@ -3625,7 +3626,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
         // never interrupt before connecting the genesis block during LoadChainTip(). Previously this
         // caused an assert() failure during interrupt in such cases as the UTXO DB flushing checks
         // that the best block hash is non-null.
-        if (m_chainman.m_interrupt) break;
+        if (m_interrupt) break;
     } while (pindexNewTip != pindexMostWork);
 
     m_chainman.CheckBlockIndex();
@@ -3716,7 +3717,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
 
     // Disconnect (descendants of) pindex, and mark them invalid.
     while (true) {
-        if (m_chainman.m_interrupt) break;
+        if (m_interrupt) break;
 
         // Make sure the queue of validation callbacks doesn't grow unboundedly.
         if (m_signals) LimitValidationInterfaceQueue(*m_signals);
@@ -4835,7 +4836,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
                 skipped_l3_checks = true;
             }
         }
-        if (chainstate.m_chainman.m_interrupt) return VerifyDBResult::INTERRUPTED;
+        if (chainstate.m_interrupt) return VerifyDBResult::INTERRUPTED;
     }
     if (pindexFailure) {
         LogPrintf("Verification error: coin database inconsistencies found (last %i blocks, %i good transactions before that)\n", chainstate.m_chain.Height() - pindexFailure->nHeight + 1, nGoodTransactions);
@@ -4868,7 +4869,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
                 LogPrintf("Verification error: found unconnectable block at %d, hash=%s (%s)\n", pindex->nHeight, pindex->GetBlockHash().ToString(), state.ToString());
                 return VerifyDBResult::CORRUPTED_BLOCK_DB;
             }
-            if (chainstate.m_chainman.m_interrupt) return VerifyDBResult::INTERRUPTED;
+            if (chainstate.m_interrupt) return VerifyDBResult::INTERRUPTED;
         }
     }
 
