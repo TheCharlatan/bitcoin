@@ -1891,9 +1891,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             tip_info->block_time = best_block_time;
             tip_info->verification_progress = chainman.GuessVerificationProgress(&tip);
         }
-        if (tip_info && chainman.m_best_header) {
-            tip_info->header_height = chainman.m_best_header->nHeight;
-            tip_info->header_time = chainman.m_best_header->GetBlockTime();
+        if (tip_info && chainman.m_blockman.m_best_header) {
+            tip_info->header_height = chainman.m_blockman.m_best_header->nHeight;
+            tip_info->header_time = chainman.m_blockman.m_best_header->GetBlockTime();
         }
     }
     LogPrintf("nBestHeight = %d\n", chain_active_height);
