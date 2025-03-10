@@ -534,6 +534,10 @@ protected:
     //! Cached result of LookupBlockIndex(*m_from_snapshot_blockhash)
     const CBlockIndex* m_cached_snapshot_base GUARDED_BY(::cs_main) {nullptr};
 
+    const fs::path& m_datadir;
+
+    kernel::Notifications& m_notifications;
+
 public:
     //! Reference to a BlockManager instance which itself is shared across all
     //! Chainstate instances.
