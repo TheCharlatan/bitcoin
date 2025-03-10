@@ -577,6 +577,8 @@ public:
 
     const CChainParams& m_chainparams;
 
+    ValidationCache& m_validation_cache;
+
     explicit Chainstate(
         CTxMemPool* mempool,
         node::BlockManager& blockman,

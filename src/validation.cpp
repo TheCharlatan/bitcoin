@@ -718,7 +718,7 @@ private:
 
     ValidationCache& GetValidationCache()
     {
-        return m_active_chainstate.m_chainman.m_validation_cache;
+        return m_active_chainstate.m_validation_cache;
     }
 
 private:
@@ -1975,6 +1975,7 @@ Chainstate::Chainstate(
       m_chainman(chainman),
       m_interrupt(chainman.m_interrupt),
       m_chainparams(chainman.GetParams()),
+      m_validation_cache(chainman.m_validation_cache),
       m_from_snapshot_blockhash(from_snapshot_blockhash) {}
 
 const CBlockIndex* Chainstate::SnapshotBase()
@@ -2705,7 +2706,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
             std::vector<CScriptCheck> vChecks;
             bool fCacheResults = fJustCheck; /* Don't cache results if we're actually connecting blocks (still consult the cache, though) */
             TxValidationState tx_state;
-            if (fScriptChecks && !CheckInputScripts(tx, tx_state, view, flags, fCacheResults, fCacheResults, txsdata[i], m_chainman.m_validation_cache, parallel_script_checks ? &vChecks : nullptr)) {
+            if (fScriptChecks && !CheckInputScripts(tx, tx_state, view, flags, fCacheResults, fCacheResults, txsdata[i], m_validation_cache, parallel_script_checks ? &vChecks : nullptr)) {
                 // Any transaction validation failure in ConnectBlock is a block consensus failure
                 state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
                               tx_state.GetRejectReason(), tx_state.GetDebugMessage());
