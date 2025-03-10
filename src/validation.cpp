@@ -2383,11 +2383,11 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
 class WarningBitsConditionChecker : public AbstractThresholdConditionChecker
 {
 private:
-    const ChainstateManager& m_chainman;
+    VersionBitsCache& m_versionbitscache;
     int m_bit;
 
 public:
-    explicit WarningBitsConditionChecker(const ChainstateManager& chainman, int bit) : m_chainman{chainman}, m_bit(bit) {}
+    explicit WarningBitsConditionChecker(VersionBitsCache& versionbitscache, int bit) : m_versionbitscache{versionbitscache}, m_bit(bit) {}
 
     int64_t BeginTime(const Consensus::Params& params) const override { return 0; }
     int64_t EndTime(const Consensus::Params& params) const override { return std::numeric_limits<int64_t>::max(); }
@@ -2399,7 +2399,7 @@ public:
         return pindex->nHeight >= params.MinBIP9WarningHeight &&
                ((pindex->nVersion & VERSIONBITS_TOP_MASK) == VERSIONBITS_TOP_BITS) &&
                ((pindex->nVersion >> m_bit) & 1) != 0 &&
-               ((m_chainman.m_versionbitscache.ComputeBlockVersion(pindex->pprev, params) >> m_bit) & 1) == 0;
+               ((m_versionbitscache.ComputeBlockVersion(pindex->pprev, params) >> m_bit) & 1) == 0;
     }
 };
 
@@ -3040,7 +3040,7 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
     if (!m_chainman.IsInitialBlockDownload()) {
         const CBlockIndex* pindex = pindexNew;
         for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
-            WarningBitsConditionChecker checker(m_chainman, bit);
+            WarningBitsConditionChecker checker(m_versionbitscache, bit);
             ThresholdState state = checker.GetStateFor(pindex, m_chainparams.GetConsensus(), m_chainman.m_warningcache.at(bit));
             if (state == ThresholdState::ACTIVE || state == ThresholdState::LOCKED_IN) {
                 const bilingual_str warning = strprintf(_("Unknown new rules activated (versionbit %i)"), bit);
