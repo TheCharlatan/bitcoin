@@ -932,8 +932,6 @@ private:
     //! most-work chain.
     Chainstate* m_active_chainstate GUARDED_BY(::cs_main) {nullptr};
 
-    CBlockIndex* m_best_invalid GUARDED_BY(::cs_main){nullptr};
-
     /** The last header for which a headerTip notification was issued. */
     CBlockIndex* m_last_notified_header GUARDED_BY(GetMutex()){nullptr};
 

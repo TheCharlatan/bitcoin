@@ -279,6 +279,8 @@ public:
     /** Best header we've seen so far (used for getheaders queries' starting points). */
     CBlockIndex* m_best_header GUARDED_BY(::cs_main){nullptr};
 
+    CBlockIndex* m_best_invalid GUARDED_BY(::cs_main){nullptr};
+
     /**
      * The height of the base block of an assumeutxo snapshot, if one is in use.
      *
