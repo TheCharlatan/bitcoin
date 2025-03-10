@@ -1970,6 +1970,7 @@ Chainstate::Chainstate(
       m_notifications(chainman.m_options.notifications),
       m_chain_stats(chainman.m_chain_stats),
       m_signals(chainman.m_options.signals),
+      m_script_check_queue(chainman.m_script_check_queue),
       m_blockman(blockman),
       m_chainman(chainman),
       m_interrupt(chainman.m_interrupt),
@@ -2450,7 +2451,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     uint256 block_hash{block.GetHash()};
     assert(*pindex->phashBlock == block_hash);
-    const bool parallel_script_checks{m_chainman.GetCheckQueue().HasThreads()};
+    const bool parallel_script_checks{m_script_check_queue.HasThreads()};
 
     const auto time_start{SteadyClock::now()};
     const CChainParams& params{m_chainman.GetParams()};
@@ -2640,7 +2641,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     // in multiple threads). Preallocate the vector size so a new allocation
     // doesn't invalidate pointers into the vector, and keep txsdata in scope
     // for as long as `control`.
-    CCheckQueueControl<CScriptCheck> control(fScriptChecks && parallel_script_checks ? &m_chainman.GetCheckQueue() : nullptr);
+    CCheckQueueControl<CScriptCheck> control(fScriptChecks && parallel_script_checks ? &m_script_check_queue : nullptr);
     std::vector<PrecomputedTransactionData> txsdata(block.vtx.size());
 
     std::vector<int> prevheights;
