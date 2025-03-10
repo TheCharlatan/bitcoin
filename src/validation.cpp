@@ -1275,7 +1275,7 @@ bool MemPoolAccept::ConsensusScriptChecks(const ATMPArgs& args, Workspace& ws)
     // There is a similar check in CreateNewBlock() to prevent creating
     // invalid blocks (using TestBlockValidity), however allowing such
     // transactions into the mempool can be exploited as a DoS attack.
-    unsigned int currentBlockScriptVerifyFlags{GetBlockScriptFlags(*m_active_chainstate.m_chain.Tip(), m_active_chainstate.m_chainman.GetConsensus(), m_active_chainstate.m_chainman.m_versionbitscache)};
+    unsigned int currentBlockScriptVerifyFlags{GetBlockScriptFlags(*m_active_chainstate.m_chain.Tip(), m_active_chainstate.m_chainparams.GetConsensus(), m_active_chainstate.m_chainman.m_versionbitscache)};
     if (!CheckInputsFromMempoolAndCache(tx, state, m_view, m_pool, currentBlockScriptVerifyFlags,
                                         ws.m_precomputed_txdata, m_active_chainstate.CoinsTip(), GetValidationCache())) {
         LogPrintf("BUG! PLEASE REPORT THIS! CheckInputScripts failed against latest-block but not STANDARD flags %s, %s\n", hash.ToString(), state.ToString());
@@ -1879,7 +1879,7 @@ MempoolAcceptResult AcceptToMemoryPool(Chainstate& active_chainstate, const CTra
                                        int64_t accept_time, bool bypass_limits, bool test_accept)
 {
     AssertLockHeld(::cs_main);
-    const CChainParams& chainparams{active_chainstate.m_chainman.GetParams()};
+    const CChainParams& chainparams{active_chainstate.m_chainparams};
     assert(active_chainstate.GetMempool() != nullptr);
     CTxMemPool& pool{*active_chainstate.GetMempool()};
 
@@ -1913,7 +1913,7 @@ PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxM
     assert(std::all_of(package.cbegin(), package.cend(), [](const auto& tx){return tx != nullptr;}));
 
     std::vector<COutPoint> coins_to_uncache;
-    const CChainParams& chainparams = active_chainstate.m_chainman.GetParams();
+    const CChainParams& chainparams = active_chainstate.m_chainparams;
     auto result = [&]() EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
         AssertLockHeld(cs_main);
         if (test_accept) {
@@ -1974,6 +1974,7 @@ Chainstate::Chainstate(
       m_blockman(blockman),
       m_chainman(chainman),
       m_interrupt(chainman.m_interrupt),
+      m_chainparams(chainman.GetParams()),
       m_from_snapshot_blockhash(from_snapshot_blockhash) {}
 
 const CBlockIndex* Chainstate::SnapshotBase()
@@ -2454,7 +2455,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     const bool parallel_script_checks{m_script_check_queue.HasThreads()};
 
     const auto time_start{SteadyClock::now()};
-    const CChainParams& params{m_chainman.GetParams()};
+    const CChainParams& params{m_chainparams};
 
     // Check it again in case a previous version let a bad block in
     // NOTE: We don't currently (re-)invoke ContextualCheckBlock() or
@@ -3038,7 +3039,7 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
         const CBlockIndex* pindex = pindexNew;
         for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
             WarningBitsConditionChecker checker(m_chainman, bit);
-            ThresholdState state = checker.GetStateFor(pindex, m_chainman.GetConsensus(), m_chainman.m_warningcache.at(bit));
+            ThresholdState state = checker.GetStateFor(pindex, m_chainparams.GetConsensus(), m_chainman.m_warningcache.at(bit));
             if (state == ThresholdState::ACTIVE || state == ThresholdState::LOCKED_IN) {
                 const bilingual_str warning = strprintf(_("Unknown new rules activated (versionbit %i)"), bit);
                 if (state == ThresholdState::ACTIVE) {
@@ -4990,7 +4991,7 @@ bool Chainstate::NeedsRedownload() const
     // At and above m_params.SegwitHeight, segwit consensus rules must be validated
     CBlockIndex* block{m_chain.Tip()};
 
-    while (block != nullptr && DeploymentActiveAt(*block, m_chainman.GetConsensus(), m_chainman.m_versionbitscache, Consensus::DEPLOYMENT_SEGWIT)) {
+    while (block != nullptr && DeploymentActiveAt(*block, m_chainparams.GetConsensus(), m_chainman.m_versionbitscache, Consensus::DEPLOYMENT_SEGWIT)) {
         if (!(block->nStatus & BLOCK_OPT_WITNESS)) {
             // block is insufficiently validated for a segwit client
             return true;
@@ -5045,17 +5046,15 @@ bool Chainstate::LoadGenesisBlock()
 {
     LOCK(cs_main);
 
-    const CChainParams& params{m_chainman.GetParams()};
-
     // Check whether we're already initialized by checking for genesis in
     // m_blockman.m_block_index. Note that we can't use m_chain here, since it is
     // set based on the coins db, not the block index db, which is the only
     // thing loaded at this point.
-    if (m_blockman.m_block_index.count(params.GenesisBlock().GetHash()))
+    if (m_blockman.m_block_index.count(m_chainparams.GenesisBlock().GetHash()))
         return true;
 
     try {
-        const CBlock& block = params.GenesisBlock();
+        const CBlock& block = m_chainparams.GenesisBlock();
         FlatFilePos blockPos{m_blockman.WriteBlock(block, 0)};
         if (blockPos.IsNull()) {
             LogError("%s: writing genesis block to disk failed\n", __func__);

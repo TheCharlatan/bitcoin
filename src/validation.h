@@ -575,6 +575,8 @@ public:
 
     const util::SignalInterrupt& m_interrupt;
 
+    const CChainParams& m_chainparams;
+
     explicit Chainstate(
         CTxMemPool* mempool,
         node::BlockManager& blockman,
