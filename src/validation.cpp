@@ -2082,7 +2082,7 @@ void Chainstate::InvalidChainFound(CBlockIndex* pindexNew)
     }
     SetBlockFailureFlags(pindexNew);
     if (m_blockman.m_best_header != nullptr && m_blockman.m_best_header->GetAncestor(pindexNew->nHeight) == pindexNew) {
-        m_chainman.RecalculateBestHeader();
+        RecalculateBestHeader();
     }
 
     LogPrintf("%s: invalid block=%s  height=%d  log2_work=%f  date=%s\n", __func__,
@@ -6453,13 +6453,17 @@ std::optional<int> ChainstateManager::GetSnapshotBaseHeight() const
     return base ? std::make_optional(base->nHeight) : std::nullopt;
 }
 
-void ChainstateManager::RecalculateBestHeader()
+void Chainstate::RecalculateBestHeader()
 {
     AssertLockHeld(cs_main);
-    m_blockman.m_best_header = ActiveChain().Tip();
-    for (auto& entry : m_blockman.m_block_index) {
-        if (!(entry.second.nStatus & BLOCK_FAILED_MASK) && m_blockman.m_best_header->nChainWork < entry.second.nChainWork) {
-            m_blockman.m_best_header = &entry.second;
+    std::vector<CBlockIndex*> vSortedByHeight{m_blockman.GetAllBlockIndices()};
+    std::sort(vSortedByHeight.begin(), vSortedByHeight.end(),
+              CBlockIndexHeightOnlyComparator());
+
+    for (CBlockIndex* pindex : vSortedByHeight) {
+        if (!(pindex->nStatus & BLOCK_FAILED_MASK)) {
+            m_blockman.m_best_header = pindex;
+            break;
         }
     }
 }

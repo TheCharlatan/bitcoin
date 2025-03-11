@@ -804,6 +804,11 @@ public:
         return m_mempool ? &m_mempool->cs : nullptr;
     }
 
+    //! If, due to invalidation / reconsideration of blocks, the previous
+    //! best header is no longer valid / guaranteed to be the most-work
+    //! header in our block-index not known to be invalid, recalculate it.
+    void RecalculateBestHeader() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
 private:
     bool ActivateBestChainStep(BlockValidationState& state, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
     bool ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
@@ -1321,11 +1326,6 @@ public:
     //! Return the height of the base block of the snapshot in use, if one exists, else
     //! nullopt.
     std::optional<int> GetSnapshotBaseHeight() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-
-    //! If, due to invalidation / reconsideration of blocks, the previous
-    //! best header is no longer valid / guaranteed to be the most-work
-    //! header in our block-index not known to be invalid, recalculate it.
-    void RecalculateBestHeader() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     ~ChainstateManager();
 };
