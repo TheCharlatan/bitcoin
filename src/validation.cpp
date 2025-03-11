@@ -1972,6 +1972,7 @@ Chainstate::Chainstate(
       m_signals(chainman.m_options.signals),
       m_script_check_queue(chainman.m_script_check_queue),
       m_assumed_valid_block(*chainman.m_options.assumed_valid_block),
+      m_minimum_chain_work(*chainman.m_options.minimum_chain_work),
       m_blockman(blockman),
       m_chainman(chainman),
       m_interrupt(chainman.m_interrupt),
@@ -2509,7 +2510,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         if (it != m_blockman.m_block_index.end()) {
             if (it->second.GetAncestor(pindex->nHeight) == pindex &&
                 m_blockman.m_best_header->GetAncestor(pindex->nHeight) == pindex &&
-                m_blockman.m_best_header->nChainWork >= m_chainman.MinimumChainWork()) {
+                m_blockman.m_best_header->nChainWork >= m_minimum_chain_work) {
                 // This block is a member of the assumed verified chain and an ancestor of the best header.
                 // Script verification is skipped when connecting blocks under the
                 // assumevalid block. Assuming the assumevalid block is valid this
