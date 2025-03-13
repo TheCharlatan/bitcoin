@@ -571,10 +571,7 @@ public:
     kernel::ChainstateRole GetRole() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! Return whether chain is fully validated, assumed valid, or invalid.
-    ChainValidity Validity() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
-    {
-        return m_validity;
-    }
+    ChainValidity Validity() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /**
      * Initialize the CoinsViews UTXO set database management data structures. The in-memory

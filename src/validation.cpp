@@ -1960,15 +1960,33 @@ fs::path Chainstate::StoragePath() const
 const CBlockIndex* Chainstate::SnapshotBase() const
 {
     if (!m_from_snapshot_blockhash) return nullptr;
-    if (!m_cached_snapshot_base) m_cached_snapshot_base = Assert(m_chainman.m_blockman.LookupBlockIndex(*m_from_snapshot_blockhash));
+    if (!m_cached_snapshot_base) m_cached_snapshot_base = m_chainman.m_blockman.LookupBlockIndex(*m_from_snapshot_blockhash);
     return m_cached_snapshot_base;
 }
 
 const CBlockIndex* Chainstate::TargetBlock() const
 {
     if (!m_target_blockhash) return nullptr;
-    if (!m_cached_target_block) m_cached_target_block = Assert(m_chainman.m_blockman.LookupBlockIndex(*m_target_blockhash));
+    if (!m_cached_target_block) m_cached_target_block = m_chainman.m_blockman.LookupBlockIndex(*m_target_blockhash);
     return m_cached_target_block;
+}
+
+ChainValidity Chainstate::Validity() const
+{
+    if (m_target_blockhash) {
+        if (TargetBlock() && m_chain.Tip() == TargetBlock() && m_target_utxohash) {
+            return ChainValidity::INVALID;
+        } else {
+            return ChainValidity::VALIDATED;
+        }
+    } else if (m_from_snapshot_blockhash) {
+        if (SnapshotBase() && ((SnapshotBase()->nStatus & BLOCK_VALID_MASK) >= BLOCK_VALID_SCRIPTS)) {
+            return ChainValidity::VALIDATED;
+        } else {
+            return ChainValidity::ASSUMED_VALID;
+        }
+    }
+    return ChainValidity::VALIDATED;
 }
 
 void Chainstate::SetTargetBlock(CBlockIndex* block) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
