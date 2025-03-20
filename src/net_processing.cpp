@@ -477,7 +477,7 @@ public:
     /** Overridden from CValidationInterface. */
     void ActiveTipChange(const CBlockIndex& new_tip, bool) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_tx_download_mutex);
-    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected) override
+    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& pblock, const std::shared_ptr<CBlockUndo> blockundo, const CBlockIndex* pindexConnected) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_tx_download_mutex);
     void BlockDisconnected(const std::shared_ptr<const CBlock> &block, const CBlockIndex* pindex) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_tx_download_mutex);
@@ -1943,6 +1943,7 @@ void PeerManagerImpl::ActiveTipChange(const CBlockIndex& new_tip, bool is_ibd)
 void PeerManagerImpl::BlockConnected(
     ChainstateRole role,
     const std::shared_ptr<const CBlock>& pblock,
+    const std::shared_ptr<CBlockUndo>,
     const CBlockIndex* pindex)
 {
     // Update this for all chainstate roles so that we don't mistakenly see peers

@@ -706,7 +706,7 @@ public:
     // Block (dis)connection on a given view:
     DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* pindex, CCoinsViewCache& view)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-    bool ConnectBlock(const CBlock& block, BlockValidationState& state, CBlockIndex* pindex,
+    bool ConnectBlock(const CBlock& block, CBlockUndo& blockundo, BlockValidationState& state, CBlockIndex* pindex,
                       CCoinsViewCache& view, bool fJustCheck = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     // Apply the effects of a block disconnection on the UTXO set.

@@ -24,6 +24,7 @@ class TaskRunnerInterface;
 class BlockValidationState;
 class CBlock;
 class CBlockIndex;
+class CBlockUndo;
 struct CBlockLocator;
 enum class MemPoolRemovalReason;
 struct RemovedMempoolTransactionInfo;
@@ -119,7 +120,7 @@ protected:
      *
      * Called on a background thread.
      */
-    virtual void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock> &block, const CBlockIndex *pindex) {}
+    virtual void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock> &block, const std::shared_ptr<CBlockUndo> blockundo, const CBlockIndex *pindex) {}
     /**
      * Notifies listeners of a block being disconnected
      * Provides the block that was disconnected.
@@ -222,7 +223,7 @@ public:
     void TransactionAddedToMempool(const NewMempoolTransactionInfo&, uint64_t mempool_sequence);
     void TransactionRemovedFromMempool(const CTransactionRef&, MemPoolRemovalReason, uint64_t mempool_sequence);
     void MempoolTransactionsRemovedForBlock(const std::vector<RemovedMempoolTransactionInfo>&, unsigned int nBlockHeight);
-    void BlockConnected(ChainstateRole, const std::shared_ptr<const CBlock> &, const CBlockIndex *pindex);
+    void BlockConnected(ChainstateRole, const std::shared_ptr<const CBlock> &, const std::shared_ptr<CBlockUndo>, const CBlockIndex *pindex);
     void BlockDisconnected(const std::shared_ptr<const CBlock> &, const CBlockIndex* pindex);
     void ChainStateFlushed(ChainstateRole, const CBlockLocator &);
     void BlockChecked(const CBlock&, const BlockValidationState&);

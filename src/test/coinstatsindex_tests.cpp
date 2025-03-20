@@ -6,6 +6,7 @@
 #include <index/coinstatsindex.h>
 #include <interfaces/chain.h>
 #include <kernel/coinstats.h>
+#include <undo.h>
 #include <test/util/index.h>
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
@@ -89,6 +90,7 @@ BOOST_FIXTURE_TEST_CASE(coinstatsindex_unclean_shutdown, TestChain100Setup)
         IndexWaitSynced(index, *Assert(m_node.shutdown_signal));
         std::shared_ptr<const CBlock> new_block;
         CBlockIndex* new_block_index = nullptr;
+        std::shared_ptr<CBlockUndo> blockundo = std::make_shared<CBlockUndo>();
         {
             const CScript script_pub_key{CScript() << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG};
             const CBlock block = this->CreateBlock({}, script_pub_key, chainstate);
@@ -99,13 +101,14 @@ BOOST_FIXTURE_TEST_CASE(coinstatsindex_unclean_shutdown, TestChain100Setup)
             BlockValidationState state;
             BOOST_CHECK(CheckBlock(block, state, params.GetConsensus()));
             BOOST_CHECK(m_node.chainman->AcceptBlock(new_block, state, &new_block_index, true, nullptr, nullptr, true));
+            m_node.chainman->m_blockman.ReadBlockUndo(*blockundo, *new_block_index);
             CCoinsViewCache view(&chainstate.CoinsTip());
-            BOOST_CHECK(chainstate.ConnectBlock(block, state, new_block_index, view));
+            BOOST_CHECK(chainstate.ConnectBlock(block, *blockundo, state, new_block_index, view));
         }
         // Send block connected notification, then stop the index without
         // sending a chainstate flushed notification. Prior to #24138, this
         // would cause the index to be corrupted and fail to reload.
-        ValidationInterfaceTest::BlockConnected(ChainstateRole::NORMAL, index, new_block, new_block_index);
+        ValidationInterfaceTest::BlockConnected(ChainstateRole::NORMAL, index, new_block, blockundo, new_block_index);
         index.Stop();
     }
 

@@ -464,9 +464,9 @@ public:
     {
         m_notifications->transactionRemovedFromMempool(tx, reason);
     }
-    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* index) override
+    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const std::shared_ptr<CBlockUndo> block_undo, const CBlockIndex* index) override
     {
-        m_notifications->blockConnected(role, kernel::MakeBlockInfo(index, block.get()));
+        m_notifications->blockConnected(role, kernel::MakeBlockInfo(index, block.get(), block_undo.get()));
     }
     void BlockDisconnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* index) override
     {

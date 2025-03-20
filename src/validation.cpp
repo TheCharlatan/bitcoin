@@ -2437,7 +2437,7 @@ static unsigned int GetBlockScriptFlags(const CBlockIndex& block_index, const Ch
 /** Apply the effects of this block (with given index) on the UTXO set represented by coins.
  *  Validity checks that depend on the UTXO set are also done; ConnectBlock()
  *  can fail if those validity checks fail (among other reasons). */
-bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, CBlockIndex* pindex,
+bool Chainstate::ConnectBlock(const CBlock& block, CBlockUndo& blockundo, BlockValidationState& state, CBlockIndex* pindex,
                                CCoinsViewCache& view, bool fJustCheck)
 {
     AssertLockHeld(cs_main);
@@ -2627,8 +2627,6 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
              Ticks<MillisecondsDouble>(time_2 - time_1),
              Ticks<SecondsDouble>(m_chainman.time_forks),
              Ticks<MillisecondsDouble>(m_chainman.time_forks) / m_chainman.num_blocks_total);
-
-    CBlockUndo blockundo;
 
     // Precomputed transaction data pointers must not be invalidated
     // until after `control` has run the script checks (potentially
@@ -3125,6 +3123,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
 struct PerBlockConnectTrace {
     CBlockIndex* pindex = nullptr;
     std::shared_ptr<const CBlock> pblock;
+    std::shared_ptr<CBlockUndo> blockundo;
     PerBlockConnectTrace() = default;
 };
 /**
@@ -3141,12 +3140,13 @@ private:
 public:
     explicit ConnectTrace() : blocksConnected(1) {}
 
-    void BlockConnected(CBlockIndex* pindex, std::shared_ptr<const CBlock> pblock) {
+    void BlockConnected(CBlockIndex* pindex, std::shared_ptr<const CBlock> pblock, std::shared_ptr<CBlockUndo> blockundo) {
         assert(!blocksConnected.back().pindex);
         assert(pindex);
         assert(pblock);
         blocksConnected.back().pindex = pindex;
         blocksConnected.back().pblock = std::move(pblock);
+        blocksConnected.back().blockundo = std::move(blockundo);
         blocksConnected.emplace_back();
     }
 
@@ -3188,6 +3188,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
         pthisBlock = pblock;
     }
     const CBlock& blockConnecting = *pthisBlock;
+    auto blockundo = std::make_shared<CBlockUndo>();
     // Apply the block atomically to the chain state.
     const auto time_2{SteadyClock::now()};
     SteadyClock::time_point time_3;
@@ -3197,7 +3198,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
              Ticks<MillisecondsDouble>(time_2 - time_1));
     {
         CCoinsViewCache view(&CoinsTip());
-        bool rv = ConnectBlock(blockConnecting, state, pindexNew, view);
+        bool rv = ConnectBlock(blockConnecting, *blockundo, state, pindexNew, view);
         if (m_chainman.m_options.signals) {
             m_chainman.m_options.signals->BlockChecked(blockConnecting, state);
         }
@@ -3262,7 +3263,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
         m_chainman.MaybeCompleteSnapshotValidation();
     }
 
-    connectTrace.BlockConnected(pindexNew, std::move(pthisBlock));
+    connectTrace.BlockConnected(pindexNew, std::move(pthisBlock), std::move(blockundo));
     return true;
 }
 
@@ -3548,7 +3549,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                 for (const PerBlockConnectTrace& trace : connectTrace.GetBlocksConnected()) {
                     assert(trace.pblock && trace.pindex);
                     if (m_chainman.m_options.signals) {
-                        m_chainman.m_options.signals->BlockConnected(chainstate_role, trace.pblock, trace.pindex);
+                        m_chainman.m_options.signals->BlockConnected(chainstate_role, trace.pblock, trace.blockundo, trace.pindex);
                     }
                 }
 
@@ -4654,6 +4655,7 @@ bool TestBlockValidity(BlockValidationState& state,
     CCoinsViewCache viewNew(&chainstate.CoinsTip());
     uint256 block_hash(block.GetHash());
     CBlockIndex indexDummy(block);
+    CBlockUndo blockundo;
     indexDummy.pprev = pindexPrev;
     indexDummy.nHeight = pindexPrev->nHeight + 1;
     indexDummy.phashBlock = &block_hash;
@@ -4671,7 +4673,7 @@ bool TestBlockValidity(BlockValidationState& state,
         LogError("%s: Consensus::ContextualCheckBlock: %s\n", __func__, state.ToString());
         return false;
     }
-    if (!chainstate.ConnectBlock(block, state, &indexDummy, viewNew, true)) {
+    if (!chainstate.ConnectBlock(block, blockundo, state, &indexDummy, viewNew, true)) {
         return false;
     }
     assert(state.IsValid());
@@ -4851,11 +4853,12 @@ VerifyDBResult CVerifyDB::VerifyDB(
             m_notifications.progress(_("Verifying blocks…"), percentageDone, false);
             pindex = chainstate.m_chain.Next(pindex);
             CBlock block;
+            CBlockUndo blockundo;
             if (!chainstate.m_blockman.ReadBlock(block, *pindex)) {
                 LogPrintf("Verification error: ReadBlock failed at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
                 return VerifyDBResult::CORRUPTED_BLOCK_DB;
             }
-            if (!chainstate.ConnectBlock(block, state, pindex, coins)) {
+            if (!chainstate.ConnectBlock(block, blockundo, state, pindex, coins)) {
                 LogPrintf("Verification error: found unconnectable block at %d, hash=%s (%s)\n", pindex->nHeight, pindex->GetBlockHash().ToString(), state.ToString());
                 return VerifyDBResult::CORRUPTED_BLOCK_DB;
             }

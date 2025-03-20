@@ -9,14 +9,14 @@
 
 class CBlock;
 class CBlockIndex;
+class CBlockUndo;
 namespace interfaces {
 struct BlockInfo;
 } // namespace interfaces
 
 namespace kernel {
 //! Return data from block index.
-interfaces::BlockInfo MakeBlockInfo(const CBlockIndex* block_index, const CBlock* data = nullptr);
-
+interfaces::BlockInfo MakeBlockInfo(const CBlockIndex* block_index, const CBlock* data = nullptr, const CBlockUndo* undo_data = nullptr);
 } // namespace kernel
 
 //! This enum describes the various roles a specific Chainstate instance can take.

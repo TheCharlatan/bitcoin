@@ -252,7 +252,7 @@ bool BlockFilterIndex::CustomAppend(const interfaces::BlockInfo& block)
 {
     CBlockUndo block_undo;
 
-    if (block.height > 0) {
+    if (block.height > 0 && block.undo_data == nullptr) {
         // pindex variable gives indexing code access to node internals. It
         // will be removed in upcoming commit
         const CBlockIndex* pindex = WITH_LOCK(cs_main, return m_chainstate->m_blockman.LookupBlockIndex(block.hash));
@@ -261,7 +261,7 @@ bool BlockFilterIndex::CustomAppend(const interfaces::BlockInfo& block)
         }
     }
 
-    BlockFilter filter(m_filter_type, *Assert(block.data), block_undo);
+    BlockFilter filter(m_filter_type, *Assert(block.data), block.undo_data ? *block.undo_data : block_undo);
 
     const uint256& header = filter.ComputeHeader(m_last_header);
     bool res = Write(filter, block.height, header);

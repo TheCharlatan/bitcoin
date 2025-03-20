@@ -11,7 +11,7 @@
 class CBlock;
 
 namespace kernel {
-interfaces::BlockInfo MakeBlockInfo(const CBlockIndex* index, const CBlock* data)
+interfaces::BlockInfo MakeBlockInfo(const CBlockIndex* index, const CBlock* data, const CBlockUndo* undo_data)
 {
     interfaces::BlockInfo info{index ? *index->phashBlock : uint256::ZERO};
     if (index) {
@@ -23,6 +23,7 @@ interfaces::BlockInfo MakeBlockInfo(const CBlockIndex* index, const CBlock* data
         info.data_pos = index->nDataPos;
     }
     info.data = data;
+    info.undo_data= undo_data;
     return info;
 }
 } // namespace kernel

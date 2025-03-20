@@ -103,7 +103,7 @@ protected:
     Chainstate* m_chainstate{nullptr};
     const std::string m_name;
 
-    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override;
+    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const std::shared_ptr<CBlockUndo> blockundo, const CBlockIndex* pindex) override;
 
     void ChainStateFlushed(ChainstateRole role, const CBlockLocator& locator) override;
 

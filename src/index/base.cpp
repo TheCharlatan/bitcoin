@@ -187,7 +187,7 @@ void BaseIndex::Sync()
 
 
             CBlock block;
-            interfaces::BlockInfo block_info = kernel::MakeBlockInfo(pindex);
+            interfaces::BlockInfo block_info = kernel::MakeBlockInfo(pindex, nullptr);
             if (!m_chainstate->m_blockman.ReadBlock(block, *pindex)) {
                 FatalErrorf("%s: Failed to read block %s from disk",
                            __func__, pindex->GetBlockHash().ToString());
@@ -268,7 +268,7 @@ bool BaseIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new_ti
     return true;
 }
 
-void BaseIndex::BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex)
+void BaseIndex::BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const std::shared_ptr<CBlockUndo> blockundo, const CBlockIndex* pindex)
 {
     // Ignore events from the assumed-valid chain; we will process its blocks
     // (sequentially) after it is fully verified by the background chainstate. This
@@ -311,7 +311,7 @@ void BaseIndex::BlockConnected(ChainstateRole role, const std::shared_ptr<const 
             return;
         }
     }
-    interfaces::BlockInfo block_info = kernel::MakeBlockInfo(pindex, block.get());
+    interfaces::BlockInfo block_info = kernel::MakeBlockInfo(pindex, block.get(), blockundo.get());
     if (CustomAppend(block_info)) {
         // Setting the best block index is intentionally the last step of this
         // function, so BlockUntilSyncedToCurrentChain callers waiting for the

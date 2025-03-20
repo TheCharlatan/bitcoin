@@ -123,8 +123,10 @@ bool CoinStatsIndex::CustomAppend(const interfaces::BlockInfo& block)
         // pindex variable gives indexing code access to node internals. It
         // will be removed in upcoming commit
         const CBlockIndex* pindex = WITH_LOCK(cs_main, return m_chainstate->m_blockman.LookupBlockIndex(block.hash));
-        if (!m_chainstate->m_blockman.ReadBlockUndo(block_undo, *pindex)) {
-            return false;
+        if (block.undo_data == nullptr) {
+            if (!m_chainstate->m_blockman.ReadBlockUndo(block_undo, *pindex)) {
+                return false;
+            }
         }
 
         std::pair<uint256, DBVal> read_out;
@@ -183,7 +185,8 @@ bool CoinStatsIndex::CustomAppend(const interfaces::BlockInfo& block)
 
             // The coinbase tx has no undo data since no former output is spent
             if (!tx->IsCoinBase()) {
-                const auto& tx_undo{block_undo.vtxundo.at(i - 1)};
+                const CBlockUndo& block_undo_ref = block.undo_data ? *block.undo_data : block_undo;
+                const auto& tx_undo{block_undo_ref.vtxundo.at(i - 1)};
 
                 for (size_t j = 0; j < tx_undo.vprevout.size(); ++j) {
                     Coin coin{tx_undo.vprevout[j]};
