@@ -383,7 +383,7 @@ class TestNode():
     def version_is_at_least(self, ver):
         return self.version is None or self.version >= ver
 
-    def stop_node(self, expected_stderr='', *, wait=0, wait_until_stopped=True):
+    def stop_node(self, expected_stderr='', *, wait=0, wait_until_stopped=True, check_stderr=True):
         """Stop the node."""
         if not self.running:
             return
@@ -405,9 +405,9 @@ class TestNode():
 
         assert (not expected_stderr) or wait_until_stopped  # Must wait to check stderr
         if wait_until_stopped:
-            self.wait_until_stopped(expected_stderr=expected_stderr)
+            self.wait_until_stopped(expected_stderr=expected_stderr, check_stderr=check_stderr)
 
-    def is_node_stopped(self, *, expected_stderr="", expected_ret_code=0):
+    def is_node_stopped(self, *, expected_stderr="", expected_ret_code=0, check_stderr=True):
         """Checks whether the node has stopped.
 
         Returns True if the node has stopped. False otherwise.
@@ -422,10 +422,11 @@ class TestNode():
         assert return_code == expected_ret_code, self._node_msg(
             f"Node returned unexpected exit code ({return_code}) vs ({expected_ret_code}) when stopping")
         # Check that stderr is as expected
-        self.stderr.seek(0)
-        stderr = self.stderr.read().decode('utf-8').strip()
-        if stderr != expected_stderr:
-            raise AssertionError("Unexpected stderr {} != {}".format(stderr, expected_stderr))
+        if check_stderr:
+            self.stderr.seek(0)
+            stderr = self.stderr.read().decode('utf-8').strip()
+            if stderr != expected_stderr:
+                raise AssertionError("Unexpected stderr {} != {}".format(stderr, expected_stderr))
 
         self.stdout.close()
         self.stderr.close()
