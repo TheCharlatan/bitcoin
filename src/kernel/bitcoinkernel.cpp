@@ -402,8 +402,7 @@ public:
 
     Context(const ContextOptions* options, bool& sane)
         : m_context{std::make_unique<kernel::Context>()},
-          m_interrupt{std::make_unique<util::SignalInterrupt>()},
-          m_signals{std::make_unique<ValidationSignals>(std::make_unique<ImmediateTaskRunner>())}
+          m_interrupt{std::make_unique<util::SignalInterrupt>()}
     {
         if (options) {
             LOCK(options->m_mutex);
