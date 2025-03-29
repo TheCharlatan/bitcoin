@@ -4,6 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 import subprocess
+import os
 
 from test_framework.test_framework import BitcoinTestFramework
 
@@ -27,8 +28,10 @@ class BitcoinChainstateTest(BitcoinTestFramework):
             text=True
         )
         stdout, stderr = proc.communicate(input=input + "\n", timeout=5)
-        self.log.debug("STDOUT: {0}".format(stdout.strip("\n")))
+        self.log.info("STDOUT: {0}".format(stdout.strip("\n")))
         self.log.info("STDERR: {0}".format(stderr.strip("\n")))
+        return_code = proc.returncode
+        self.log.info(f"Return code: {return_code}")
 
         if expected_stderr not in stderr:
             raise AssertionError(f"Expected stderr output {expected_stderr} does not partially match stderr:\n{stderr}")
@@ -37,6 +40,39 @@ class BitcoinChainstateTest(BitcoinTestFramework):
         node = self.nodes[0]
         datadir = node.cli.datadir
         node.stop_node()
+
+
+        binary_path = self.get_binaries().chainstate_argv()[0]
+        binary_dir = os.path.dirname(binary_path)
+
+        self.log.info(f"Testing bitcoin-chainstate: {binary_path}")
+
+        # List all files in the directory to confirm DLL presence
+        self.log.info(f"Files in binary directory: {os.listdir(binary_dir)}")
+
+        # Get DLL dependencies using dumpbin (available in VS environment)
+        try:
+            dumpbin_output = subprocess.check_output(
+                ["dumpbin", "/DEPENDENTS", binary_path],
+                stderr=subprocess.STDOUT,
+                text=True
+            )
+            self.log.info(f"DLL dependencies: {dumpbin_output}")
+        except Exception as e:
+            self.log.warning(f"Failed to get DLL dependencies: {e}")
+
+        # Try running a basic command to see if it works at all
+        try:
+            version_output = subprocess.check_output(
+                [binary_path],
+                stderr=subprocess.STDOUT,
+                text=True
+            )
+            self.log.info(f"Version output: {version_output}")
+        except subprocess.CalledProcessError as e:
+            self.log.warning(f"Failed to get version: {e.returncode}, output: {e.output}")
+        except Exception as e:
+            self.log.warning(f"Exception while getting version: {e}")
 
         self.log.info(f"Testing bitcoin-chainstate {self.get_binaries().chainstate_argv()} with datadir: {datadir}")
         block_one = "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e362990101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000"

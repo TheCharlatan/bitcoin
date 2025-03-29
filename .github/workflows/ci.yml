@@ -234,6 +234,12 @@ jobs:
         run: |
           ctest --output-on-failure --stop-on-failure -j $env:NUMBER_OF_PROCESSORS -C Release
 
+      - name: Copy DLL for test
+        if: matrix.job-type == 'standard'
+        shell: powershell
+        run: |
+          Copy-Item "${{ github.workspace }}\build\lib\Release\bitcoinkernel.dll" -Destination "${{ github.workspace }}\build\bin\Release\" -Force
+
       - name: Run functional tests
         if: matrix.job-type == 'standard'
         working-directory: build
