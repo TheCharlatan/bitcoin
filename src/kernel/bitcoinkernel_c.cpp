@@ -13,6 +13,7 @@
 #include <span>
 #include <string_view>
 
+using kernel_header::ChainParameters;
 using kernel_header::Context;
 using kernel_header::ContextOptions;
 using kernel_header::Logger;
@@ -48,6 +49,30 @@ const ContextOptions* cast_const_context_options(const kernel_ContextOptions* op
 {
     assert(options);
     return reinterpret_cast<const ContextOptions*>(options);
+}
+
+ContextOptions* cast_context_options(kernel_ContextOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<ContextOptions*>(options);
+}
+
+const ChainParameters* cast_const_chain_params(const kernel_ChainParameters* chain_params)
+{
+    assert(chain_params);
+    return reinterpret_cast<const ChainParameters*>(chain_params);
+}
+
+ChainParameters* cast_chain_params(kernel_ChainParameters* chain_params)
+{
+    assert(chain_params);
+    return reinterpret_cast<ChainParameters*>(chain_params);
+}
+
+Context* cast_context(kernel_Context* context)
+{
+    assert(context);
+    return reinterpret_cast<Context*>(context);
 }
 } // namespace
 
@@ -143,15 +168,34 @@ kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback ca
     return reinterpret_cast<kernel_LoggingConnection*>(logger);
 }
 
+kernel_ChainParameters* kernel_chain_parameters_create(const kernel_ChainType chain_type)
+{
+    return reinterpret_cast<kernel_ChainParameters*>(new ChainParameters(chain_type));
+}
+
+void kernel_chain_parameters_destroy(kernel_ChainParameters* chain_parameters)
+{
+    if (chain_parameters) {
+        delete cast_chain_params(chain_parameters);
+    }
+}
+
 kernel_ContextOptions* kernel_context_options_create()
 {
     return reinterpret_cast<kernel_ContextOptions*>(new ContextOptions{});
 }
 
+void kernel_context_options_set_chainparams(kernel_ContextOptions* options_, const kernel_ChainParameters* chain_parameters)
+{
+    auto options{cast_context_options(options_)};
+    auto chain_params{cast_const_chain_params(chain_parameters)};
+    options->SetChainParameters(*chain_params);
+}
+
 void kernel_context_options_destroy(kernel_ContextOptions* options)
 {
     if (options) {
-        delete reinterpret_cast<ContextOptions*>(options);
+        delete cast_context_options(options);
     }
 }
 
@@ -169,5 +213,5 @@ kernel_Context* kernel_context_create(const kernel_ContextOptions* options_)
 
 void kernel_context_destroy(kernel_Context* context_)
 {
-    delete reinterpret_cast<Context*>(context_);
+    delete cast_context(context_);
 }
