@@ -6,9 +6,12 @@
 #define BITCOIN_KERNEL_BITCOINKERNEL_HPP
 
 #include <consensus/amount.h>
+#include <kernel/logging_types.h>
 #include <kernel/script_flags.h>
 
+#include <functional>
 #include <memory>
+#include <string_view>
 #include <span>
 
 namespace kernel_header {
@@ -73,6 +76,38 @@ public:
     explicit operator bool() const noexcept { return bool{m_impl}; }
 
     friend class ScriptPubkey;
+};
+
+void AddLogLevelCategory(const BCLog::LogFlags category, const BCLog::Level level);
+
+void EnableLogCategory(const BCLog::LogFlags category);
+
+void DisableLogCategory(const BCLog::LogFlags category);
+
+void DisableLogging();
+
+void SetLogAlwaysPrintCategoryLevel(bool log_always_print_category_level);
+
+void SetLogTimestamps(bool log_timestamps);
+
+void SetLogTimeMicros(bool log_time_micros);
+
+void SetLogThreadnames(bool log_threadnames);
+
+void SetLogSourcelocations(bool log_sourcelocations);
+
+class Logger
+{
+private:
+    struct LoggerImpl;
+    std::unique_ptr<LoggerImpl> m_impl;
+
+public:
+    explicit Logger(std::function<void(std::string_view)> callback) noexcept;
+    ~Logger();
+
+    /** Check whether this Logger object is valid. */
+    explicit operator bool() const noexcept { return bool{m_impl}; }
 };
 
 } // namespace kernel_header

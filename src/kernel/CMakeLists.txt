@@ -151,5 +151,5 @@ install(TARGETS bitcoinkernel
 )
 
 install(FILES bitcoinkernel.h bitcoinkernel.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT Kernel)
-install(FILES script_flags.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kernel COMPONENT Kernel)
+install(FILES script_flags.h logging_types.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kernel COMPONENT Kernel)
 install(FILES ../consensus/amount.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/consensus COMPONENT Kernel)

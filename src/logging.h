@@ -125,6 +125,12 @@ namespace BCLog {
             m_print_callbacks.erase(it);
         }
 
+        size_t NumConnections()
+        {
+            StdLockGuard scoped_lock(m_cs);
+            return m_print_callbacks.size();
+        }
+
         /** Start logging (and flush all buffered messages) */
         bool StartLogging() EXCLUSIVE_LOCKS_REQUIRED(!m_cs);
         /** Only for testing */
@@ -149,6 +155,11 @@ namespace BCLog {
         {
             StdLockGuard scoped_lock(m_cs);
             m_category_log_levels = levels;
+        }
+        void AddCategoryLogLevel(LogFlags category, Level level)
+        {
+            StdLockGuard scoped_lock(m_cs);
+            m_category_log_levels[category] = level;
         }
         bool SetCategoryLogLevel(std::string_view category_str, std::string_view level_str) EXCLUSIVE_LOCKS_REQUIRED(!m_cs);
 
