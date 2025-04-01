@@ -8,6 +8,7 @@
 #include <consensus/amount.h>
 #include <kernel/logging_types.h>
 #include <kernel/script_flags.h>
+#include <util/chaintype.h>
 
 #include <functional>
 #include <memory>
@@ -112,6 +113,20 @@ public:
     explicit operator bool() const noexcept { return bool{m_impl}; }
 };
 
+class ChainParameters
+{
+private:
+    struct ChainParametersImpl;
+    std::unique_ptr<ChainParametersImpl> m_impl;
+
+public:
+    explicit ChainParameters(const ChainType chain_type) noexcept;
+    ~ChainParameters() noexcept;
+
+    friend class ContextOptions;
+};
+
+
 class ContextOptions
 {
 private:
@@ -121,6 +136,8 @@ private:
 public:
     explicit ContextOptions() noexcept;
     ~ContextOptions() noexcept;
+
+    void SetChainParameters(const ChainParameters& chain_parameters) noexcept;
 
     friend class Context;
 };
