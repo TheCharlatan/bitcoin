@@ -10,6 +10,7 @@ include(GNUInstallDirs)
 #       which are absolutely necessary.
 add_library(bitcoinkernel
   bitcoinkernel.cpp
+  bitcoinkernel_c.cpp
   chain.cpp
   checks.cpp
   chainparams.cpp
@@ -148,3 +149,7 @@ install(TARGETS bitcoinkernel
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT libbitcoinkernel
 )
+
+install(FILES bitcoinkernel.h bitcoinkernel.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT Kernel)
+install(FILES script_flags.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kernel COMPONENT Kernel)
+install(FILES ../consensus/amount.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/consensus COMPONENT Kernel)
