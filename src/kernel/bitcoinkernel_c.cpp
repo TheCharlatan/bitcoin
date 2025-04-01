@@ -11,10 +11,17 @@
 #include <cstring>
 #include <exception>
 #include <span>
+#include <string_view>
 
+using kernel_header::Logger;
 using kernel_header::Transaction;
 using kernel_header::ScriptPubkey;
 using kernel_header::TransactionOutput;
+
+using kernel_header::AddLogLevelCategory;
+using kernel_header::DisableLogCategory;
+using kernel_header::DisableLogging;
+using kernel_header::EnableLogCategory;
 
 namespace {
 
@@ -101,3 +108,30 @@ bool kernel_verify_script(const kernel_ScriptPubkey* script_pubkey_,
                         *status);
 }
 
+void kernel_add_log_level_category(const kernel_LogCategory category, const kernel_LogLevel level)
+{
+    AddLogLevelCategory(category, level);
+}
+
+void kernel_enable_log_category(const kernel_LogCategory category)
+{
+    EnableLogCategory(category);
+}
+
+void kernel_disable_log_category(const kernel_LogCategory category)
+{
+    DisableLogCategory(category);
+}
+
+void kernel_disable_logging()
+{
+    DisableLogging();
+}
+
+kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback callback,
+                                                           void* user_data,
+                                                           const kernel_LoggingOptions options)
+{
+    auto logger = new Logger([callback, user_data](std::string_view message) { callback(user_data, message.data(), message.length()); }, options);
+    return reinterpret_cast<kernel_LoggingConnection*>(logger);
+}

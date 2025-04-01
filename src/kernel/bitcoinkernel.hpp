@@ -7,7 +7,9 @@
 
 #include <kernel/bitcoinkernel.h>
 
+#include <functional>
 #include <memory>
+#include <string_view>
 #include <span>
 
 namespace kernel_header {
@@ -71,6 +73,28 @@ public:
     explicit operator bool() const noexcept { return bool{m_impl}; }
 
     friend class ScriptPubkey;
+};
+
+void AddLogLevelCategory(const kernel_LogCategory category, const kernel_LogLevel level);
+
+void EnableLogCategory(const kernel_LogCategory category);
+
+void DisableLogCategory(const kernel_LogCategory category);
+
+void DisableLogging();
+
+class Logger
+{
+private:
+    struct LoggerImpl;
+    std::unique_ptr<LoggerImpl> m_impl;
+
+public:
+    explicit Logger(std::function<void(std::string_view)> callback, const kernel_LoggingOptions& logging_options) noexcept;
+    ~Logger();
+
+    /** Check whether this Logger object is valid. */
+    explicit operator bool() const noexcept { return bool{m_impl}; }
 };
 
 } // namespace kernel_header

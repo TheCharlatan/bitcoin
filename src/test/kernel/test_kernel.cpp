@@ -15,6 +15,7 @@
 using kernel_header::Transaction;
 using kernel_header::TransactionOutput;
 using kernel_header::ScriptPubkey;
+using kernel_header::Logger;
 
 std::vector<unsigned char> hex_string_to_char_vec(std::string_view hex)
 {
@@ -150,10 +151,41 @@ void script_verify_test()
         /*is_taproot*/ true);
 }
 
+void logging_test()
+{
+    kernel_LoggingOptions logging_options = {
+        .log_timestamps = true,
+        .log_time_micros = true,
+        .log_threadnames = false,
+        .log_sourcelocations = false,
+        .always_print_category_levels = true,
+    };
+
+    kernel_add_log_level_category(kernel_LogCategory::kernel_LOG_BENCH, kernel_LogLevel::kernel_LOG_TRACE);
+    kernel_disable_log_category(kernel_LogCategory::kernel_LOG_BENCH);
+    kernel_enable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION);
+    kernel_disable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION);
+
+    // Check that connecting, connecting another, and then disconnecting and connecting a logger again works.
+    {
+        kernel_add_log_level_category(kernel_LogCategory::kernel_LOG_KERNEL, kernel_LogLevel::kernel_LOG_TRACE);
+        kernel_enable_log_category(kernel_LogCategory::kernel_LOG_KERNEL);
+        auto log_func = [](std::string_view message){ std::cout << message; };
+        Logger logger{log_func, logging_options};
+        assert(logger);
+        Logger logger_2{log_func, logging_options};
+        assert(logger_2);
+    }
+    auto log_func = [](std::string_view message){ std::cout << message; };
+    Logger logger{log_func, logging_options};
+    assert(logger);
+}
+
 int main()
 {
     transaction_test();
     script_verify_test();
+    logging_test();
 
     std::cout << "Libbitcoinkernel test completed." << std::endl;
     return 0;
