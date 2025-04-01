@@ -15,6 +15,8 @@
 namespace kernel_header {
 
 class TransactionOutput;
+class Context;
+class ContextOptions;
 
 class Transaction
 {
@@ -94,6 +96,34 @@ public:
     ~Logger();
 
     /** Check whether this Logger object is valid. */
+    explicit operator bool() const noexcept { return bool{m_impl}; }
+};
+
+class ContextOptions
+{
+private:
+    struct ContextOptionsImpl;
+    std::unique_ptr<ContextOptionsImpl> m_impl;
+
+public:
+    explicit ContextOptions() noexcept;
+    ~ContextOptions() noexcept;
+
+    friend class Context;
+};
+
+class Context
+{
+private:
+    struct ContextImpl;
+    std::unique_ptr<ContextImpl> m_impl;
+
+public:
+    explicit Context(const ContextOptions& opts) noexcept;
+    Context() noexcept;
+    ~Context() noexcept;
+
+    /** Check whether this Context object is valid. */
     explicit operator bool() const noexcept { return bool{m_impl}; }
 };
 

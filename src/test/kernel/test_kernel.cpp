@@ -12,6 +12,8 @@
 #include <span>
 #include <vector>
 
+using kernel_header::Context;
+using kernel_header::ContextOptions;
 using kernel_header::Transaction;
 using kernel_header::TransactionOutput;
 using kernel_header::ScriptPubkey;
@@ -181,11 +183,36 @@ void logging_test()
     assert(logger);
 }
 
+void context_test()
+{
+    { // test default context
+        Context context{};
+        assert(context);
+    }
+
+    { // test with context options
+        ContextOptions options{};
+        Context context{options};
+        assert(context);
+    }
+}
+
 int main()
 {
     transaction_test();
     script_verify_test();
     logging_test();
+
+    kernel_LoggingOptions logging_options = {
+        .log_timestamps = true,
+        .log_time_micros = true,
+        .log_threadnames = false,
+        .log_sourcelocations = false,
+        .always_print_category_levels = true,
+    };
+    Logger logger{[](std::string_view message){ std::cout << message; }, logging_options};
+
+    context_test();
 
     std::cout << "Libbitcoinkernel test completed." << std::endl;
     return 0;
