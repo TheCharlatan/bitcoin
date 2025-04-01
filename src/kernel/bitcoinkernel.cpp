@@ -7,14 +7,19 @@
 #include <kernel/bitcoinkernel.hpp>
 
 #include <consensus/amount.h>
+#include <kernel/chainparams.h>
+#include <kernel/checks.h>
 #include <kernel/context.h>
 #include <kernel/logging_types.h>
+#include <kernel/notifications_interface.h>
 #include <logging.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
 #include <serialize.h>
 #include <streams.h>
+#include <util/result.h>
+#include <util/signalinterrupt.h>
 
 #include <exception>
 #include <functional>
@@ -246,5 +251,54 @@ Logger::Logger(std::function<void(std::string_view)> callback) noexcept
 }
 
 Logger::~Logger() = default;
+
+struct ContextOptions::ContextOptionsImpl {
+};
+
+ContextOptions::ContextOptions() noexcept
+{
+    m_impl = std::make_unique<ContextOptionsImpl>();
+}
+
+ContextOptions::~ContextOptions() noexcept = default;
+
+struct Context::ContextImpl {
+    std::unique_ptr<kernel::Context> m_context;
+
+    std::unique_ptr<kernel::Notifications> m_notifications;
+
+    std::unique_ptr<util::SignalInterrupt> m_interrupt;
+
+    std::unique_ptr<const CChainParams> m_chainparams;
+
+    ContextImpl(const ContextOptions& options, bool& sane)
+        : m_context{std::make_unique<kernel::Context>()},
+          m_notifications{std::make_unique<kernel::Notifications>()},
+          m_interrupt{std::make_unique<util::SignalInterrupt>()},
+          m_chainparams{CChainParams::Main()}
+    {
+        if (!kernel::SanityChecks(*m_context)) {
+            LogError("Kernel context sanity check failed.");
+            sane = false;
+        }
+    }
+};
+
+Context::Context(const ContextOptions& options) noexcept
+{
+    bool sane{true};
+    m_impl = std::make_unique<ContextImpl>(options, sane);
+    if (!sane) m_impl = nullptr;
+}
+
+Context::Context() noexcept
+{
+    bool sane{true};
+    ContextOptions options{};
+    m_impl = std::make_unique<ContextImpl>(options, sane);
+    if (!sane) m_impl = nullptr;
+}
+
+Context::~Context() noexcept = default;
 
 } // namespace kernel_header

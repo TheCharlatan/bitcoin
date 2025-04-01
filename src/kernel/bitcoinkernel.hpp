@@ -128,6 +128,34 @@ public:
     explicit operator bool() const noexcept { return bool{m_impl}; }
 };
 
+class BITCOINKERNEL_API ContextOptions
+{
+private:
+    struct ContextOptionsImpl;
+    std::unique_ptr<ContextOptionsImpl> m_impl;
+
+public:
+    explicit ContextOptions() noexcept;
+    ~ContextOptions() noexcept;
+
+    friend class Context;
+};
+
+class BITCOINKERNEL_API Context
+{
+private:
+    struct ContextImpl;
+    std::unique_ptr<ContextImpl> m_impl;
+
+public:
+    explicit Context(const ContextOptions& opts) noexcept;
+    Context() noexcept;
+    ~Context() noexcept;
+
+    /** Check whether this Context object is valid. */
+    explicit operator bool() const noexcept { return bool{m_impl}; }
+};
+
 } // namespace kernel_header
 
 #ifdef _MSC_VER
