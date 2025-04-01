@@ -103,6 +103,20 @@ public:
     explicit operator bool() const noexcept { return bool{m_impl}; }
 };
 
+class ChainParameters
+{
+private:
+    struct ChainParametersImpl;
+    std::unique_ptr<ChainParametersImpl> m_impl;
+
+public:
+    ChainParameters(const kernel_ChainType chain_type) noexcept;
+    ~ChainParameters() noexcept;
+
+    friend class ContextOptions;
+};
+
+
 class ContextOptions
 {
 private:
@@ -112,6 +126,8 @@ private:
 public:
     ContextOptions() noexcept;
     ~ContextOptions() noexcept;
+
+    void SetChainParameters(const ChainParameters& chain_parameters) noexcept;
 
     friend class Context;
 };
