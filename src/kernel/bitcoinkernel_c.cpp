@@ -5,18 +5,88 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <kernel/bitcoinkernel.hpp>
+#include <kernel/logging_types.h>
 
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
+#include <functional>
 #include <span>
+#include <string_view>
 
+using kernel_header::Logger;
 using kernel_header::ScriptPubkey;
 using kernel_header::Transaction;
 using kernel_header::TransactionOutput;
 
+using kernel_header::AddLogLevelCategory;
+using kernel_header::DisableLogCategory;
+using kernel_header::DisableLogging;
+using kernel_header::EnableLogCategory;
+using kernel_header::SetLogAlwaysPrintCategoryLevel;
+using kernel_header::SetLogSourcelocations;
+using kernel_header::SetLogThreadnames;
+using kernel_header::SetLogTimeMicros;
+using kernel_header::SetLogTimestamps;
+
 namespace {
+
+BCLog::Level get_bclog_level(const kernel_LogLevel level)
+{
+    switch (level) {
+    case kernel_LogLevel::kernel_LOG_INFO: {
+        return BCLog::Level::Info;
+    }
+    case kernel_LogLevel::kernel_LOG_DEBUG: {
+        return BCLog::Level::Debug;
+    }
+    case kernel_LogLevel::kernel_LOG_TRACE: {
+        return BCLog::Level::Trace;
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+BCLog::LogFlags get_bclog_flag(const kernel_LogCategory category)
+{
+    switch (category) {
+    case kernel_LogCategory::kernel_LOG_BENCH: {
+        return BCLog::LogFlags::BENCH;
+    }
+    case kernel_LogCategory::kernel_LOG_BLOCKSTORAGE: {
+        return BCLog::LogFlags::BLOCKSTORAGE;
+    }
+    case kernel_LogCategory::kernel_LOG_COINDB: {
+        return BCLog::LogFlags::COINDB;
+    }
+    case kernel_LogCategory::kernel_LOG_LEVELDB: {
+        return BCLog::LogFlags::LEVELDB;
+    }
+    case kernel_LogCategory::kernel_LOG_MEMPOOL: {
+        return BCLog::LogFlags::MEMPOOL;
+    }
+    case kernel_LogCategory::kernel_LOG_PRUNE: {
+        return BCLog::LogFlags::PRUNE;
+    }
+    case kernel_LogCategory::kernel_LOG_RAND: {
+        return BCLog::LogFlags::RAND;
+    }
+    case kernel_LogCategory::kernel_LOG_REINDEX: {
+        return BCLog::LogFlags::REINDEX;
+    }
+    case kernel_LogCategory::kernel_LOG_VALIDATION: {
+        return BCLog::LogFlags::VALIDATION;
+    }
+    case kernel_LogCategory::kernel_LOG_KERNEL: {
+        return BCLog::LogFlags::KERNEL;
+    }
+    case kernel_LogCategory::kernel_LOG_ALL: {
+        return BCLog::LogFlags::ALL;
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
 
 const Transaction* cast_transaction(const kernel_Transaction* transaction)
 {
@@ -34,6 +104,12 @@ const TransactionOutput* cast_transaction_output(const kernel_TransactionOutput*
 {
     assert(transaction_output);
     return reinterpret_cast<const TransactionOutput*>(transaction_output);
+}
+
+Logger* cast_logger(kernel_LoggingConnection* logging_connection)
+{
+    assert(logging_connection);
+    return reinterpret_cast<Logger*>(logging_connection);
 }
 } // namespace
 
@@ -100,4 +176,62 @@ bool kernel_verify_script(const kernel_ScriptPubkey* script_pubkey_,
         spent_outputs,
         input_index,
         flags);
+}
+
+void kernel_add_log_level_category(const kernel_LogCategory category, const kernel_LogLevel level)
+{
+    AddLogLevelCategory(get_bclog_flag(category), get_bclog_level(level));
+}
+
+void kernel_enable_log_category(const kernel_LogCategory category)
+{
+    EnableLogCategory(get_bclog_flag(category));
+}
+
+void kernel_disable_log_category(const kernel_LogCategory category)
+{
+    DisableLogCategory(get_bclog_flag(category));
+}
+
+void kernel_disable_logging()
+{
+    DisableLogging();
+}
+
+void kernel_set_log_always_print_category_level(bool log_always_print_category_level)
+{
+    SetLogAlwaysPrintCategoryLevel(log_always_print_category_level);
+}
+
+void kernel_set_log_timestamps(bool log_timestamps)
+{
+    SetLogTimestamps(log_timestamps);
+}
+
+void kernel_set_log_time_micros(bool log_time_micros)
+{
+    SetLogTimeMicros(log_time_micros);
+}
+
+void kerenl_set_log_threadname(bool log_threadnames)
+{
+    SetLogThreadnames(log_threadnames);
+}
+
+void kernel_set_log_sourcelocations(bool log_sourcelocations)
+{
+    SetLogSourcelocations(log_sourcelocations);
+}
+
+kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback callback, void* user_data)
+{
+    auto logger = new Logger([callback, user_data](std::string_view message) { callback(user_data, message.data(), message.length()); });
+    return reinterpret_cast<kernel_LoggingConnection*>(logger);
+}
+
+void kernel_logging_connection_destroy(kernel_LoggingConnection* logging_connection)
+{
+    if (logging_connection) {
+        delete cast_logger(logging_connection);
+    }
 }
