@@ -8,6 +8,7 @@
 #include <consensus/amount.h>
 #include <kernel/logging_types.h> // IWYU pragma: keep
 #include <kernel/script_flags.h> // IWYU pragma: keep
+#include <util/chaintype.h>      // IWYU pragma: keep
 
 #include <cstdint>
 #include <functional>
@@ -128,6 +129,20 @@ public:
     explicit operator bool() const noexcept { return bool{m_impl}; }
 };
 
+class BITCOINKERNEL_API ChainParameters
+{
+private:
+    struct ChainParametersImpl;
+    std::unique_ptr<ChainParametersImpl> m_impl;
+
+public:
+    explicit ChainParameters(const ChainType chain_type) noexcept;
+    ~ChainParameters() noexcept;
+
+    friend class ContextOptions;
+};
+
+
 class BITCOINKERNEL_API ContextOptions
 {
 private:
@@ -137,6 +152,8 @@ private:
 public:
     explicit ContextOptions() noexcept;
     ~ContextOptions() noexcept;
+
+    void SetChainParameters(const ChainParameters& chain_parameters) noexcept;
 
     friend class Context;
 };

@@ -5,6 +5,7 @@
 #include <kernel/bitcoinkernel.hpp>
 
 #include <consensus/amount.h>
+#include <util/chaintype.h>
 
 #include <cassert>
 #include <charconv>
@@ -14,6 +15,7 @@
 #include <span>
 #include <vector>
 
+using kernel_header::ChainParameters;
 using kernel_header::Context;
 using kernel_header::ContextOptions;
 using kernel_header::Logger;
@@ -188,8 +190,16 @@ void context_test()
         assert(context);
     }
 
+    { // test with context options, but not options set
+        ContextOptions options{};
+        Context context{options};
+        assert(context);
+    }
+
     { // test with context options
         ContextOptions options{};
+        ChainParameters params{ChainType::MAIN};
+        options.SetChainParameters(params);
         Context context{options};
         assert(context);
     }

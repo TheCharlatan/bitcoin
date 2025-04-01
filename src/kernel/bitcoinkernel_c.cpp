@@ -6,6 +6,7 @@
 
 #include <kernel/bitcoinkernel.hpp>
 #include <kernel/logging_types.h>
+#include <util/chaintype.h>
 
 #include <cassert>
 #include <cstddef>
@@ -15,6 +16,7 @@
 #include <span>
 #include <string_view>
 
+using kernel_header::ChainParameters;
 using kernel_header::Context;
 using kernel_header::ContextOptions;
 using kernel_header::Logger;
@@ -90,6 +92,30 @@ BCLog::LogFlags get_bclog_flag(const kernel_LogCategory category)
     assert(false);
 }
 
+ChainType get_chain_type(kernel_ChainType chain_type)
+
+
+{
+    switch (chain_type) {
+    case kernel_ChainType::kernel_CHAIN_TYPE_MAINNET: {
+        return ChainType::MAIN;
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET: {
+        return ChainType::TESTNET;
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET_4: {
+        return ChainType::TESTNET4;
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_SIGNET: {
+        return ChainType::SIGNET;
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_REGTEST: {
+        return ChainType::REGTEST;
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
 const Transaction* cast_transaction(const kernel_Transaction* transaction)
 {
     assert(transaction);
@@ -118,6 +144,30 @@ const ContextOptions* cast_const_context_options(const kernel_ContextOptions* op
 {
     assert(options);
     return reinterpret_cast<const ContextOptions*>(options);
+}
+
+ContextOptions* cast_context_options(kernel_ContextOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<ContextOptions*>(options);
+}
+
+const ChainParameters* cast_const_chain_params(const kernel_ChainParameters* chain_params)
+{
+    assert(chain_params);
+    return reinterpret_cast<const ChainParameters*>(chain_params);
+}
+
+ChainParameters* cast_chain_params(kernel_ChainParameters* chain_params)
+{
+    assert(chain_params);
+    return reinterpret_cast<ChainParameters*>(chain_params);
+}
+
+Context* cast_context(kernel_Context* context)
+{
+    assert(context);
+    return reinterpret_cast<Context*>(context);
 }
 } // namespace
 
@@ -244,15 +294,34 @@ void kernel_logging_connection_destroy(kernel_LoggingConnection* logging_connect
     }
 }
 
+kernel_ChainParameters* kernel_chain_parameters_create(const kernel_ChainType chain_type)
+{
+    return reinterpret_cast<kernel_ChainParameters*>(new ChainParameters(get_chain_type(chain_type)));
+}
+
+void kernel_chain_parameters_destroy(kernel_ChainParameters* chain_parameters)
+{
+    if (chain_parameters) {
+        delete cast_chain_params(chain_parameters);
+    }
+}
+
 kernel_ContextOptions* kernel_context_options_create()
 {
     return reinterpret_cast<kernel_ContextOptions*>(new ContextOptions{});
 }
 
+void kernel_context_options_set_chainparams(kernel_ContextOptions* options_, const kernel_ChainParameters* chain_parameters)
+{
+    auto options{cast_context_options(options_)};
+    auto chain_params{cast_const_chain_params(chain_parameters)};
+    options->SetChainParameters(*chain_params);
+}
+
 void kernel_context_options_destroy(kernel_ContextOptions* options)
 {
     if (options) {
-        delete reinterpret_cast<ContextOptions*>(options);
+        delete cast_context_options(options);
     }
 }
 
@@ -270,5 +339,5 @@ kernel_Context* kernel_context_create(const kernel_ContextOptions* options_)
 
 void kernel_context_destroy(kernel_Context* context_)
 {
-    delete reinterpret_cast<Context*>(context_);
+    delete cast_context(context_);
 }

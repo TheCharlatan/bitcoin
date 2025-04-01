@@ -18,9 +18,12 @@
 #include <script/script.h>
 #include <serialize.h>
 #include <streams.h>
+#include <sync.h>
+#include <util/chaintype.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
 
+#include <cassert>
 #include <exception>
 #include <functional>
 #include <list>
@@ -252,12 +255,58 @@ Logger::Logger(std::function<void(std::string_view)> callback) noexcept
 
 Logger::~Logger() = default;
 
+struct ChainParameters::ChainParametersImpl {
+    std::unique_ptr<const CChainParams> m_chainparams;
+
+    ChainParametersImpl(const ChainType chain_type)
+    {
+        switch (chain_type) {
+        case ChainType::MAIN: {
+            m_chainparams = CChainParams::Main();
+            return;
+        }
+        case ChainType::TESTNET: {
+            m_chainparams = CChainParams::TestNet();
+            return;
+        }
+        case ChainType::TESTNET4: {
+            m_chainparams = CChainParams::TestNet4();
+            return;
+        }
+        case ChainType::SIGNET: {
+            m_chainparams = CChainParams::SigNet({});
+            return;
+        }
+        case ChainType::REGTEST: {
+            m_chainparams = CChainParams::RegTest({});
+            return;
+        }
+        } // no default case, so the compiler can warn about missing cases
+        assert(false);
+    }
+};
+
+ChainParameters::ChainParameters(const ChainType chain_type) noexcept
+{
+    m_impl = std::make_unique<ChainParametersImpl>(chain_type);
+}
+
+ChainParameters::~ChainParameters() noexcept = default;
+
 struct ContextOptions::ContextOptionsImpl {
+    mutable Mutex m_mutex;
+    std::unique_ptr<const CChainParams> m_chainparams GUARDED_BY(m_mutex);
 };
 
 ContextOptions::ContextOptions() noexcept
 {
     m_impl = std::make_unique<ContextOptionsImpl>();
+}
+
+void ContextOptions::SetChainParameters(const ChainParameters& chain_parameters) noexcept
+{
+    LOCK(m_impl->m_mutex);
+    m_impl->m_chainparams = std::make_unique<const CChainParams>(*chain_parameters.m_impl->m_chainparams);
 }
 
 ContextOptions::~ContextOptions() noexcept = default;
@@ -274,9 +323,19 @@ struct Context::ContextImpl {
     ContextImpl(const ContextOptions& options, bool& sane)
         : m_context{std::make_unique<kernel::Context>()},
           m_notifications{std::make_unique<kernel::Notifications>()},
-          m_interrupt{std::make_unique<util::SignalInterrupt>()},
-          m_chainparams{CChainParams::Main()}
+          m_interrupt{std::make_unique<util::SignalInterrupt>()}
     {
+        {
+            LOCK(options.m_impl->m_mutex);
+            if (options.m_impl->m_chainparams) {
+                m_chainparams = std::make_unique<const CChainParams>(*options.m_impl->m_chainparams);
+            }
+        }
+
+        if (!m_chainparams) {
+            m_chainparams = CChainParams::Main();
+        }
+
         if (!kernel::SanityChecks(*m_context)) {
             LogError("Kernel context sanity check failed.");
             sane = false;
