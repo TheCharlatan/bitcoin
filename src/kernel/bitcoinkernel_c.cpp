@@ -13,6 +13,8 @@
 #include <exception>
 #include <span>
 
+using kernel_header::Context;
+using kernel_header::ContextOptions;
 using kernel_header::Logger;
 using kernel_header::Transaction;
 using kernel_header::ScriptPubkey;
@@ -102,6 +104,11 @@ const TransactionOutput* cast_transaction_output(const kernel_TransactionOutput*
 {
     assert(transaction_output);
     return reinterpret_cast<const TransactionOutput*>(transaction_output);
+}
+const ContextOptions* cast_const_context_options(const kernel_ContextOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<const ContextOptions*>(options);
 }
 } // namespace
 
@@ -216,4 +223,33 @@ kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback ca
 {
     auto logger = new Logger([callback, user_data](std::string_view message) { callback(user_data, message.data(), message.length()); });
     return reinterpret_cast<kernel_LoggingConnection*>(logger);
+}
+
+kernel_ContextOptions* kernel_context_options_create()
+{
+    return reinterpret_cast<kernel_ContextOptions*>(new ContextOptions{});
+}
+
+void kernel_context_options_destroy(kernel_ContextOptions* options)
+{
+    if (options) {
+        delete reinterpret_cast<ContextOptions*>(options);
+    }
+}
+
+kernel_Context* kernel_context_create(const kernel_ContextOptions* options_)
+{
+    auto options{cast_const_context_options(options_)};
+    Context* context{nullptr};
+    if (!options) {
+        context = new Context{};
+    } else {
+        context = new Context{*options};
+    }
+    return reinterpret_cast<kernel_Context*>(context);
+}
+
+void kernel_context_destroy(kernel_Context* context_)
+{
+    delete reinterpret_cast<Context*>(context_);
 }
