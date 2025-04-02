@@ -9,6 +9,7 @@
 #include <kernel/bitcoinkernel.h>
 
 #include <consensus/amount.h>
+#include <consensus/validation.h>
 #include <kernel/caches.h>
 #include <kernel/chainparams.h>
 #include <kernel/chainstatemanager_opts.h>
@@ -18,6 +19,7 @@
 #include <kernel/warning.h>
 #include <logging.h>
 #include <node/blockstorage.h>
+#include <node/chainstate.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
@@ -35,6 +37,7 @@
 #include <functional>
 #include <span>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -511,6 +514,7 @@ struct ChainstateManagerOptions::ChainstateManagerOptionsImpl
     mutable Mutex m_mutex;
     kernel::ChainstateManagerOpts m_chainman_options GUARDED_BY(m_mutex);
     node::BlockManager::Options m_blockman_options GUARDED_BY(m_mutex);
+    node::ChainstateLoadOptions m_chainstate_load_options GUARDED_BY(m_mutex);
 
     ChainstateManagerOptionsImpl(const Context& context, const fs::path& data_dir, const fs::path& blocks_dir)
        : m_chainman_options{kernel::ChainstateManagerOpts{
@@ -524,7 +528,8 @@ struct ChainstateManagerOptions::ChainstateManagerOptionsImpl
               .block_tree_db_params = DBParams{
                   .path = data_dir / "blocks" / "index",
                   .cache_bytes = kernel::CacheSizes{DEFAULT_KERNEL_CACHE}.block_tree_db,
-              }}}
+              }}},
+          m_chainstate_load_options{node::ChainstateLoadOptions{}}
     {
     }
 };
@@ -569,17 +574,49 @@ ChainstateManager::ChainstateManager(const Context& context, const ChainstateMan
     } catch (const std::exception& e) {
         LogError("Failed to create chainstate manager: %s", e.what());
         m_impl = nullptr;
+        return;
+    }
+    try {
+        const auto chainstate_load_opts{WITH_LOCK(chainstate_manager_options.m_impl->m_mutex, return chainstate_manager_options.m_impl->m_chainstate_load_options)};
+
+        kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
+        auto [status, chainstate_err]{node::LoadChainstate(m_impl->m_chainman, cache_sizes, chainstate_load_opts)};
+        if (status != node::ChainstateLoadStatus::SUCCESS) {
+            LogError("Failed to load chain state from your data directory: %s", chainstate_err.original);
+            m_impl = nullptr;
+            return;
+        }
+        std::tie(status, chainstate_err) = node::VerifyLoadedChainstate(m_impl->m_chainman, chainstate_load_opts);
+        if (status != node::ChainstateLoadStatus::SUCCESS) {
+            LogError("Failed to verify loaded chain state from your datadir: %s", chainstate_err.original);
+            m_impl = nullptr;
+            return;
+        }
+
+        for (Chainstate* chainstate : WITH_LOCK(m_impl->m_chainman.GetMutex(), return m_impl->m_chainman.GetAll())) {
+            BlockValidationState state;
+            if (!chainstate->ActivateBestChain(state, nullptr)) {
+                LogError("Failed to connect best block: %s", state.ToString());
+                m_impl = nullptr;
+                return;
+            }
+        }
+    } catch (const std::exception& e) {
+        LogError("Failed to load chainstate: %s", e.what());
+        m_impl = nullptr;
     }
 }
 
 ChainstateManager::~ChainstateManager() noexcept
 {
-    LOCK(m_impl->m_chainman.GetMutex());
+    if (m_impl) {
+        LOCK(m_impl->m_chainman.GetMutex());
 
-    for (Chainstate* chainstate : m_impl->m_chainman.GetAll()) {
-        if (chainstate->CanFlushToDisk()) {
-            chainstate->ForceFlushStateToDisk();
-            chainstate->ResetCoinsViews();
+        for (Chainstate* chainstate : m_impl->m_chainman.GetAll()) {
+            if (chainstate->CanFlushToDisk()) {
+                chainstate->ForceFlushStateToDisk();
+                chainstate->ResetCoinsViews();
+            }
         }
     }
 }
