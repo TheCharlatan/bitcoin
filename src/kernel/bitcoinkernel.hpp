@@ -195,6 +195,8 @@ public:
     /** Check whether this Context object is valid. */
     explicit operator bool() const noexcept { return bool{m_impl}; }
 
+	bool Interrupt() noexcept;
+
     friend class ChainstateManagerOptions;
     friend class ChainstateManager;
 };
