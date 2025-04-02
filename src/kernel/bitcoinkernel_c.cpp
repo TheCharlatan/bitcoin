@@ -386,6 +386,23 @@ void kernel_block_destroy(kernel_Block* block)
     }
 }
 
+bool kernel_import_blocks(const kernel_Context* context_,
+                          kernel_ChainstateManager* chainman_,
+                          const char** block_file_paths,
+                          size_t* block_file_paths_lens,
+                          size_t block_file_paths_len)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+	std::vector<std::string> import_files;
+	import_files.reserve(block_file_paths_len);
+    for (uint32_t i = 0; i < block_file_paths_len; i++) {
+        if (block_file_paths[i] != nullptr) {
+            import_files.emplace_back(block_file_paths[i], block_file_paths_lens[i]);
+        }
+    }
+	return chainman->ImportBlocks(import_files);
+}
+
 bool kernel_chainstate_manager_process_block(
     const kernel_Context* context_,
     kernel_ChainstateManager* chainman_,
