@@ -244,6 +244,22 @@ public:
     friend class ChainstateManager;
 };
 
+class BITCOINKERNEL_API Block
+{
+private:
+    struct BlockImpl;
+    std::unique_ptr<BlockImpl> m_impl;
+
+public:
+    explicit Block(const std::span<const unsigned char> raw_block) noexcept;
+    ~Block() noexcept;
+
+    /** Check whether this Block object is valid. */
+    explicit operator bool() const noexcept { return bool{m_impl}; }
+
+    friend class ChainstateManager;
+};
+
 class BITCOINKERNEL_API ChainstateManager
 {
 private:
@@ -254,6 +270,8 @@ private:
 public:
     explicit ChainstateManager(const Context& context, const ChainstateManagerOptions& chainstatemanager_options) noexcept;
     ~ChainstateManager() noexcept;
+
+    bool ProcessBlock(const Block& block, bool& new_block) const noexcept;
 
     /** Check whether this ChainMan object is valid. */
     explicit operator bool() const noexcept { return m_impl != nullptr; }

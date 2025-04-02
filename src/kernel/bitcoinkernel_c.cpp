@@ -20,6 +20,7 @@
 #include <string>
 #include <string_view>
 
+using kernel_header::Block;
 using kernel_header::BlockIndex;
 using kernel_header::ChainParameters;
 using kernel_header::ChainstateManager;
@@ -224,6 +225,12 @@ ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman)
 {
     assert(chainman);
     return reinterpret_cast<ChainstateManager*>(chainman);
+}
+
+Block* cast_block(kernel_Block* block)
+{
+    assert(block);
+    return reinterpret_cast<Block*>(block);
 }
 
 class CallbackKernelNotifications : public KernelNotifications
@@ -490,4 +497,35 @@ void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainman_, cons
 {
     if (!chainman_) return;
     delete cast_chainstate_manager(chainman_);
+}
+
+kernel_Block* kernel_block_create(const unsigned char* raw_block, size_t raw_block_length)
+{
+    auto block = new Block{std::span{raw_block, raw_block_length}};
+    if (!*block) {
+        delete block;
+        return nullptr;
+    }
+
+    return reinterpret_cast<kernel_Block*>(block);
+}
+
+void kernel_block_destroy(kernel_Block* block)
+{
+    if (block) {
+        delete cast_block(block);
+    }
+}
+
+bool kernel_chainstate_manager_process_block(
+    const kernel_Context* context_,
+    kernel_ChainstateManager* chainman_,
+    kernel_Block* block_,
+    bool* new_block)
+{
+    auto& chainman{*cast_chainstate_manager(chainman_)};
+
+    auto block{cast_block(block_)};
+
+    return chainman.ProcessBlock(*block, *new_block);
 }
