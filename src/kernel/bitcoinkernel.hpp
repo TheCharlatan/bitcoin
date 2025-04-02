@@ -207,6 +207,8 @@ public:
 
     void SetWorkerThreads(int worker_threads) const noexcept;
 
+	bool SetWipeDbs(bool wipe_block_tree, bool wipe_chainstate) const noexcept;
+
     friend class ChainstateManager;
 };
 
