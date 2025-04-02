@@ -8,12 +8,17 @@
 #include <charconv>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
+#include <random>
 #include <span>
+#include <string>
 #include <vector>
 
 using kernel_header::BlockIndex;
 using kernel_header::ChainParameters;
+using kernel_header::ChainstateManager;
+using kernel_header::ChainstateManagerOptions;
 using kernel_header::Context;
 using kernel_header::ContextOptions;
 using kernel_header::KernelNotifications;
@@ -21,6 +26,24 @@ using kernel_header::Transaction;
 using kernel_header::TransactionOutput;
 using kernel_header::ScriptPubkey;
 using kernel_header::Logger;
+
+std::string random_string(uint32_t length)
+{
+    const std::string chars = "0123456789"
+                              "abcdefghijklmnopqrstuvwxyz"
+                              "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    static std::random_device rd;
+    static std::default_random_engine dre{rd()};
+    static std::uniform_int_distribution<> distribution(0, chars.size() - 1);
+
+    std::string random;
+    random.reserve(length);
+    for (uint32_t i = 0; i < length; i++) {
+        random += chars[distribution(dre)];
+    }
+    return random;
+}
 
 std::vector<unsigned char> hex_string_to_char_vec(std::string_view hex)
 {
@@ -36,6 +59,20 @@ std::vector<unsigned char> hex_string_to_char_vec(std::string_view hex)
     }
     return bytes;
 }
+
+struct TestDirectory {
+    std::filesystem::path m_directory;
+    TestDirectory(std::string directory_name)
+        : m_directory{std::filesystem::temp_directory_path() / (directory_name + random_string(16))}
+    {
+        std::filesystem::create_directories(m_directory);
+    }
+
+    ~TestDirectory()
+    {
+        std::filesystem::remove_all(m_directory);
+    }
+};
 
 class TestKernelNotifications : public KernelNotifications
 {
@@ -249,6 +286,49 @@ void context_test()
     }
 }
 
+Context create_context(std::shared_ptr<TestKernelNotifications> notifications, kernel_ChainType chain_type)
+{
+    ContextOptions options{};
+    ChainParameters params{chain_type};
+    options.SetChainParameters(params);
+    options.SetNotifications(notifications);
+    return Context{options};
+}
+
+void chainman_test()
+{
+    auto test_directory{TestDirectory{"chainman_test_bitcoin_kernel"}};
+
+    { // test with default context
+        Context context{};
+        assert(context);
+        ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+        assert(chainman_opts);
+        ChainstateManager chainman{context, chainman_opts};
+        assert(chainman);
+    }
+
+    { // test with default context options
+        ContextOptions options{};
+        Context context{options};
+        assert(context);
+        ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+        assert(chainman_opts);
+        ChainstateManager chainman{context, chainman_opts};
+        assert(chainman);
+    }
+
+    auto notifications{std::make_shared<TestKernelNotifications>()};
+    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    assert(context);
+
+    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+    assert(chainman_opts);
+
+    ChainstateManager chainman{context, chainman_opts};
+    assert(chainman);
+}
+
 int main()
 {
     transaction_test();
@@ -265,6 +345,8 @@ int main()
     Logger logger{[](std::string_view message){ std::cout << message; }, logging_options};
 
     context_test();
+
+    chainman_test();
 
     std::cout << "Libbitcoinkernel test completed." << std::endl;
     return 0;
