@@ -450,6 +450,11 @@ Context::Context() noexcept
 
 Context::~Context() noexcept = default;
 
+bool Context::Interrupt() noexcept
+{
+    return (*m_impl->m_interrupt)();
+}
+
 struct Block::BlockImpl {
     std::shared_ptr<CBlock> m_block;
 
