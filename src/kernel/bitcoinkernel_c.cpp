@@ -458,6 +458,12 @@ kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const 
     return reinterpret_cast<kernel_ChainstateManagerOptions*>(chainman_opts);
 }
 
+void kernel_chainstate_manager_options_set_worker_threads_num(kernel_ChainstateManagerOptions* opts_, int worker_threads)
+{
+    auto opts{cast_chainstate_manager_options(opts_)};
+    opts->SetWorkerThreads(worker_threads);
+}
+
 void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* options)
 {
     if (options) {

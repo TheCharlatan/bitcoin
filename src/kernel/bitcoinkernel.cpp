@@ -482,6 +482,12 @@ ChainstateManagerOptions::ChainstateManagerOptions(const Context& context, const
     }
 }
 
+void ChainstateManagerOptions::SetWorkerThreads(int worker_threads) const noexcept
+{
+    LOCK(m_impl->m_mutex);
+    m_impl->m_chainman_options.worker_threads_num = worker_threads;
+}
+
 ChainstateManagerOptions::~ChainstateManagerOptions() noexcept = default;
 
 struct ChainstateManager::ChainstateManagerImpl {
