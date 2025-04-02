@@ -323,6 +323,7 @@ void chainman_test()
 
     ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     assert(chainman_opts);
+    chainman_opts.SetWorkerThreads(4);
 
     ChainstateManager chainman{context, chainman_opts};
     assert(chainman);

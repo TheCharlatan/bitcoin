@@ -221,6 +221,8 @@ public:
     /** Check whether this ChainstateManagerOptions object is valid. */
     explicit operator bool() const noexcept { return bool{m_impl}; }
 
+    void SetWorkerThreads(int worker_threads) const noexcept;
+
     friend class ChainstateManager;
 };
 
