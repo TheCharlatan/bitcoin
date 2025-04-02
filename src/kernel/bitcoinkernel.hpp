@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 #include <span>
+#include <string>
 #include <string_view>
 
 #ifndef BITCOINKERNEL_API
@@ -173,6 +174,7 @@ public:
     virtual void FatalErrorHandler(std::string_view error) {}
 
     friend class ContextOptions;
+    friend class ChainstateManagerOptions;
 };
 
 class BITCOINKERNEL_API ChainParameters
@@ -219,6 +221,40 @@ public:
 
     /** Check whether this Context object is valid. */
     explicit operator bool() const noexcept { return bool{m_impl}; }
+
+    friend class ChainstateManagerOptions;
+    friend class ChainstateManager;
+};
+
+class BITCOINKERNEL_API ChainstateManagerOptions
+{
+private:
+    struct ChainstateManagerOptionsImpl;
+    std::unique_ptr<ChainstateManagerOptionsImpl> m_impl;
+
+public:
+    explicit ChainstateManagerOptions(const Context& context, const std::string& data_dir, const std::string& blocks_dir) noexcept;
+    ~ChainstateManagerOptions() noexcept;
+
+    /** Check whether this ChainstateManagerOptions object is valid. */
+    explicit operator bool() const noexcept { return bool{m_impl}; }
+
+    friend class ChainstateManager;
+};
+
+class BITCOINKERNEL_API ChainstateManager
+{
+private:
+    struct ChainstateManagerImpl;
+    std::unique_ptr<ChainstateManagerImpl> m_impl;
+    const Context& m_context;
+
+public:
+    explicit ChainstateManager(const Context& context, const ChainstateManagerOptions& chainstatemanager_options) noexcept;
+    ~ChainstateManager() noexcept;
+
+    /** Check whether this ChainMan object is valid. */
+    explicit operator bool() const noexcept { return m_impl != nullptr; }
 };
 
 } // namespace kernel_header

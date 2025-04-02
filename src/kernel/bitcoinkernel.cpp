@@ -7,12 +7,16 @@
 #include <kernel/bitcoinkernel.hpp>
 
 #include <consensus/amount.h>
+#include <dbwrapper.h>
+#include <kernel/caches.h>
 #include <kernel/chainparams.h>
+#include <kernel/chainstatemanager_opts.h>
 #include <kernel/checks.h>
 #include <kernel/context.h>
 #include <kernel/logging_types.h>
 #include <kernel/notifications_interface.h>
 #include <logging.h>
+#include <node/blockstorage.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
@@ -20,9 +24,11 @@
 #include <streams.h>
 #include <sync.h>
 #include <util/chaintype.h>
+#include <util/fs.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
 #include <util/translation.h>
+#include <validation.h>
 
 #include <cassert>
 #include <exception>
@@ -439,5 +445,76 @@ Context::Context() noexcept
 }
 
 Context::~Context() noexcept = default;
+
+struct ChainstateManagerOptions::ChainstateManagerOptionsImpl {
+    mutable Mutex m_mutex;
+    kernel::ChainstateManagerOpts m_chainman_options GUARDED_BY(m_mutex);
+    node::BlockManager::Options m_blockman_options GUARDED_BY(m_mutex);
+
+    ChainstateManagerOptionsImpl(const Context& context, const fs::path& data_dir, const fs::path& blocks_dir)
+        : m_chainman_options{kernel::ChainstateManagerOpts{
+              .chainparams = *context.m_impl->m_chainparams,
+              .datadir = data_dir,
+              .notifications = *context.m_impl->m_notifications->m_impl}},
+          m_blockman_options{node::BlockManager::Options{
+              .chainparams = *context.m_impl->m_chainparams,
+              .blocks_dir = blocks_dir,
+              .notifications = *context.m_impl->m_notifications->m_impl,
+              .block_tree_db_params = DBParams{
+                  .path = data_dir / "blocks" / "index",
+                  .cache_bytes = kernel::CacheSizes{DEFAULT_KERNEL_CACHE}.block_tree_db,
+              }}}
+    {
+    }
+};
+
+ChainstateManagerOptions::ChainstateManagerOptions(const Context& context, const std::string& data_dir, const std::string& blocks_dir) noexcept
+{
+    try {
+        fs::path abs_data_dir{fs::absolute(fs::PathFromString(data_dir))};
+        fs::create_directories(abs_data_dir);
+        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString(blocks_dir))};
+        fs::create_directories(abs_blocks_dir);
+        m_impl = std::make_unique<ChainstateManagerOptionsImpl>(context, abs_data_dir, abs_blocks_dir);
+    } catch (const std::exception& e) {
+        LogError("Failed to create chainstate manager options: %s", e.what());
+        m_impl = nullptr;
+    }
+}
+
+ChainstateManagerOptions::~ChainstateManagerOptions() noexcept = default;
+
+struct ChainstateManager::ChainstateManagerImpl {
+    ::ChainstateManager m_chainman;
+
+    ChainstateManagerImpl(const Context& context, const ChainstateManagerOptions& chainman_opts)
+        : m_chainman{::ChainstateManager(*context.m_impl->m_interrupt, chainman_opts.m_impl->m_chainman_options, chainman_opts.m_impl->m_blockman_options)}
+    {
+    }
+};
+
+ChainstateManager::ChainstateManager(const Context& context, const ChainstateManagerOptions& chainstate_manager_options) noexcept
+    : m_context{context}
+{
+    try {
+        LOCK(chainstate_manager_options.m_impl->m_mutex);
+        m_impl = std::make_unique<ChainstateManagerImpl>(context, chainstate_manager_options);
+    } catch (const std::exception& e) {
+        LogError("Failed to create chainstate manager: %s", e.what());
+        m_impl = nullptr;
+    }
+}
+
+ChainstateManager::~ChainstateManager() noexcept
+{
+    LOCK(m_impl->m_chainman.GetMutex());
+
+    for (Chainstate* chainstate : m_impl->m_chainman.GetAll()) {
+        if (chainstate->CanFlushToDisk()) {
+            chainstate->ForceFlushStateToDisk();
+            chainstate->ResetCoinsViews();
+        }
+    }
+}
 
 } // namespace kernel_header

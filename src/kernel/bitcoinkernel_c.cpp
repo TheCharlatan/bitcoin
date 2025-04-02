@@ -17,10 +17,13 @@
 #include <functional>
 #include <memory>
 #include <span>
+#include <string>
 #include <string_view>
 
 using kernel_header::BlockIndex;
 using kernel_header::ChainParameters;
+using kernel_header::ChainstateManager;
+using kernel_header::ChainstateManagerOptions;
 using kernel_header::Context;
 using kernel_header::ContextOptions;
 using kernel_header::KernelNotifications;
@@ -197,6 +200,30 @@ Context* cast_context(kernel_Context* context)
 {
     assert(context);
     return reinterpret_cast<Context*>(context);
+}
+
+const Context* cast_const_context(const kernel_Context* context)
+{
+    assert(context);
+    return reinterpret_cast<const Context*>(context);
+}
+
+const ChainstateManagerOptions* cast_const_chainstate_manager_options(const kernel_ChainstateManagerOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<const ChainstateManagerOptions*>(options);
+}
+
+ChainstateManagerOptions* cast_chainstate_manager_options(kernel_ChainstateManagerOptions* options)
+{
+    assert(options);
+    return reinterpret_cast<ChainstateManagerOptions*>(options);
+}
+
+ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman)
+{
+    assert(chainman);
+    return reinterpret_cast<ChainstateManager*>(chainman);
 }
 
 class CallbackKernelNotifications : public KernelNotifications
@@ -417,4 +444,44 @@ kernel_Context* kernel_context_create(const kernel_ContextOptions* options_)
 void kernel_context_destroy(kernel_Context* context_)
 {
     delete cast_context(context_);
+}
+
+kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len, const char* blocks_dir, size_t blocks_dir_len)
+{
+    std::string data_dir_str{data_dir, data_dir_len};
+    std::string blocks_dir_str{blocks_dir, blocks_dir_len};
+    auto context{cast_const_context(context_)};
+    auto chainman_opts{new ChainstateManagerOptions(*context, data_dir_str, blocks_dir_str)};
+    if (!*chainman_opts) {
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_ChainstateManagerOptions*>(chainman_opts);
+}
+
+void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* options)
+{
+    if (options) {
+        delete cast_chainstate_manager_options(options);
+    }
+}
+
+kernel_ChainstateManager* kernel_chainstate_manager_create(
+    const kernel_Context* context_,
+    const kernel_ChainstateManagerOptions* chainman_opts_)
+{
+    auto chainman_opts{cast_const_chainstate_manager_options(chainman_opts_)};
+    auto context{cast_const_context(context_)};
+
+    auto chainman{new ChainstateManager(*context, *chainman_opts)};
+
+    if (!*chainman) {
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_ChainstateManager*>(chainman);
+}
+
+void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainman_, const kernel_Context* context_)
+{
+    if (!chainman_) return;
+    delete cast_chainstate_manager(chainman_);
 }
