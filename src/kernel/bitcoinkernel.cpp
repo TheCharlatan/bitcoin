@@ -8,6 +8,7 @@
 
 #include <kernel/bitcoinkernel.h>
 
+#include <chain.h>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
 #include <kernel/caches.h>
@@ -20,12 +21,14 @@
 #include <logging.h>
 #include <node/blockstorage.h>
 #include <node/chainstate.h>
+#include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
 #include <serialize.h>
 #include <streams.h>
 #include <sync.h>
+#include <uint256.h>
 #include <util/fs.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
@@ -40,8 +43,6 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-
-class CBlockIndex;
 
 // Define G_TRANSLATION_FUN symbol in libbitcoinkernel library so users of the
 // library aren't required to export this symbol
@@ -509,6 +510,30 @@ Context::Context() noexcept
 
 Context::~Context() noexcept = default;
 
+struct Block::BlockImpl
+{
+    std::shared_ptr<CBlock> m_block;
+
+    BlockImpl(std::span<const unsigned char> raw_block)
+    {
+        m_block = std::make_shared<CBlock>();
+        DataStream stream{raw_block};
+        stream >> TX_WITH_WITNESS(*m_block);
+    }
+};
+
+Block::Block(std::span<const unsigned char> raw_block) noexcept
+{
+    try {
+        m_impl = std::make_unique<BlockImpl>(raw_block);
+    } catch (const std::exception& e) {
+        LogDebug(BCLog::KERNEL, "Block decode failed: %s", e.what());
+        m_impl = nullptr;
+    }
+};
+
+Block::~Block() noexcept = default;
+
 struct ChainstateManagerOptions::ChainstateManagerOptionsImpl
 {
     mutable Mutex m_mutex;
@@ -605,6 +630,11 @@ ChainstateManager::ChainstateManager(const Context& context, const ChainstateMan
         LogError("Failed to load chainstate: %s", e.what());
         m_impl = nullptr;
     }
+}
+
+bool ChainstateManager::ProcessBlock(const Block& block, bool& new_block) const noexcept
+{
+	return m_impl->m_chainman.ProcessNewBlock(block.m_impl->m_block, /*force_processing=*/ true, /*min_pow_checked=*/ true, /*new_block=*/ &new_block);
 }
 
 ChainstateManager::~ChainstateManager() noexcept
