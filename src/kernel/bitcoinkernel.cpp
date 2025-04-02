@@ -517,6 +517,18 @@ void ChainstateManagerOptions::SetWorkerThreads(int worker_threads) const noexce
     m_impl->m_chainman_options.worker_threads_num = worker_threads;
 }
 
+bool ChainstateManagerOptions::SetWipeDbs(bool wipe_block_tree, bool wipe_chainstate) const noexcept
+{
+    if (wipe_block_tree && !wipe_chainstate) {
+        LogError("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
+        return false;
+    }
+    LOCK(m_impl->m_mutex);
+    m_impl->m_blockman_options.block_tree_db_params.wipe_data = wipe_block_tree;
+    m_impl->m_chainstate_load_options.wipe_chainstate_db = wipe_chainstate;
+    return true;
+}
+
 ChainstateManagerOptions::~ChainstateManagerOptions() noexcept = default;
 
 struct ChainstateManager::ChainstateManagerImpl {

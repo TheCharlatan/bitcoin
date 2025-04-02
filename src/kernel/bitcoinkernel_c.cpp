@@ -471,6 +471,12 @@ void kernel_chainstate_manager_options_set_worker_threads_num(kernel_ChainstateM
     opts->SetWorkerThreads(worker_threads);
 }
 
+bool kernel_chainstate_manager_options_set_wipe_dbs(kernel_ChainstateManagerOptions* chainman_opts_, bool wipe_block_tree_db, bool wipe_chainstate_db)
+{
+    auto opts{cast_chainstate_manager_options(chainman_opts_)};
+    return opts->SetWipeDbs(wipe_block_tree_db, wipe_chainstate_db);
+}
+
 void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* options)
 {
     if (options) {
