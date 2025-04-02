@@ -529,6 +529,18 @@ bool ChainstateManagerOptions::SetWipeDbs(bool wipe_block_tree, bool wipe_chains
     return true;
 }
 
+void ChainstateManagerOptions::SetBlockTreeDbInMemory(bool block_tree_db_in_memory) const noexcept
+{
+    LOCK(m_impl->m_mutex);
+    m_impl->m_blockman_options.block_tree_db_params.memory_only = block_tree_db_in_memory;
+}
+
+void ChainstateManagerOptions::SetChainstateDbInMemory(bool chainstate_db_in_memory) const noexcept
+{
+    LOCK(m_impl->m_mutex);
+    m_impl->m_chainstate_load_options.coins_db_in_memory = chainstate_db_in_memory;
+}
+
 ChainstateManagerOptions::~ChainstateManagerOptions() noexcept = default;
 
 struct ChainstateManager::ChainstateManagerImpl {

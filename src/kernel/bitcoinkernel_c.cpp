@@ -477,6 +477,23 @@ bool kernel_chainstate_manager_options_set_wipe_dbs(kernel_ChainstateManagerOpti
     return opts->SetWipeDbs(wipe_block_tree_db, wipe_chainstate_db);
 }
 
+
+void kernel_chainstate_manager_options_set_block_tree_db_in_memory(
+    kernel_ChainstateManagerOptions* chainstate_load_opts_,
+    bool block_tree_db_in_memory)
+{
+    auto opts{cast_chainstate_manager_options(chainstate_load_opts_)};
+    opts->SetBlockTreeDbInMemory(block_tree_db_in_memory);
+}
+
+void kernel_chainstate_manager_options_set_chainstate_db_in_memory(
+    kernel_ChainstateManagerOptions* chainstate_load_opts_,
+    bool chainstate_db_in_memory)
+{
+    auto opts{cast_chainstate_manager_options(chainstate_load_opts_)};
+    opts->SetChainstateDbInMemory(chainstate_db_in_memory);
+}
+
 void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* options)
 {
     if (options) {

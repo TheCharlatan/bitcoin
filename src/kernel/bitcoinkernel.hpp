@@ -243,6 +243,10 @@ public:
 
     bool SetWipeDbs(bool wipe_block_tree, bool wipe_chainstate) const noexcept;
 
+    void SetBlockTreeDbInMemory(bool block_tree_db_in_memory) const noexcept;
+
+    void SetChainstateDbInMemory(bool chainstate_db_in_memory) const noexcept;
+
     friend class ChainstateManager;
 };
 
