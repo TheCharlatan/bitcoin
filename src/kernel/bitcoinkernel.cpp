@@ -594,6 +594,23 @@ ChainstateManager::ChainstateManager(const Context& context, const ChainstateMan
     }
 }
 
+bool ChainstateManager::ImportBlocks(const std::span<const std::string> paths) const noexcept
+{
+    std::vector<fs::path> import_files;
+    import_files.reserve(paths.size());
+    for (const auto& path : paths) {
+        import_files.emplace_back(path.c_str());
+    }
+    try {
+        node::ImportBlocks(m_impl->m_chainman, import_files);
+        m_impl->m_chainman.ActiveChainstate().ForceFlushStateToDisk();
+    } catch (const std::exception& e) {
+        LogError("Failed to import blocks: %s", e.what());
+        return false;
+    }
+    return true;
+}
+
 bool ChainstateManager::ProcessBlock(const Block& block, bool& new_block) const noexcept
 {
     return m_impl->m_chainman.ProcessNewBlock(block.m_impl->m_block, /*force_processing=*/true, /*min_pow_checked=*/true, /*new_block=*/&new_block);

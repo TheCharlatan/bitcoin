@@ -277,6 +277,8 @@ public:
     explicit ChainstateManager(const Context& context, const ChainstateManagerOptions& chainstatemanager_options) noexcept;
     ~ChainstateManager() noexcept;
 
+    bool ImportBlocks(const std::span<const std::string> paths) const noexcept;
+
     bool ProcessBlock(const Block& block, bool& new_block) const noexcept;
 
     /** Check whether this ChainMan object is valid. */
