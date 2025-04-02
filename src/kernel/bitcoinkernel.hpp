@@ -99,6 +99,49 @@ public:
     explicit operator bool() const noexcept { return bool{m_impl}; }
 };
 
+class BlockIndex
+{
+private:
+    struct BlockIndexImpl;
+    std::unique_ptr<BlockIndexImpl> m_impl;
+
+public:
+    BlockIndex(std::unique_ptr<BlockIndexImpl> impl) noexcept;
+    ~BlockIndex() noexcept;
+
+    /** Check whether this BlockIndex object is valid. */
+    explicit operator bool() const noexcept { return bool{m_impl}; }
+
+    friend class KernelNotifications;
+};
+
+class KernelNotifications
+{
+private:
+    struct KernelNotificationsImpl;
+    std::unique_ptr<KernelNotificationsImpl> m_impl;
+
+public:
+    explicit KernelNotifications() noexcept;
+    virtual ~KernelNotifications() noexcept;
+
+    virtual void BlockTipHandler(kernel_SynchronizationState state, BlockIndex index) {}
+
+    virtual void HeaderTipHandler(kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {}
+
+    virtual void ProgressHandler(std::string_view title, int progress_percent, bool resume_possible) {}
+
+    virtual void WarningSetHandler(kernel_Warning warning, std::string_view message) {}
+
+    virtual void WarningUnsetHandler(kernel_Warning warning) {}
+
+    virtual void FlushErrorHandler(std::string_view error) {}
+
+    virtual void FatalErrorHandler(std::string_view error) {}
+
+    friend class ContextOptions;
+};
+
 class ChainParameters
 {
 private:
@@ -124,6 +167,8 @@ public:
     ~ContextOptions() noexcept;
 
     void SetChainParameters(const ChainParameters& chain_parameters) noexcept;
+
+    void SetNotifications(std::shared_ptr<KernelNotifications> notifications) noexcept;
 
     friend class Context;
 };

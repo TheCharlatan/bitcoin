@@ -13,6 +13,7 @@
 #include <kernel/checks.h>
 #include <kernel/context.h>
 #include <kernel/notifications_interface.h>
+#include <kernel/warning.h>
 #include <logging.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
@@ -23,6 +24,7 @@
 #include <util/result.h>
 #include <util/signalinterrupt.h>
 #include <util/translation.h>
+#include <validation.h>
 
 #include <cstring>
 #include <exception>
@@ -31,6 +33,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+class CBlockIndex;
 
 // Define G_TRANSLATION_FUN symbol in libbitcoinkernel library so users of the
 // library aren't required to export this symbol
@@ -92,6 +96,31 @@ BCLog::LogFlags get_bclog_flag(const kernel_LogCategory category)
     case kernel_LogCategory::kernel_LOG_ALL: {
         return BCLog::LogFlags::ALL;
     }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+kernel_SynchronizationState cast_state(SynchronizationState state)
+{
+    switch (state) {
+    case SynchronizationState::INIT_REINDEX:
+        return kernel_SynchronizationState::kernel_INIT_REINDEX;
+    case SynchronizationState::INIT_DOWNLOAD:
+        return kernel_SynchronizationState::kernel_INIT_DOWNLOAD;
+    case SynchronizationState::POST_INIT:
+        return kernel_SynchronizationState::kernel_POST_INIT;
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+
+kernel_Warning cast_kernel_warning(kernel::Warning warning)
+{
+    switch (warning) {
+    case kernel::Warning::UNKNOWN_NEW_RULES_ACTIVATED:
+        return kernel_Warning::kernel_LARGE_WORK_INVALID_CHAIN;
+    case kernel::Warning::LARGE_WORK_INVALID_CHAIN:
+        return kernel_Warning::kernel_LARGE_WORK_INVALID_CHAIN;
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }
@@ -292,6 +321,69 @@ Logger::Logger(std::function<void(std::string_view)> callback, const kernel_Logg
 
 Logger::~Logger() = default;
 
+struct BlockIndex::BlockIndexImpl
+{
+    CBlockIndex& m_block_index;
+
+    BlockIndexImpl(CBlockIndex& block_index) : m_block_index{block_index} {}
+
+    friend struct KernelNotificationsImpl;
+};
+
+BlockIndex::BlockIndex(std::unique_ptr<BlockIndex::BlockIndexImpl> impl) noexcept
+    : m_impl{std::move(impl)}
+{
+}
+
+BlockIndex::~BlockIndex() noexcept = default;
+
+struct KernelNotifications::KernelNotificationsImpl : public kernel::Notifications
+{
+    KernelNotifications& m_notifications;
+
+    KernelNotificationsImpl(KernelNotifications& notifications)
+        : m_notifications{notifications}
+    {
+    }
+
+    kernel::InterruptResult blockTip(SynchronizationState state, CBlockIndex& index) override
+    {
+        m_notifications.BlockTipHandler(cast_state(state), BlockIndex{std::make_unique<BlockIndex::BlockIndexImpl>(index)});
+        return {};
+    }
+    void headerTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
+    {
+        m_notifications.HeaderTipHandler(cast_state(state), height, timestamp, presync);
+    }
+    void progress(const bilingual_str& title, int progress_percent, bool resume_possible) override
+    {
+        m_notifications.ProgressHandler(title.original, progress_percent, resume_possible);
+    }
+    void warningSet(kernel::Warning id, const bilingual_str& message) override
+    {
+        m_notifications.WarningSetHandler(cast_kernel_warning(id), message.original);
+    }
+    void warningUnset(kernel::Warning id) override
+    {
+        m_notifications.WarningUnsetHandler(cast_kernel_warning(id));
+    }
+    void flushError(const bilingual_str& message) override
+    {
+        m_notifications.FlushErrorHandler(message.original);
+    }
+    void fatalError(const bilingual_str& message) override
+    {
+        m_notifications.FatalErrorHandler(message.original);
+    }
+};
+
+KernelNotifications::KernelNotifications() noexcept
+{
+    m_impl = std::make_unique<KernelNotificationsImpl>(*this);
+}
+
+KernelNotifications::~KernelNotifications() noexcept = default;
+
 struct ChainParameters::ChainParametersImpl {
     std::unique_ptr<const CChainParams> m_chainparams;
 
@@ -333,6 +425,7 @@ ChainParameters::~ChainParameters() noexcept = default;
 struct ContextOptions::ContextOptionsImpl {
     mutable Mutex m_mutex;
     std::unique_ptr<const CChainParams> m_chainparams GUARDED_BY(m_mutex);
+    std::shared_ptr<KernelNotifications> m_notifications GUARDED_BY(m_mutex);
 };
 
 ContextOptions::ContextOptions() noexcept
@@ -346,13 +439,19 @@ void ContextOptions::SetChainParameters(const ChainParameters& chain_parameters)
     m_impl->m_chainparams = std::make_unique<const CChainParams>(*chain_parameters.m_impl->m_chainparams);
 }
 
+void ContextOptions::SetNotifications(std::shared_ptr<KernelNotifications> notifications) noexcept
+{
+    LOCK(m_impl->m_mutex);
+    m_impl->m_notifications = notifications;
+}
+
 ContextOptions::~ContextOptions() noexcept = default;
 
 struct Context::ContextImpl
 {
     std::unique_ptr<kernel::Context> m_context;
 
-    std::unique_ptr<kernel::Notifications> m_notifications;
+    std::shared_ptr<KernelNotifications> m_notifications;
 
     std::unique_ptr<util::SignalInterrupt> m_interrupt;
 
@@ -360,7 +459,6 @@ struct Context::ContextImpl
 
     ContextImpl(const ContextOptions& options, bool& sane)
         : m_context{std::make_unique<kernel::Context>()},
-          m_notifications{std::make_unique<kernel::Notifications>()},
           m_interrupt{std::make_unique<util::SignalInterrupt>()}
     {
         {
@@ -368,10 +466,16 @@ struct Context::ContextImpl
             if (options.m_impl->m_chainparams) {
                 m_chainparams = std::make_unique<const CChainParams>(*options.m_impl->m_chainparams);
             }
+            if (options.m_impl->m_notifications) {
+                m_notifications = options.m_impl->m_notifications;
+            }
         }
 
         if (!m_chainparams) {
             m_chainparams = CChainParams::Main();
+        }
+        if (!m_notifications) {
+            m_notifications = std::make_unique<KernelNotifications>();
         }
 
         if (!kernel::SanityChecks(*m_context)) {

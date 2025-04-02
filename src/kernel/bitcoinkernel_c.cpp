@@ -13,9 +13,11 @@
 #include <span>
 #include <string_view>
 
+using kernel_header::BlockIndex;
 using kernel_header::ChainParameters;
 using kernel_header::Context;
 using kernel_header::ContextOptions;
+using kernel_header::KernelNotifications;
 using kernel_header::Logger;
 using kernel_header::Transaction;
 using kernel_header::ScriptPubkey;
@@ -74,6 +76,48 @@ Context* cast_context(kernel_Context* context)
     assert(context);
     return reinterpret_cast<Context*>(context);
 }
+
+class CallbackKernelNotifications : public KernelNotifications
+{
+private:
+    kernel_NotificationInterfaceCallbacks m_cbs;
+
+public:
+    CallbackKernelNotifications(kernel_NotificationInterfaceCallbacks cbs)
+        : m_cbs{cbs}
+    {
+    }
+
+    void BlockTipHandler(kernel_SynchronizationState state, BlockIndex index) override
+    {
+        if (m_cbs.block_tip) m_cbs.block_tip((void*)m_cbs.user_data, state, reinterpret_cast<const kernel_BlockIndex*>(&index));
+    }
+    void HeaderTipHandler(kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
+    {
+        if (m_cbs.header_tip) m_cbs.header_tip((void*)m_cbs.user_data, state, height, timestamp, presync);
+    }
+    void ProgressHandler(std::string_view title, int progress_percent, bool resume_possible) override
+    {
+        if (m_cbs.progress) m_cbs.progress((void*)m_cbs.user_data, title.data(), title.length(), progress_percent, resume_possible);
+    }
+    void WarningSetHandler(kernel_Warning id, const std::string_view message) override
+    {
+        if (m_cbs.warning_set) m_cbs.warning_set((void*)m_cbs.user_data, id, message.data(), message.length());
+    }
+    void WarningUnsetHandler(kernel_Warning id) override
+    {
+        if (m_cbs.warning_unset) m_cbs.warning_unset((void*)m_cbs.user_data, id);
+    }
+    void FlushErrorHandler(std::string_view message) override
+    {
+        if (m_cbs.flush_error) m_cbs.flush_error((void*)m_cbs.user_data, message.data(), message.length());
+    }
+    void FatalErrorHandler(std::string_view message) override
+    {
+        if (m_cbs.fatal_error) m_cbs.fatal_error((void*)m_cbs.user_data, message.data(), message.length());
+    }
+};
+
 } // namespace
 
 kernel_Transaction* kernel_transaction_create(const unsigned char* raw_transaction, size_t raw_transaction_len)
@@ -190,6 +234,12 @@ void kernel_context_options_set_chainparams(kernel_ContextOptions* options_, con
     auto options{cast_context_options(options_)};
     auto chain_params{cast_const_chain_params(chain_parameters)};
     options->SetChainParameters(*chain_params);
+}
+
+void kernel_context_options_set_notifications(kernel_ContextOptions* options_, kernel_NotificationInterfaceCallbacks notifications)
+{
+    auto options{cast_context_options(options_)};
+    options->SetNotifications(std::make_shared<CallbackKernelNotifications>(notifications));
 }
 
 void kernel_context_options_destroy(kernel_ContextOptions* options)
