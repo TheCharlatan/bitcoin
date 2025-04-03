@@ -444,6 +444,13 @@ UnownedBlock::UnownedBlock(std::unique_ptr<UnownedBlockImpl> impl) noexcept
 	: m_impl{std::move(impl)}
 {}
 
+std::vector<std::byte> UnownedBlock::GetBlockData() const noexcept
+{
+    DataStream ss{};
+    ss << TX_WITH_WITNESS(*m_impl->m_block);
+    return std::vector<std::byte>{ss.begin(), ss.end()};
+}
+
 UnownedBlock::~UnownedBlock() noexcept = default;
 
 struct BlockValidationState::BlockValidationStateImpl {
@@ -642,6 +649,13 @@ Block::Block(std::span<const unsigned char> raw_block) noexcept
         m_impl = nullptr;
     }
 };
+
+std::vector<std::byte> Block::GetBlockData() const noexcept
+{
+    DataStream ss{};
+    ss << TX_WITH_WITNESS(*m_impl->m_block);
+    return std::vector<std::byte>{ss.begin(), ss.end()};
+}
 
 Block::~Block() noexcept = default;
 

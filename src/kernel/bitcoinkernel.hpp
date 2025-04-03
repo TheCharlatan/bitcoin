@@ -167,6 +167,8 @@ public:
 	~UnownedBlock() noexcept;
 
 	friend class ValidationInterface;
+
+    std::vector<std::byte> GetBlockData() const noexcept;
 };
 
 class BlockValidationState
@@ -272,6 +274,8 @@ private:
 public:
     explicit Block(const std::span<const unsigned char> raw_block) noexcept;
     ~Block() noexcept;
+
+    std::vector<std::byte> GetBlockData() const noexcept;
 
     /** Check whether this Block object is valid. */
     explicit operator bool() const noexcept { return bool{m_impl}; }
