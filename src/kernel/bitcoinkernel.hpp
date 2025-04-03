@@ -184,6 +184,10 @@ private:
 public:
 	BlockValidationState(std::unique_ptr<BlockValidationStateImpl> impl) noexcept;
 	~BlockValidationState() noexcept;
+
+    kernel_ValidationMode ValidationMode() const noexcept;
+    kernel_BlockValidationResult BlockValidationResult() const noexcept;
+
 	friend class ValidationInterface;
 };
 
