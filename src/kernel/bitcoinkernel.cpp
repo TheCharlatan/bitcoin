@@ -31,7 +31,9 @@
 #include <util/result.h>
 #include <util/signalinterrupt.h>
 #include <util/translation.h>
+#include <util/task_runner.h>
 #include <validation.h>
+#include <validationinterface.h>
 
 #include <cstring>
 #include <exception>
@@ -41,6 +43,8 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+
+using util::ImmediateTaskRunner;
 
 // Define G_TRANSLATION_FUN symbol in libbitcoinkernel library so users of the
 // library aren't required to export this symbol
@@ -364,10 +368,47 @@ ChainParameters::ChainParameters(const ChainType chain_type) noexcept
 
 ChainParameters::~ChainParameters() noexcept = default;
 
+struct UnownedBlock::UnownedBlockImpl {
+	const CBlock& m_block;
+
+	UnownedBlockImpl(const CBlock& block) : m_block{block} {}
+};
+
+UnownedBlock::UnownedBlock(std::unique_ptr<UnownedBlockImpl> impl) noexcept
+	: m_impl{std::move(impl)}
+{}
+
+UnownedBlock::~UnownedBlock() noexcept = default;
+
+struct ValidationInterface::ValidationInterfaceImpl final : public CValidationInterface
+{
+	ValidationInterface& m_validation_interface;
+
+	ValidationInterfaceImpl(ValidationInterface& validation_interface)
+		: m_validation_interface{validation_interface}
+	{
+	}
+
+    void BlockChecked(const CBlock& block, const BlockValidationState& block_validation_state) override
+	{
+		m_validation_interface.BlockCheckedHandler(
+			UnownedBlock{std::make_unique<UnownedBlock::UnownedBlockImpl>(block)},
+            block_validation_state);
+	}
+};
+
+ValidationInterface::ValidationInterface() noexcept
+{
+	m_impl = std::make_unique<ValidationInterfaceImpl>(*this);
+}
+
+ValidationInterface::~ValidationInterface() noexcept = default;
+
 struct ContextOptions::ContextOptionsImpl {
     mutable Mutex m_mutex;
     std::unique_ptr<const CChainParams> m_chainparams GUARDED_BY(m_mutex);
     std::shared_ptr<KernelNotifications> m_notifications GUARDED_BY(m_mutex);
+	std::shared_ptr<ValidationInterface> m_validation_interface GUARDED_BY(m_mutex);
 };
 
 ContextOptions::ContextOptions() noexcept
@@ -387,6 +428,12 @@ void ContextOptions::SetNotifications(std::shared_ptr<KernelNotifications> notif
     m_impl->m_notifications = notifications;
 }
 
+void ContextOptions::SetValidationInterface(std::shared_ptr<ValidationInterface> validation_interface) noexcept
+{
+	LOCK(m_impl->m_mutex);
+	m_impl->m_validation_interface = validation_interface;
+}
+
 ContextOptions::~ContextOptions() noexcept = default;
 
 struct Context::ContextImpl
@@ -397,11 +444,16 @@ struct Context::ContextImpl
 
     std::unique_ptr<util::SignalInterrupt> m_interrupt;
 
+	std::unique_ptr<ValidationSignals> m_signals;
+
     std::unique_ptr<const CChainParams> m_chainparams;
+
+	std::shared_ptr<ValidationInterface> m_validation_interface;
 
     ContextImpl(const ContextOptions& options, bool& sane)
         : m_context{std::make_unique<kernel::Context>()},
-          m_interrupt{std::make_unique<util::SignalInterrupt>()}
+          m_interrupt{std::make_unique<util::SignalInterrupt>()},
+		  m_signals{std::make_unique<ValidationSignals>(std::make_unique<ImmediateTaskRunner>())}
     {
         {
             LOCK(options.m_impl->m_mutex);
@@ -411,6 +463,10 @@ struct Context::ContextImpl
             if (options.m_impl->m_notifications) {
                 m_notifications = options.m_impl->m_notifications;
             }
+			if (options.m_impl->m_validation_interface) {
+				m_validation_interface = options.m_impl->m_validation_interface;
+				m_signals->RegisterValidationInterface(m_validation_interface->m_impl.get());
+			}
         }
 
         if (!m_chainparams) {
@@ -442,7 +498,12 @@ Context::Context() noexcept
     if (!sane) m_impl = nullptr;
 }
 
-Context::~Context() noexcept = default;
+Context::~Context() noexcept
+{
+	if (m_impl->m_validation_interface) {
+		m_impl->m_signals->UnregisterValidationInterface(m_impl->m_validation_interface->m_impl.get());
+	}
+}
 
 bool Context::Interrupt() noexcept
 {
