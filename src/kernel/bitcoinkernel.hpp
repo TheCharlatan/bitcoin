@@ -199,6 +199,8 @@ public:
 	friend class ValidationInterface;
 
     std::vector<std::byte> GetBlockData() const noexcept;
+
+    kernel_BlockHash GetHash() const noexcept;
 };
 
 class BlockValidationState
@@ -312,6 +314,8 @@ public:
     Block(Block&& other) noexcept;
 
     std::vector<std::byte> GetBlockData() const noexcept;
+
+    kernel_BlockHash GetHash() const noexcept;
 
     /** Check whether this Block object is valid. */
     explicit operator bool() const noexcept { return bool{m_impl}; }
