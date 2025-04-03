@@ -237,6 +237,12 @@ Block* cast_block(kernel_Block* block)
     return reinterpret_cast<Block*>(block);
 }
 
+const BlockValidationState* cast_block_validation_state(const kernel_BlockValidationState* block_validation_state)
+{
+    assert(block_validation_state);
+    return reinterpret_cast<const BlockValidationState*>(block_validation_state);
+}
+
 class CallbackKernelNotifications : public KernelNotifications
 {
 private:
@@ -485,6 +491,41 @@ bool kernel_context_interrupt(kernel_Context* context_)
 void kernel_context_destroy(kernel_Context* context_)
 {
     delete cast_context(context_);
+}
+
+kernel_ValidationMode kernel_get_validation_mode_from_block_validation_state(const kernel_BlockValidationState* block_validation_state_)
+{
+    auto& block_validation_state = *cast_block_validation_state(block_validation_state_);
+    if (block_validation_state.IsValid()) return kernel_ValidationMode::kernel_VALIDATION_STATE_VALID;
+    if (block_validation_state.IsInvalid()) return kernel_ValidationMode::kernel_VALIDATION_STATE_INVALID;
+    return kernel_ValidationMode::kernel_VALIDATION_STATE_ERROR;
+}
+
+kernel_BlockValidationResult kernel_get_block_validation_result_from_block_validation_state(const kernel_BlockValidationState* block_validation_state_)
+{
+    auto& block_validation_state = *cast_block_validation_state(block_validation_state_);
+
+    switch (block_validation_state.GetResult()) {
+    case BlockValidationResult::BLOCK_RESULT_UNSET:
+        return kernel_BlockValidationResult::kernel_BLOCK_RESULT_UNSET;
+    case BlockValidationResult::BLOCK_CONSENSUS:
+        return kernel_BlockValidationResult::kernel_BLOCK_CONSENSUS;
+    case BlockValidationResult::BLOCK_CACHED_INVALID:
+        return kernel_BlockValidationResult::kernel_BLOCK_CACHED_INVALID;
+    case BlockValidationResult::BLOCK_INVALID_HEADER:
+        return kernel_BlockValidationResult::kernel_BLOCK_INVALID_HEADER;
+    case BlockValidationResult::BLOCK_MUTATED:
+        return kernel_BlockValidationResult::kernel_BLOCK_MUTATED;
+    case BlockValidationResult::BLOCK_MISSING_PREV:
+        return kernel_BlockValidationResult::kernel_BLOCK_MISSING_PREV;
+    case BlockValidationResult::BLOCK_INVALID_PREV:
+        return kernel_BlockValidationResult::kernel_BLOCK_INVALID_PREV;
+    case BlockValidationResult::BLOCK_TIME_FUTURE:
+        return kernel_BlockValidationResult::kernel_BLOCK_TIME_FUTURE;
+    case BlockValidationResult::BLOCK_HEADER_LOW_WORK:
+        return kernel_BlockValidationResult::kernel_BLOCK_HEADER_LOW_WORK;
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
 }
 
 kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len, const char* blocks_dir, size_t blocks_dir_len)

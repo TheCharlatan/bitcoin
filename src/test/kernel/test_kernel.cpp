@@ -144,7 +144,48 @@ class TestValidationInterface : public ValidationInterface
 public:
     void BlockCheckedHandler(const UnownedBlock block, const BlockValidationState state) override
     {
-        std::cout << "Block checked." << std::endl;
+        std::cout << "Block checked: ";
+
+        if (state.IsValid()) {
+            std::cout << "Valid block" << std::endl;
+            return;
+        }
+        if (state.IsError()) {
+            std::cout << "Internal error" << std::endl;
+            return;
+        }
+
+        auto result{state.GetResult()};
+        switch (result) {
+        case BlockValidationResult::BLOCK_RESULT_UNSET:
+            std::cout << "initial value. Block has not yet been rejected" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_HEADER_LOW_WORK:
+            std::cout << "the block header may be on a too-little-work chain" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_CONSENSUS:
+            std::cout << "invalid by consensus rules (excluding any below reasons)" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_CACHED_INVALID:
+            std::cout << "this block was cached as being invalid and we didn't store the reason why" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_INVALID_HEADER:
+            std::cout << "invalid proof of work or time too old" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_MUTATED:
+            std::cout << "the block's data didn't match the data committed to by the PoW" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_MISSING_PREV:
+            std::cout << "We don't have the previous block the checked one is built on" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_INVALID_PREV:
+            std::cout << "A block this one builds on is invalid" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_TIME_FUTURE:
+            std::cout << "block timestamp was > 2 hours in the future (or our clock is bad)" << std::endl;
+            return;
+        }
+        assert(false);
     }
 };
 
