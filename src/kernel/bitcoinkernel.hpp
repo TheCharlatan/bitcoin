@@ -156,6 +156,45 @@ public:
     friend class ContextOptions;
 };
 
+class UnownedBlock
+{
+private:
+	struct UnownedBlockImpl;
+	std::unique_ptr<UnownedBlockImpl> m_impl;
+
+public:
+	explicit UnownedBlock(std::unique_ptr<UnownedBlockImpl> impl) noexcept;
+	~UnownedBlock() noexcept;
+
+	friend class ValidationInterface;
+};
+
+class BlockValidationState
+{
+private:
+	struct BlockValidationStateImpl;
+	std::unique_ptr<BlockValidationStateImpl> m_impl;
+
+public:
+	explicit BlockValidationState(std::unique_ptr<BlockValidationStateImpl> impl) noexcept;
+	~BlockValidationState() noexcept;
+	friend class ValidationInterface;
+};
+
+class ValidationInterface
+{
+private:
+	struct ValidationInterfaceImpl;
+	std::unique_ptr<ValidationInterfaceImpl> m_impl;
+
+public:
+	explicit ValidationInterface() noexcept;
+	virtual ~ValidationInterface() noexcept;
+
+	virtual void BlockCheckedHandler(const UnownedBlock block, const BlockValidationState stateIn) {}
+
+	friend class Context;
+};
 
 class ContextOptions
 {
@@ -170,6 +209,8 @@ public:
     void SetChainParameters(const ChainParameters& chain_parameters) noexcept;
 
     void SetNotifications(std::shared_ptr<KernelNotifications> notifications) noexcept;
+
+    void SetValidationInterface(std::shared_ptr<ValidationInterface> validation_interface) noexcept;
 
     friend class Context;
 };

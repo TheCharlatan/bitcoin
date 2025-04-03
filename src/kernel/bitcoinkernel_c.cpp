@@ -15,6 +15,7 @@
 
 using kernel_header::Block;
 using kernel_header::BlockIndex;
+using kernel_header::BlockValidationState;
 using kernel_header::ChainParameters;
 using kernel_header::ChainstateManager;
 using kernel_header::ChainstateManagerOptions;
@@ -25,6 +26,8 @@ using kernel_header::Logger;
 using kernel_header::Transaction;
 using kernel_header::ScriptPubkey;
 using kernel_header::TransactionOutput;
+using kernel_header::UnownedBlock;
+using kernel_header::ValidationInterface;
 
 using kernel_header::AddLogLevelCategory;
 using kernel_header::DisableLogCategory;
@@ -151,6 +154,24 @@ public:
     }
 };
 
+class KernelValidationInterface : public ValidationInterface
+{
+public:
+    const kernel_ValidationInterfaceCallbacks m_cbs;
+
+    explicit KernelValidationInterface(const kernel_ValidationInterfaceCallbacks vi_cbs) : m_cbs{vi_cbs} {}
+
+protected:
+    void BlockCheckedHandler(const UnownedBlock block, const BlockValidationState stateIn) override
+    {
+        if (m_cbs.block_checked) {
+            m_cbs.block_checked((void*)m_cbs.user_data,
+                                reinterpret_cast<const kernel_BlockPointer*>(&block),
+                                reinterpret_cast<const kernel_BlockValidationState*>(&stateIn));
+        }
+    }
+};
+
 } // namespace
 
 kernel_Transaction* kernel_transaction_create(const unsigned char* raw_transaction, size_t raw_transaction_len)
@@ -273,6 +294,12 @@ void kernel_context_options_set_notifications(kernel_ContextOptions* options_, k
 {
     auto options{cast_context_options(options_)};
     options->SetNotifications(std::make_shared<CallbackKernelNotifications>(notifications));
+}
+
+void kernel_context_options_set_validation_interface(kernel_ContextOptions* options_, kernel_ValidationInterfaceCallbacks vi_cbs)
+{
+    auto options{cast_context_options(options_)};
+	options->SetValidationInterface(std::make_shared<KernelValidationInterface>(vi_cbs));
 }
 
 void kernel_context_options_destroy(kernel_ContextOptions* options)

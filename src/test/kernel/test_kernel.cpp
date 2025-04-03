@@ -19,16 +19,19 @@
 
 using kernel_header::Block;
 using kernel_header::BlockIndex;
+using kernel_header::BlockValidationState;
 using kernel_header::ChainParameters;
 using kernel_header::ChainstateManager;
 using kernel_header::ChainstateManagerOptions;
 using kernel_header::Context;
 using kernel_header::ContextOptions;
 using kernel_header::KernelNotifications;
+using kernel_header::Logger;
+using kernel_header::ScriptPubkey;
 using kernel_header::Transaction;
 using kernel_header::TransactionOutput;
-using kernel_header::ScriptPubkey;
-using kernel_header::Logger;
+using kernel_header::UnownedBlock;
+using kernel_header::ValidationInterface;
 
 std::string random_string(uint32_t length)
 {
@@ -113,6 +116,15 @@ public:
     void FatalErrorHandler(std::string_view error) override
     {
         std::cout << error << std::endl;
+    }
+};
+
+class TestValidationInterface : public ValidationInterface
+{
+public:
+    void BlockCheckedHandler(const UnownedBlock block, const BlockValidationState state) override
+    {
+        std::cout << "Block checked." << std::endl;
     }
 };
 
@@ -289,12 +301,15 @@ void context_test()
     }
 }
 
-Context create_context(std::shared_ptr<TestKernelNotifications> notifications, kernel_ChainType chain_type)
+Context create_context(std::shared_ptr<TestKernelNotifications> notifications, kernel_ChainType chain_type, std::shared_ptr<TestValidationInterface> validation_interface = nullptr)
 {
     ContextOptions options{};
     ChainParameters params{chain_type};
     options.SetChainParameters(params);
     options.SetNotifications(notifications);
+	if (validation_interface) {
+		options.SetValidationInterface(validation_interface);
+	}
     return Context{options};
 }
 
@@ -384,7 +399,8 @@ void chainman_in_memory_test()
 void chainman_mainnet_validation_test(TestDirectory& test_directory)
 {
     auto notifications{std::make_shared<TestKernelNotifications>()};
-    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+	auto validation_interface{std::make_shared<TestValidationInterface>()};
+    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET, validation_interface)};
 	assert(context);
     auto chainman{create_chainman(test_directory, false, false, false, false, context)};
 	assert(chainman);
