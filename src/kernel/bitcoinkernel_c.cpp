@@ -14,6 +14,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <exception>
 #include <functional>
 #include <memory>
@@ -241,6 +242,12 @@ const BlockValidationState* cast_block_validation_state(const kernel_BlockValida
 {
     assert(block_validation_state);
     return reinterpret_cast<const BlockValidationState*>(block_validation_state);
+}
+
+const UnownedBlock* cast_const_block(const kernel_BlockPointer* block)
+{
+    assert(block);
+    return reinterpret_cast<const UnownedBlock*>(block);
 }
 
 class CallbackKernelNotifications : public KernelNotifications
@@ -606,6 +613,44 @@ kernel_Block* kernel_block_create(const unsigned char* raw_block, size_t raw_blo
     }
 
     return reinterpret_cast<kernel_Block*>(block);
+}
+
+void kernel_byte_array_destroy(kernel_ByteArray* byte_array)
+{
+    if (byte_array && byte_array->data) delete[] byte_array->data;
+    if (byte_array) delete byte_array;
+}
+
+kernel_ByteArray* kernel_copy_block_data(kernel_Block* block_)
+{
+    auto block{cast_block(block_)};
+
+    std::vector<std::byte> ser_block{block->GetBlockData()};
+
+    auto byte_array{new kernel_ByteArray{
+        .data = new unsigned char[ser_block.size()],
+        .size = ser_block.size(),
+    }};
+
+    std::memcpy(byte_array->data, ser_block.data(), byte_array->size);
+
+    return byte_array;
+}
+
+kernel_ByteArray* kernel_copy_block_pointer_data(const kernel_BlockPointer* block_)
+{
+    auto block{cast_const_block(block_)};
+
+    std::vector<std::byte> ser_block{block->GetBlockData()};
+
+    auto byte_array{new kernel_ByteArray{
+        .data = new unsigned char[ser_block.size()],
+        .size = ser_block.size(),
+    }};
+
+    std::memcpy(byte_array->data, ser_block.data(), byte_array->size);
+
+    return byte_array;
 }
 
 void kernel_block_destroy(kernel_Block* block)

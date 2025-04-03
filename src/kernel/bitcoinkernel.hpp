@@ -13,12 +13,14 @@
 #include <kernel/warning.h>          // IWYU pragma: keep
 #include <util/chaintype.h>          // IWYU pragma: keep
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #ifndef BITCOINKERNEL_API
 #if defined(_WIN32)
@@ -201,6 +203,8 @@ public:
     ~UnownedBlock() noexcept;
 
     friend class ValidationInterface;
+
+    std::vector<std::byte> GetBlockData() const noexcept;
 };
 
 class BITCOINKERNEL_API ValidationInterface
@@ -290,6 +294,8 @@ private:
 public:
     explicit Block(const std::span<const unsigned char> raw_block) noexcept;
     ~Block() noexcept;
+
+    std::vector<std::byte> GetBlockData() const noexcept;
 
     /** Check whether this Block object is valid. */
     explicit operator bool() const noexcept { return bool{m_impl}; }

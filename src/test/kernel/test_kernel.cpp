@@ -15,6 +15,8 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <memory>
+#include <optional>
 #include <random>
 #include <span>
 #include <string>
@@ -86,6 +88,13 @@ constexpr auto VERIFY_ALL_PRE_SEGWIT{SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_DERSIG |
 constexpr auto VERIFY_ALL_PRE_TAPROOT{VERIFY_ALL_PRE_SEGWIT | SCRIPT_VERIFY_WITNESS};
 constexpr auto VERIFY_ALL{((SCRIPT_VERIFY_END_MARKER - 1) << 1) - 1};
 
+std::vector<std::byte> char_vec_to_byte_vec(std::vector<unsigned char> vec)
+{
+    return std::vector<std::byte>(
+        reinterpret_cast<const std::byte*>(vec.data()),
+        reinterpret_cast<const std::byte*>(vec.data() + vec.size()));
+}
+
 struct TestDirectory {
     std::filesystem::path m_directory;
     TestDirectory(std::string directory_name)
@@ -142,9 +151,17 @@ public:
 class TestValidationInterface : public ValidationInterface
 {
 public:
+    std::optional<std::vector<std::byte>> m_expected_valid_block = std::nullopt;
+
     void BlockCheckedHandler(const UnownedBlock block, const BlockValidationState state) override
     {
         std::cout << "Block checked: ";
+        {
+            auto serialized_block{block.GetBlockData()};
+            if (m_expected_valid_block.has_value()) {
+                assert(m_expected_valid_block.value() == serialized_block);
+            }
+        }
 
         if (state.IsValid()) {
             std::cout << "Valid block" << std::endl;
@@ -461,6 +478,10 @@ void chainman_mainnet_validation_test(TestDirectory& test_directory)
     auto raw_block = hex_string_to_char_vec("010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e362990101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000");
     Block block{raw_block};
     assert(block);
+
+    std::vector<std::byte> raw_block_bytes{char_vec_to_byte_vec(raw_block)};
+    validation_interface->m_expected_valid_block.emplace(raw_block_bytes);
+    assert(block.GetBlockData() == raw_block_bytes);
     bool new_block = false;
     assert(chainman->ProcessBlock(block, new_block));
     assert(new_block == true);
