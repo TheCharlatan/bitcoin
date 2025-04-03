@@ -457,6 +457,38 @@ BlockValidationState::BlockValidationState(std::unique_ptr<BlockValidationStateI
 	: m_impl{std::move(impl)}
 {}
 
+kernel_ValidationMode BlockValidationState::ValidationMode() const noexcept
+{
+    if (m_impl->m_block_validation_state.IsValid()) return kernel_ValidationMode::kernel_VALIDATION_STATE_VALID;
+    if (m_impl->m_block_validation_state.IsInvalid()) return kernel_ValidationMode::kernel_VALIDATION_STATE_INVALID;
+    return kernel_ValidationMode::kernel_VALIDATION_STATE_ERROR;
+}
+
+kernel_BlockValidationResult BlockValidationState::BlockValidationResult() const noexcept
+{
+    switch (m_impl->m_block_validation_state.GetResult()) {
+    case BlockValidationResult::BLOCK_RESULT_UNSET:
+        return kernel_BlockValidationResult::kernel_BLOCK_RESULT_UNSET;
+    case BlockValidationResult::BLOCK_CONSENSUS:
+        return kernel_BlockValidationResult::kernel_BLOCK_CONSENSUS;
+    case BlockValidationResult::BLOCK_CACHED_INVALID:
+        return kernel_BlockValidationResult::kernel_BLOCK_CACHED_INVALID;
+    case BlockValidationResult::BLOCK_INVALID_HEADER:
+        return kernel_BlockValidationResult::kernel_BLOCK_INVALID_HEADER;
+    case BlockValidationResult::BLOCK_MUTATED:
+        return kernel_BlockValidationResult::kernel_BLOCK_MUTATED;
+    case BlockValidationResult::BLOCK_MISSING_PREV:
+        return kernel_BlockValidationResult::kernel_BLOCK_MISSING_PREV;
+    case BlockValidationResult::BLOCK_INVALID_PREV:
+        return kernel_BlockValidationResult::kernel_BLOCK_INVALID_PREV;
+    case BlockValidationResult::BLOCK_TIME_FUTURE:
+        return kernel_BlockValidationResult::kernel_BLOCK_TIME_FUTURE;
+    case BlockValidationResult::BLOCK_HEADER_LOW_WORK:
+        return kernel_BlockValidationResult::kernel_BLOCK_HEADER_LOW_WORK;
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
 BlockValidationState::~BlockValidationState() noexcept = default;
 
 struct ValidationInterface::ValidationInterfaceImpl final : public CValidationInterface

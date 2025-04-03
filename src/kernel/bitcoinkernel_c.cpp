@@ -113,6 +113,12 @@ Block* cast_block(kernel_Block* block)
     return reinterpret_cast<Block*>(block);
 }
 
+const BlockValidationState* cast_block_validation_state(const kernel_BlockValidationState* block_validation_state)
+{
+    assert(block_validation_state);
+    return reinterpret_cast<const BlockValidationState*>(block_validation_state);
+}
+
 class CallbackKernelNotifications : public KernelNotifications
 {
 private:
@@ -330,6 +336,18 @@ bool kernel_context_interrupt(kernel_Context* context_)
 void kernel_context_destroy(kernel_Context* context_)
 {
     delete cast_context(context_);
+}
+
+kernel_ValidationMode kernel_get_validation_mode_from_block_validation_state(const kernel_BlockValidationState* block_validation_state_)
+{
+    auto& block_validation_state = *cast_block_validation_state(block_validation_state_);
+    return block_validation_state.ValidationMode();
+}
+
+kernel_BlockValidationResult kernel_get_block_validation_result_from_block_validation_state(const kernel_BlockValidationState* block_validation_state_)
+{
+    auto& block_validation_state = *cast_block_validation_state(block_validation_state_);
+    return block_validation_state.BlockValidationResult();
 }
 
 kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len, const char* blocks_dir, size_t blocks_dir_len)
