@@ -15,6 +15,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <span>
 
@@ -126,10 +127,17 @@ public:
     BlockIndex(std::unique_ptr<BlockIndexImpl>&& impl) noexcept;
     ~BlockIndex() noexcept;
 
+    // It is permitted to copy a BlockIndex. Its data is always valid for as long as the object it was retrieved is valid.
+    BlockIndex(const BlockIndex& other) noexcept;
+    BlockIndex& operator=(const BlockIndex& other) noexcept;
+
+    std::optional<BlockIndex> GetPreviousBlockIndex() const noexcept;
+
     /** Check whether this BlockIndex object is valid. */
     explicit operator bool() const noexcept { return bool{m_impl}; }
 
     friend class KernelNotifications;
+    friend class ChainstateManager;
 };
 
 class KernelNotifications
@@ -274,7 +282,10 @@ private:
 
 public:
     explicit Block(const std::span<const unsigned char> raw_block) noexcept;
+    explicit Block(std::unique_ptr<BlockImpl> impl) noexcept;
     ~Block() noexcept;
+
+    Block(Block&& other) noexcept;
 
     std::vector<std::byte> GetBlockData() const noexcept;
 
@@ -298,6 +309,10 @@ public:
     bool ImportBlocks(const std::span<const std::string> paths) const noexcept;
 
     bool ProcessBlock(const Block& block, bool& new_block) const noexcept;
+
+    BlockIndex GetBlockIndexFromTip() const noexcept;
+
+    std::optional<Block> ReadBlock(const BlockIndex& block_index) const noexcept;
 
     /** Check whether this ChainMan object is valid. */
     explicit operator bool() const noexcept { return m_impl != nullptr; }
