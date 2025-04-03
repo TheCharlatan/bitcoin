@@ -128,6 +128,10 @@ public:
     explicit operator bool() const noexcept { return bool{m_impl}; }
 };
 
+struct BlockHash {
+    std::array<unsigned char, 32> hash;
+};
+
 class BlockIndex
 {
 private:
@@ -143,6 +147,10 @@ public:
     BlockIndex& operator=(const BlockIndex& other) noexcept;
 
     std::optional<BlockIndex> GetPreviousBlockIndex() const noexcept;
+
+    int32_t GetHeight() const noexcept;
+
+    BlockHash GetHash() const noexcept;
 
     /** Check whether this BlockIndex object is valid. */
     explicit operator bool() const noexcept { return bool{m_impl}; }
@@ -343,6 +351,14 @@ public:
     bool ProcessBlock(const Block& block, bool& new_block) const noexcept;
 
     BlockIndex GetBlockIndexFromTip() const noexcept;
+
+    BlockIndex GetBlockIndexFromGenesis() const noexcept;
+
+    std::optional<BlockIndex> GetBlockIndexByHash(const BlockHash& block_hash) const noexcept;
+
+    std::optional<BlockIndex> GetBlockIndexByHeight(int height) const noexcept;
+
+    std::optional<BlockIndex> GetNextBlockIndex(const BlockIndex& block_index) const noexcept;
 
     std::optional<Block> ReadBlock(const BlockIndex& block_index) const noexcept;
 
