@@ -347,6 +347,29 @@ BlockIndex::BlockIndex(std::unique_ptr<BlockIndex::BlockIndexImpl> impl) noexcep
 {
 }
 
+BlockIndex::BlockIndex(const BlockIndex& other) noexcept
+    : m_impl{other.m_impl ? std::make_unique<BlockIndexImpl>(other.m_impl->m_block_index) : nullptr}
+{
+}
+
+BlockIndex& BlockIndex::operator=(const BlockIndex& other) noexcept
+{
+    if (this != &other) {
+        m_impl = other.m_impl ? std::make_unique<BlockIndexImpl>(other.m_impl->m_block_index) : nullptr;
+    }
+    return *this;
+}
+
+std::optional<BlockIndex> BlockIndex::GetPreviousBlockIndex() const noexcept
+{
+    auto index{m_impl->m_block_index.pprev};
+    if (!index) {
+        LogInfo("Genesis block has no previous");
+        return std::nullopt;
+    }
+    return std::make_optional<BlockIndex>(std::make_unique<BlockIndexImpl>(*index));
+}
+
 BlockIndex::~BlockIndex() noexcept = default;
 
 struct KernelNotifications::KernelNotificationsImpl : public kernel::Notifications
@@ -447,7 +470,7 @@ UnownedBlock::UnownedBlock(std::unique_ptr<UnownedBlockImpl> impl) noexcept
 std::vector<std::byte> UnownedBlock::GetBlockData() const noexcept
 {
     DataStream ss{};
-    ss << TX_WITH_WITNESS(*m_impl->m_block);
+    ss << TX_WITH_WITNESS(m_impl->m_block);
     return std::vector<std::byte>{ss.begin(), ss.end()};
 }
 
@@ -638,6 +661,10 @@ struct Block::BlockImpl
         DataStream stream{raw_block};
         stream >> TX_WITH_WITNESS(*m_block);
     }
+
+    BlockImpl(std::shared_ptr<CBlock> block)
+        : m_block{block}
+    {}
 };
 
 Block::Block(std::span<const unsigned char> raw_block) noexcept
@@ -649,6 +676,15 @@ Block::Block(std::span<const unsigned char> raw_block) noexcept
         m_impl = nullptr;
     }
 };
+
+Block::Block(std::unique_ptr<Block::BlockImpl> impl) noexcept
+    : m_impl{std::move(impl)}
+{}
+
+Block::Block(Block&& other) noexcept
+    : m_impl(std::move(other.m_impl))
+{
+}
 
 std::vector<std::byte> Block::GetBlockData() const noexcept
 {
@@ -801,6 +837,24 @@ bool ChainstateManager::ImportBlocks(const std::span<const std::string> paths) c
 bool ChainstateManager::ProcessBlock(const Block& block, bool& new_block) const noexcept
 {
 	return m_impl->m_chainman.ProcessNewBlock(block.m_impl->m_block, /*force_processing=*/ true, /*min_pow_checked=*/ true, /*new_block=*/ &new_block);
+}
+
+
+BlockIndex ChainstateManager::GetBlockIndexFromTip() const noexcept
+{
+    CBlockIndex* tip{WITH_LOCK(m_impl->m_chainman.GetMutex(), return m_impl->m_chainman.ActiveChain().Tip())};
+    if (!tip) return BlockIndex(nullptr);
+    return BlockIndex(std::make_unique<BlockIndex::BlockIndexImpl>(*tip));
+}
+
+std::optional<Block> ChainstateManager::ReadBlock(const BlockIndex& block_index) const noexcept
+{
+    auto block{std::make_shared<CBlock>()};
+    if (!m_impl->m_chainman.m_blockman.ReadBlock(*block, block_index.m_impl->m_block_index)) {
+        LogError("Failed to read block.");
+        return std::nullopt;
+    }
+    return std::make_optional<Block>(std::make_unique<Block::BlockImpl>(block));
 }
 
 ChainstateManager::~ChainstateManager() noexcept
