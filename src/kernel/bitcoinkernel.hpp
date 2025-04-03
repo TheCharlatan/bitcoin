@@ -6,12 +6,12 @@
 #define BITCOIN_KERNEL_BITCOINKERNEL_HPP
 
 #include <consensus/amount.h>
-#include <kernel/logging_types.h> // IWYU pragma: keep
-#include <kernel/script_flags.h>  // IWYU pragma: keep
-#include <kernel/types.h>         // IWYU pragma: keep
-#include <kernel/warning.h>       // IWYU pragma: keep
-#include <util/chaintype.h>       // IWYU pragma: keep
-#include <util/chaintype.h>       // IWYU pragma: keep
+#include <kernel/logging_types.h>    // IWYU pragma: keep
+#include <kernel/script_flags.h>     // IWYU pragma: keep
+#include <kernel/types.h>            // IWYU pragma: keep
+#include <kernel/validation_state.h> // IWYU pragma: keep
+#include <kernel/warning.h>          // IWYU pragma: keep
+#include <util/chaintype.h>          // IWYU pragma: keep
 
 #include <cstdint>
 #include <functional>
@@ -190,6 +190,33 @@ public:
     friend class ContextOptions;
 };
 
+class BITCOINKERNEL_API UnownedBlock
+{
+private:
+    struct UnownedBlockImpl;
+    std::unique_ptr<UnownedBlockImpl> m_impl;
+
+public:
+    explicit UnownedBlock(std::unique_ptr<UnownedBlockImpl> impl) noexcept;
+    ~UnownedBlock() noexcept;
+
+    friend class ValidationInterface;
+};
+
+class BITCOINKERNEL_API ValidationInterface
+{
+private:
+    struct ValidationInterfaceImpl;
+    std::unique_ptr<ValidationInterfaceImpl> m_impl;
+
+public:
+    explicit ValidationInterface() noexcept;
+    virtual ~ValidationInterface() noexcept;
+
+    virtual void BlockCheckedHandler(const UnownedBlock block, const BlockValidationState stateIn) {}
+
+    friend class Context;
+};
 
 class BITCOINKERNEL_API ContextOptions
 {
@@ -204,6 +231,8 @@ public:
     void SetChainParameters(const ChainParameters& chain_parameters) noexcept;
 
     void SetNotifications(std::shared_ptr<KernelNotifications> notifications) noexcept;
+
+    void SetValidationInterface(std::shared_ptr<ValidationInterface> validation_interface) noexcept;
 
     friend class Context;
 };
