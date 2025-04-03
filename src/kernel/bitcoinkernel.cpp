@@ -28,6 +28,7 @@
 #include <serialize.h>
 #include <streams.h>
 #include <sync.h>
+#include <uint256.h>
 #include <undo.h>
 #include <util/chaintype.h>
 #include <util/fs.h>
@@ -38,6 +39,7 @@
 #include <validation.h>
 #include <validationinterface.h>
 
+#include <algorithm>
 #include <cassert>
 #include <exception>
 #include <functional>
@@ -341,11 +343,23 @@ BlockIndex& BlockIndex::operator=(const BlockIndex& other) noexcept
     return *this;
 }
 
+int32_t BlockIndex::GetHeight() const noexcept
+{
+    return m_impl->m_block_index.nHeight;
+}
+
+BlockHash BlockIndex::GetHash() const noexcept
+{
+    BlockHash hash;
+    std::copy(m_impl->m_block_index.phashBlock->begin(), m_impl->m_block_index.phashBlock->end(), hash.hash.begin());
+    return hash;
+}
+
 std::optional<BlockIndex> BlockIndex::GetPreviousBlockIndex() const noexcept
 {
     auto index{m_impl->m_block_index.pprev};
     if (!index) {
-        LogInfo("Genesis block has no previous");
+        LogTrace(BCLog::KERNEL, "The block index is the genesis, it has no previous.");
         return std::nullopt;
     }
     return std::make_optional<BlockIndex>(std::make_unique<BlockIndexImpl>(*index));
@@ -824,6 +838,44 @@ BlockIndex ChainstateManager::GetBlockIndexFromTip() const noexcept
     CBlockIndex* tip{WITH_LOCK(m_impl->m_chainman.GetMutex(), return m_impl->m_chainman.ActiveChain().Tip())};
     if (!tip) return BlockIndex(nullptr);
     return BlockIndex(std::make_unique<BlockIndex::BlockIndexImpl>(*tip));
+}
+
+BlockIndex ChainstateManager::GetBlockIndexFromGenesis() const noexcept
+{
+    return BlockIndex{std::make_unique<BlockIndex::BlockIndexImpl>(*WITH_LOCK(m_impl->m_chainman.GetMutex(), return m_impl->m_chainman.ActiveChain().Genesis()))};
+}
+
+std::optional<BlockIndex> ChainstateManager::GetBlockIndexByHash(const BlockHash& block_hash) const noexcept
+{
+    auto hash = uint256{block_hash.hash};
+    auto block_index = WITH_LOCK(::cs_main, return m_impl->m_chainman.m_blockman.LookupBlockIndex(hash));
+    if (!block_index) {
+        LogDebug(BCLog::KERNEL, "A block with the given hash is not indexed: %s", hash.ToString());
+        return std::nullopt;
+    }
+    return std::make_optional<BlockIndex>(std::make_unique<BlockIndex::BlockIndexImpl>(*block_index));
+}
+
+std::optional<BlockIndex> ChainstateManager::GetBlockIndexByHeight(int height) const noexcept
+{
+    LOCK(m_impl->m_chainman.GetMutex());
+    if (height < 0 || height > m_impl->m_chainman.ActiveChain().Height()) {
+        LogDebug(BCLog::KERNEL, "Block height is out of range.");
+        return std::nullopt;
+    }
+    return std::make_optional<BlockIndex>(std::make_unique<BlockIndex::BlockIndexImpl>(*m_impl->m_chainman.ActiveChain()[height]));
+}
+
+std::optional<BlockIndex> ChainstateManager::GetNextBlockIndex(const BlockIndex& block_index) const noexcept
+{
+    auto next_block_index{WITH_LOCK(m_impl->m_chainman.GetMutex(), return m_impl->m_chainman.ActiveChain().Next(&block_index.m_impl->m_block_index))};
+
+    if (!next_block_index) {
+        LogTrace(BCLog::KERNEL, "The block index is the tip of the current chain, it does not have a next.");
+        return std::nullopt;
+    }
+
+    return std::make_optional<BlockIndex>(std::make_unique<BlockIndex::BlockIndexImpl>(*next_block_index));
 }
 
 std::optional<Block> ChainstateManager::ReadBlock(const BlockIndex& block_index) const noexcept

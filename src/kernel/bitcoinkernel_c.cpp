@@ -11,6 +11,8 @@
 #include <kernel/warning.h>
 #include <util/chaintype.h>
 
+#include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -26,6 +28,7 @@
 #include <vector>
 
 using kernel_header::Block;
+using kernel_header::BlockHash;
 using kernel_header::BlockIndex;
 using kernel_header::BlockUndo;
 using kernel_header::ChainParameters;
@@ -721,6 +724,45 @@ kernel_BlockIndex* kernel_get_block_index_from_tip(const kernel_Context* context
     return reinterpret_cast<kernel_BlockIndex*>(block_index);
 }
 
+kernel_BlockIndex* kernel_get_block_index_from_genesis(const kernel_Context* context_, kernel_ChainstateManager* chainman_)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+    return reinterpret_cast<kernel_BlockIndex*>(new BlockIndex(chainman->GetBlockIndexFromGenesis()));
+}
+
+kernel_BlockIndex* kernel_get_block_index_from_hash(const kernel_Context* context_, kernel_ChainstateManager* chainman_, kernel_BlockHash* block_hash)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+    BlockHash hash{.hash = std::to_array(block_hash->hash)};
+    std::optional<BlockIndex> block_index{chainman->GetBlockIndexByHash(hash)};
+    if (!block_index) {
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_BlockIndex*>(new BlockIndex(*block_index));
+}
+
+kernel_BlockIndex* kernel_get_block_index_from_height(const kernel_Context* context_, kernel_ChainstateManager* chainman_, int height)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+    std::optional<BlockIndex> block_index{chainman->GetBlockIndexByHeight(height)};
+    if (!block_index) {
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_BlockIndex*>(new BlockIndex(*block_index));
+}
+
+kernel_BlockIndex* kernel_get_next_block_index(const kernel_Context* context_, kernel_ChainstateManager* chainman_, const kernel_BlockIndex* block_index_)
+{
+    const auto block_index{cast_const_block_index(block_index_)};
+    auto chainman{cast_chainstate_manager(chainman_)};
+
+    std::optional<BlockIndex> next_block_index{chainman->GetNextBlockIndex(*block_index)};
+    if (!next_block_index) {
+        return nullptr;
+    }
+    return reinterpret_cast<kernel_BlockIndex*>(new BlockIndex(*next_block_index));
+}
+
 kernel_BlockIndex* kernel_get_previous_block_index(const kernel_BlockIndex* block_index_)
 {
     const BlockIndex* block_index{cast_const_block_index(block_index_)};
@@ -797,6 +839,26 @@ kernel_TransactionOutput* kernel_get_undo_output_by_index(const kernel_BlockUndo
     if (!output) return nullptr;
 
     return reinterpret_cast<kernel_TransactionOutput*>(new TransactionOutput(std::move(output)));
+}
+
+int32_t kernel_block_index_get_height(const kernel_BlockIndex* block_index_)
+{
+    auto block_index{cast_const_block_index(block_index_)};
+    return block_index->GetHeight();
+}
+
+kernel_BlockHash* kernel_block_index_get_block_hash(const kernel_BlockIndex* block_index_)
+{
+    auto block_index{cast_const_block_index(block_index_)};
+    auto kernel_hash{new kernel_BlockHash{.hash = {0}}};
+    auto hash{block_index->GetHash()};
+    std::copy(hash.hash.begin(), hash.hash.end(), kernel_hash->hash);
+    return kernel_hash;
+}
+
+void kernel_block_hash_destroy(kernel_BlockHash* hash)
+{
+    if (hash) delete hash;
 }
 
 kernel_ScriptPubkey* kernel_copy_script_pubkey_from_output(kernel_TransactionOutput* output_)
