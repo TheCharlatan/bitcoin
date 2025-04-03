@@ -7,6 +7,7 @@
 #include <kernel/bitcoinkernel.hpp>
 
 #include <chain.h>
+#include <coins.h>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
 #include <dbwrapper.h>
@@ -27,6 +28,7 @@
 #include <serialize.h>
 #include <streams.h>
 #include <sync.h>
+#include <undo.h>
 #include <util/chaintype.h>
 #include <util/fs.h>
 #include <util/result.h>
@@ -74,11 +76,32 @@ struct ScriptPubkey::ScriptPubkeyImpl {
         : m_script_pubkey{script_pubkey.begin(), script_pubkey.end()}
     {
     }
+
+    ScriptPubkeyImpl(CScript script_pubkey)
+        : m_script_pubkey{std::move(script_pubkey)}
+    {
+    }
 };
 
 ScriptPubkey::ScriptPubkey(std::span<const unsigned char> script_pubkey) noexcept
     : m_impl{std::make_unique<ScriptPubkey::ScriptPubkeyImpl>(script_pubkey)}
 {
+}
+
+ScriptPubkey::ScriptPubkey(std::unique_ptr<ScriptPubkeyImpl> impl) noexcept
+    : m_impl{std::move(impl)}
+{
+}
+
+
+ScriptPubkey::ScriptPubkey(ScriptPubkey&& other) noexcept
+    : m_impl{std::move(other.m_impl)}
+{
+}
+
+std::vector<unsigned char> ScriptPubkey::GetScriptPubkeyData() const noexcept
+{
+    return std::vector<unsigned char>(m_impl->m_script_pubkey.begin(), m_impl->m_script_pubkey.end());
 }
 
 ScriptPubkey::~ScriptPubkey() = default;
@@ -107,11 +130,28 @@ struct TransactionOutput::TransactionOutputImpl {
         : m_tx_out{amount, script_pubkey.m_impl->m_script_pubkey}
     {
     }
+
+    TransactionOutputImpl(CTxOut tx_out) : m_tx_out{tx_out} {}
 };
 
 TransactionOutput::TransactionOutput(const ScriptPubkey& script_pubkey, int64_t amount) noexcept
 {
     m_impl = std::make_unique<TransactionOutput::TransactionOutputImpl>(CAmount{amount}, script_pubkey);
+}
+
+TransactionOutput::TransactionOutput(std::unique_ptr<TransactionOutputImpl> impl) noexcept
+    : m_impl{std::move(impl)}
+{
+}
+
+ScriptPubkey TransactionOutput::GetScriptPubkey() const noexcept
+{
+    return ScriptPubkey(std::make_unique<ScriptPubkey::ScriptPubkeyImpl>(m_impl->m_tx_out.scriptPubKey));
+}
+
+int64_t TransactionOutput::GetOutputAmount() const noexcept
+{
+    return m_impl->m_tx_out.nValue;
 }
 
 TransactionOutput::~TransactionOutput() = default;
@@ -590,6 +630,51 @@ std::vector<std::byte> Block::GetBlockData() const noexcept
 
 Block::~Block() noexcept = default;
 
+struct BlockUndo::BlockUndoImpl {
+    std::shared_ptr<CBlockUndo> m_block_undo;
+
+    BlockUndoImpl(std::shared_ptr<CBlockUndo> block_undo)
+        : m_block_undo{block_undo}
+    {
+    }
+};
+
+BlockUndo::BlockUndo(std::unique_ptr<BlockUndoImpl> impl) noexcept
+    : m_impl{std::move(impl)},
+      m_size{m_impl->m_block_undo->vtxundo.size()}
+{
+}
+
+BlockUndo::BlockUndo(BlockUndo&& other) noexcept
+    : m_impl(std::move(other.m_impl)),
+      m_size{m_impl->m_block_undo->vtxundo.size()}
+{
+}
+
+BlockUndo::~BlockUndo() noexcept = default;
+
+uint64_t BlockUndo::GetTxOutSize(uint64_t index) const noexcept
+{
+    if (m_impl->m_block_undo->vtxundo.size() <= index) return 0;
+    return m_impl->m_block_undo->vtxundo[index].vprevout.size();
+}
+
+TransactionOutput BlockUndo::GetTxUndoPrevoutByIndex(
+    uint64_t tx_undo_index,
+    uint64_t tx_prevout_index) const noexcept
+{
+    if (tx_undo_index >= m_impl->m_block_undo->vtxundo.size()) {
+        LogInfo("transaction undo index is out of bounds.");
+        return TransactionOutput(nullptr);
+    }
+    const auto& tx_undo = m_impl->m_block_undo->vtxundo[tx_undo_index];
+    if (tx_prevout_index >= tx_undo.vprevout.size()) {
+        LogInfo("previous output index is out of bonds.");
+        return TransactionOutput(nullptr);
+    }
+    return TransactionOutput(std::make_unique<TransactionOutput::TransactionOutputImpl>(tx_undo.vprevout[tx_prevout_index].out));
+}
+
 struct ChainstateManagerOptions::ChainstateManagerOptionsImpl {
     mutable Mutex m_mutex;
     kernel::ChainstateManagerOpts m_chainman_options GUARDED_BY(m_mutex);
@@ -749,6 +834,16 @@ std::optional<Block> ChainstateManager::ReadBlock(const BlockIndex& block_index)
         return std::nullopt;
     }
     return std::make_optional<Block>(std::make_unique<Block::BlockImpl>(block));
+}
+
+std::optional<BlockUndo> ChainstateManager::ReadBlockUndo(const BlockIndex& block_index) const noexcept
+{
+    auto block_undo{std::make_shared<CBlockUndo>()};
+    if (!m_impl->m_chainman.m_blockman.ReadBlockUndo(*block_undo, block_index.m_impl->m_block_index)) {
+        LogError("Failed to read block undo.");
+        return std::nullopt;
+    }
+    return std::make_optional<BlockUndo>(std::make_unique<BlockUndo::BlockUndoImpl>(block_undo));
 }
 
 ChainstateManager::~ChainstateManager() noexcept

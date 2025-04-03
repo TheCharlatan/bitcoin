@@ -27,6 +27,7 @@
 
 using kernel_header::Block;
 using kernel_header::BlockIndex;
+using kernel_header::BlockUndo;
 using kernel_header::ChainParameters;
 using kernel_header::ChainstateManager;
 using kernel_header::ChainstateManagerOptions;
@@ -258,6 +259,18 @@ const BlockIndex* cast_const_block_index(const kernel_BlockIndex* index)
     return reinterpret_cast<const BlockIndex*>(index);
 }
 
+const BlockUndo* cast_const_block_undo(const kernel_BlockUndo* undo)
+{
+    assert(undo);
+    return reinterpret_cast<const BlockUndo*>(undo);
+}
+
+BlockUndo* cast_block_undo(kernel_BlockUndo* undo)
+{
+    assert(undo);
+    return reinterpret_cast<BlockUndo*>(undo);
+}
+
 class CallbackKernelNotifications : public KernelNotifications
 {
 private:
@@ -338,6 +351,21 @@ void kernel_transaction_destroy(kernel_Transaction* transaction)
 kernel_ScriptPubkey* kernel_script_pubkey_create(const unsigned char* script_pubkey, size_t script_pubkey_len)
 {
     return reinterpret_cast<kernel_ScriptPubkey*>(new ScriptPubkey(std::span{script_pubkey, script_pubkey_len}));
+}
+
+kernel_ByteArray* kernel_copy_script_pubkey_data(const kernel_ScriptPubkey* script_pubkey_)
+{
+    auto script_pubkey{cast_script_pubkey(script_pubkey_)};
+
+    auto data{script_pubkey->GetScriptPubkeyData()};
+
+    auto byte_array{new kernel_ByteArray{
+        .data = new unsigned char[data.size()],
+        .size = data.size(),
+    }};
+
+    std::memcpy(byte_array->data, data.data(), byte_array->size);
+    return byte_array;
 }
 
 void kernel_script_pubkey_destroy(kernel_ScriptPubkey* script_pubkey)
@@ -719,11 +747,68 @@ kernel_Block* kernel_read_block_from_disk(const kernel_Context* context_,
     return reinterpret_cast<kernel_Block*>(new Block(std::move(*block)));
 }
 
+kernel_BlockUndo* kernel_read_block_undo_from_disk(const kernel_Context* context_,
+                                                   kernel_ChainstateManager* chainman_,
+                                                   const kernel_BlockIndex* block_index_)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+    const auto block_index{cast_const_block_index(block_index_)};
+
+    std::optional<BlockUndo> block_undo{chainman->ReadBlockUndo(*block_index)};
+    if (!block_undo) return nullptr;
+
+    return reinterpret_cast<kernel_BlockUndo*>(new BlockUndo(std::move(*block_undo)));
+}
+
 void kernel_block_index_destroy(kernel_BlockIndex* block_index)
 {
     if (block_index) {
         delete reinterpret_cast<BlockIndex*>(block_index);
     }
+}
+
+
+uint64_t kernel_block_undo_size(const kernel_BlockUndo* block_undo_)
+{
+    const auto block_undo{cast_const_block_undo(block_undo_)};
+    return block_undo->m_size;
+}
+
+void kernel_block_undo_destroy(kernel_BlockUndo* block_undo)
+{
+    if (block_undo) {
+        delete cast_block_undo(block_undo);
+    }
+}
+
+uint64_t kernel_get_transaction_undo_size(const kernel_BlockUndo* block_undo_, uint64_t transaction_undo_index)
+{
+    const auto block_undo{cast_const_block_undo(block_undo_)};
+    return block_undo->GetTxOutSize(transaction_undo_index);
+}
+
+kernel_TransactionOutput* kernel_get_undo_output_by_index(const kernel_BlockUndo* block_undo_,
+                                                          uint64_t transaction_undo_index,
+                                                          uint64_t output_index)
+{
+    const auto block_undo{cast_const_block_undo(block_undo_)};
+
+    TransactionOutput output = block_undo->GetTxUndoPrevoutByIndex(transaction_undo_index, output_index);
+    if (!output) return nullptr;
+
+    return reinterpret_cast<kernel_TransactionOutput*>(new TransactionOutput(std::move(output)));
+}
+
+kernel_ScriptPubkey* kernel_copy_script_pubkey_from_output(kernel_TransactionOutput* output_)
+{
+    auto output{cast_transaction_output(output_)};
+    return reinterpret_cast<kernel_ScriptPubkey*>(new ScriptPubkey(output->GetScriptPubkey()));
+}
+
+int64_t kernel_get_transaction_output_amount(kernel_TransactionOutput* output_)
+{
+    auto output{cast_transaction_output(output_)};
+    return output->GetOutputAmount();
 }
 
 bool kernel_chainstate_manager_process_block(

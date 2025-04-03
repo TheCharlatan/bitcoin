@@ -70,10 +70,15 @@ private:
 
 public:
     explicit ScriptPubkey(std::span<const unsigned char> script_pubkey) noexcept;
+    explicit ScriptPubkey(std::unique_ptr<ScriptPubkeyImpl> impl) noexcept;
     ~ScriptPubkey();
+
+    ScriptPubkey(ScriptPubkey&& other) noexcept;
 
     /** Check whether this ScriptPubkey object is valid. */
     explicit operator bool() const noexcept { return bool{m_impl}; }
+
+    std::vector<unsigned char> GetScriptPubkeyData() const noexcept;
 
     int VerifyScript(
         const CAmount amount,
@@ -93,15 +98,21 @@ private:
 
 public:
     explicit TransactionOutput(const ScriptPubkey& script_pubkey, int64_t amount) noexcept;
+    explicit TransactionOutput(std::unique_ptr<TransactionOutputImpl> impl) noexcept;
     ~TransactionOutput();
 
     TransactionOutput(TransactionOutput&& other) noexcept;
     TransactionOutput& operator=(TransactionOutput&& other) noexcept;
 
+    ScriptPubkey GetScriptPubkey() const noexcept;
+
+    int64_t GetOutputAmount() const noexcept;
+
     /** Check whether this TransactionOutput object is valid. */
     explicit operator bool() const noexcept { return bool{m_impl}; }
 
     friend class ScriptPubkey;
+    friend class BlockUndo;
 };
 
 BITCOINKERNEL_API void AddLogLevelCategory(const BCLog::LogFlags category, const BCLog::Level level);
@@ -314,6 +325,27 @@ public:
     friend class ChainstateManager;
 };
 
+class BITCOINKERNEL_API BlockUndo
+{
+private:
+    struct BlockUndoImpl;
+    std::unique_ptr<BlockUndoImpl> m_impl;
+
+public:
+    const uint64_t m_size;
+
+    explicit BlockUndo(std::unique_ptr<BlockUndoImpl> impl) noexcept;
+    ~BlockUndo() noexcept;
+
+    BlockUndo(BlockUndo&& other) noexcept;
+
+    uint64_t GetTxOutSize(uint64_t index) const noexcept;
+
+    TransactionOutput GetTxUndoPrevoutByIndex(uint64_t tx_undo_index, uint64_t tx_prevout_index) const noexcept;
+
+    friend class ChainstateManager;
+};
+
 class BITCOINKERNEL_API ChainstateManager
 {
 private:
@@ -332,6 +364,8 @@ public:
     BlockIndex GetBlockIndexFromTip() const noexcept;
 
     std::optional<Block> ReadBlock(const BlockIndex& block_index) const noexcept;
+
+    std::optional<BlockUndo> ReadBlockUndo(const BlockIndex& block_index) const noexcept;
 
     /** Check whether this ChainMan object is valid. */
     explicit operator bool() const noexcept { return m_impl != nullptr; }
