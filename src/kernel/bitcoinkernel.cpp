@@ -523,6 +523,13 @@ std::vector<std::byte> UnownedBlock::GetBlockData() const noexcept
     return std::vector<std::byte>{ss.begin(), ss.end()};
 }
 
+kernel_BlockHash UnownedBlock::GetHash() const noexcept
+{
+    kernel_BlockHash block_hash{};
+    std::memcpy(block_hash.hash, m_impl->m_block.GetHash().begin(), sizeof(block_hash.hash));
+    return block_hash;
+}
+
 UnownedBlock::~UnownedBlock() noexcept = default;
 
 struct BlockValidationState::BlockValidationStateImpl {
@@ -740,6 +747,13 @@ std::vector<std::byte> Block::GetBlockData() const noexcept
     DataStream ss{};
     ss << TX_WITH_WITNESS(*m_impl->m_block);
     return std::vector<std::byte>{ss.begin(), ss.end()};
+}
+
+kernel_BlockHash Block::GetHash() const noexcept
+{
+    kernel_BlockHash block_hash{};
+    std::memcpy(block_hash.hash, m_impl->m_block->GetHash().begin(), sizeof(block_hash.hash));
+    return block_hash;
 }
 
 Block::~Block() noexcept = default;
