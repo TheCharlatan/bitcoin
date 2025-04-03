@@ -233,6 +233,8 @@ public:
     friend class ValidationInterface;
 
     std::vector<std::byte> GetBlockData() const noexcept;
+
+    BlockHash GetHash() const noexcept;
 };
 
 class BITCOINKERNEL_API ValidationInterface
@@ -327,6 +329,8 @@ public:
     Block(Block&& other) noexcept;
 
     std::vector<std::byte> GetBlockData() const noexcept;
+
+    BlockHash GetHash() const noexcept;
 
     /** Check whether this Block object is valid. */
     explicit operator bool() const noexcept { return bool{m_impl}; }

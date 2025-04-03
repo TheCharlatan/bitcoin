@@ -469,6 +469,14 @@ std::vector<std::byte> UnownedBlock::GetBlockData() const noexcept
     return std::vector<std::byte>{ss.begin(), ss.end()};
 }
 
+BlockHash UnownedBlock::GetHash() const noexcept
+{
+    BlockHash block_hash{};
+    auto hash{m_impl->m_block.GetHash()};
+    std::copy(hash.begin(), hash.end(), block_hash.hash.begin());
+    return block_hash;
+}
+
 UnownedBlock::~UnownedBlock() noexcept = default;
 
 struct ValidationInterface::ValidationInterfaceImpl final : public CValidationInterface {
@@ -640,6 +648,14 @@ std::vector<std::byte> Block::GetBlockData() const noexcept
     DataStream ss{};
     ss << TX_WITH_WITNESS(*m_impl->m_block);
     return std::vector<std::byte>{ss.begin(), ss.end()};
+}
+
+BlockHash Block::GetHash() const noexcept
+{
+    BlockHash block_hash{};
+    auto hash{m_impl->m_block->GetHash()};
+    std::copy(hash.begin(), hash.end(), block_hash.hash.begin());
+    return block_hash;
 }
 
 Block::~Block() noexcept = default;
