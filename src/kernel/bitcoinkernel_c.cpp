@@ -18,9 +18,11 @@
 #include <exception>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 using kernel_header::Block;
@@ -248,6 +250,12 @@ const UnownedBlock* cast_const_block(const kernel_BlockPointer* block)
 {
     assert(block);
     return reinterpret_cast<const UnownedBlock*>(block);
+}
+
+const BlockIndex* cast_const_block_index(const kernel_BlockIndex* index)
+{
+    assert(index);
+    return reinterpret_cast<const BlockIndex*>(index);
 }
 
 class CallbackKernelNotifications : public KernelNotifications
@@ -675,6 +683,47 @@ bool kernel_import_blocks(const kernel_Context* context_,
         }
     }
     return chainman->ImportBlocks(import_files);
+}
+
+kernel_BlockIndex* kernel_get_block_index_from_tip(const kernel_Context* context_, kernel_ChainstateManager* chainman_)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+    auto block_index = new BlockIndex(chainman->GetBlockIndexFromTip());
+    if (!*block_index) return nullptr;
+    return reinterpret_cast<kernel_BlockIndex*>(block_index);
+}
+
+kernel_BlockIndex* kernel_get_previous_block_index(const kernel_BlockIndex* block_index_)
+{
+    const BlockIndex* block_index{cast_const_block_index(block_index_)};
+    std::optional<BlockIndex> prev_block_index{block_index->GetPreviousBlockIndex()};
+
+    if (!prev_block_index) {
+        return nullptr;
+    }
+
+    return reinterpret_cast<kernel_BlockIndex*>(new BlockIndex(prev_block_index.value()));
+}
+
+kernel_Block* kernel_read_block_from_disk(const kernel_Context* context_,
+                                          kernel_ChainstateManager* chainman_,
+                                          const kernel_BlockIndex* block_index_)
+{
+    auto chainman{cast_chainstate_manager(chainman_)};
+    const BlockIndex* block_index{cast_const_block_index(block_index_)};
+
+    std::optional<Block> block{chainman->ReadBlock(*block_index)};
+
+    if (!block) return nullptr;
+
+    return reinterpret_cast<kernel_Block*>(new Block(std::move(*block)));
+}
+
+void kernel_block_index_destroy(kernel_BlockIndex* block_index)
+{
+    if (block_index) {
+        delete reinterpret_cast<BlockIndex*>(block_index);
+    }
 }
 
 bool kernel_chainstate_manager_process_block(
