@@ -228,26 +228,26 @@ Logger::~Logger() = default;
 struct ChainParameters::ChainParametersImpl {
     std::unique_ptr<const CChainParams> m_chainparams;
 
-    ChainParametersImpl(const kernel_ChainType chain_type)
+    ChainParametersImpl(const ChainType chain_type)
     {
         switch (chain_type) {
-        case kernel_ChainType::kernel_CHAIN_TYPE_MAINNET: {
+        case ChainType::MAIN: {
             m_chainparams = CChainParams::Main();
             return;
         }
-        case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET: {
+        case ChainType::TESTNET: {
             m_chainparams = CChainParams::TestNet();
             return;
         }
-        case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET_4: {
+        case ChainType::TESTNET4: {
             m_chainparams = CChainParams::TestNet4();
             return;
         }
-        case kernel_ChainType::kernel_CHAIN_TYPE_SIGNET: {
+        case ChainType::SIGNET: {
             m_chainparams = CChainParams::SigNet({});
             return;
         }
-        case kernel_ChainType::kernel_CHAIN_TYPE_REGTEST: {
+        case ChainType::REGTEST: {
             m_chainparams = CChainParams::RegTest({});
             return;
         }
@@ -256,7 +256,7 @@ struct ChainParameters::ChainParametersImpl {
     }
 };
 
-ChainParameters::ChainParameters(const kernel_ChainType chain_type) noexcept
+ChainParameters::ChainParameters(const ChainType chain_type) noexcept
 {
     m_impl = std::make_unique<ChainParametersImpl>(chain_type);
 }

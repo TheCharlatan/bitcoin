@@ -8,6 +8,7 @@
 #include <kernel/logging_options.h>
 #include <kernel/logging_types.h>
 #include <kernel/script_verify.h>
+#include <util/chaintype.h>
 
 #include <functional>
 #include <memory>
@@ -110,7 +111,7 @@ private:
     std::unique_ptr<ChainParametersImpl> m_impl;
 
 public:
-    ChainParameters(const kernel_ChainType chain_type) noexcept;
+    ChainParameters(const ChainType chain_type) noexcept;
     ~ChainParameters() noexcept;
 
     friend class ContextOptions;

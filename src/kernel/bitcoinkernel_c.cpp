@@ -84,6 +84,28 @@ BCLog::LogFlags get_bclog_flag(const kernel_LogCategory category)
     assert(false);
 }
 
+ChainType get_chain_type(kernel_ChainType chain_type)
+{
+    switch (chain_type) {
+    case kernel_ChainType::kernel_CHAIN_TYPE_MAINNET: {
+        return ChainType::MAIN;
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET: {
+        return ChainType::TESTNET;
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET_4: {
+        return ChainType::TESTNET4;
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_SIGNET: {
+        return ChainType::SIGNET;
+    }
+    case kernel_ChainType::kernel_CHAIN_TYPE_REGTEST: {
+        return ChainType::REGTEST;
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
 const Transaction* cast_transaction(const kernel_Transaction* transaction)
 {
     assert(transaction);
@@ -226,7 +248,7 @@ kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback ca
 
 kernel_ChainParameters* kernel_chain_parameters_create(const kernel_ChainType chain_type)
 {
-    return reinterpret_cast<kernel_ChainParameters*>(new ChainParameters(chain_type));
+    return reinterpret_cast<kernel_ChainParameters*>(new ChainParameters(get_chain_type(chain_type)));
 }
 
 void kernel_chain_parameters_destroy(kernel_ChainParameters* chain_parameters)
