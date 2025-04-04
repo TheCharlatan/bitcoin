@@ -15,9 +15,11 @@
 #include <span>
 #include <vector>
 
+using kernel_header::BlockIndex;
 using kernel_header::ChainParameters;
 using kernel_header::Context;
 using kernel_header::ContextOptions;
+using kernel_header::KernelNotifications;
 using kernel_header::Logger;
 using kernel_header::ScriptPubkey;
 using kernel_header::Transaction;
@@ -55,6 +57,45 @@ constexpr auto VERIFY_ALL_PRE_SEGWIT{SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_DERSIG |
                                      SCRIPT_VERIFY_CHECKSEQUENCEVERIFY};
 constexpr auto VERIFY_ALL_PRE_TAPROOT{VERIFY_ALL_PRE_SEGWIT | SCRIPT_VERIFY_WITNESS};
 constexpr auto VERIFY_ALL{((SCRIPT_VERIFY_END_MARKER - 1) << 1) - 1};
+
+class TestKernelNotifications : public KernelNotifications
+{
+public:
+    void BlockTipHandler(SynchronizationState state, BlockIndex index) override
+    {
+        std::cout << "Block tip changed" << std::endl;
+    }
+
+    void HeaderTipHandler(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
+    {
+        assert(timestamp > 0);
+    }
+
+    void ProgressHandler(std::string_view title, int progress_percent, bool resume_possible) override
+    {
+        std::cout << "Made progress: " << title << " " << progress_percent << "%" << std::endl;
+    }
+
+    void WarningSetHandler(kernel::Warning warning, std::string_view message) override
+    {
+        std::cout << "Kernel warning is set: " << message << std::endl;
+    }
+
+    void WarningUnsetHandler(kernel::Warning warning) override
+    {
+        std::cout << "Kernel warning was unset." << std::endl;
+    }
+
+    void FlushErrorHandler(std::string_view error) override
+    {
+        std::cout << error << std::endl;
+    }
+
+    void FatalErrorHandler(std::string_view error) override
+    {
+        std::cout << error << std::endl;
+    }
+};
 
 void run_verify_test(
     const ScriptPubkey& spent_script_pubkey,
@@ -197,9 +238,11 @@ void context_test()
     }
 
     { // test with context options
+        auto notifications{std::make_shared<TestKernelNotifications>()};
         ContextOptions options{};
         ChainParameters params{ChainType::MAIN};
         options.SetChainParameters(params);
+        options.SetNotifications(notifications);
         Context context{options};
         assert(context);
     }

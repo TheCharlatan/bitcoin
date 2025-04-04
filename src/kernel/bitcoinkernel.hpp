@@ -7,8 +7,11 @@
 
 #include <consensus/amount.h>
 #include <kernel/logging_types.h> // IWYU pragma: keep
-#include <kernel/script_flags.h> // IWYU pragma: keep
-#include <util/chaintype.h>      // IWYU pragma: keep
+#include <kernel/script_flags.h>  // IWYU pragma: keep
+#include <kernel/types.h>         // IWYU pragma: keep
+#include <kernel/warning.h>       // IWYU pragma: keep
+#include <util/chaintype.h>       // IWYU pragma: keep
+#include <util/chaintype.h>       // IWYU pragma: keep
 
 #include <cstdint>
 #include <functional>
@@ -129,6 +132,49 @@ public:
     explicit operator bool() const noexcept { return bool{m_impl}; }
 };
 
+class BITCOINKERNEL_API BlockIndex
+{
+private:
+    struct BlockIndexImpl;
+    std::unique_ptr<BlockIndexImpl> m_impl;
+
+public:
+    BlockIndex(std::unique_ptr<BlockIndexImpl>&& impl) noexcept;
+    ~BlockIndex() noexcept;
+
+    /** Check whether this BlockIndex object is valid. */
+    explicit operator bool() const noexcept { return bool{m_impl}; }
+
+    friend class KernelNotifications;
+};
+
+class BITCOINKERNEL_API KernelNotifications
+{
+private:
+    struct KernelNotificationsImpl;
+    std::unique_ptr<KernelNotificationsImpl> m_impl;
+
+public:
+    KernelNotifications() noexcept;
+    virtual ~KernelNotifications() noexcept;
+
+    virtual void BlockTipHandler(SynchronizationState state, BlockIndex index) {}
+
+    virtual void HeaderTipHandler(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) {}
+
+    virtual void ProgressHandler(std::string_view title, int progress_percent, bool resume_possible) {}
+
+    virtual void WarningSetHandler(kernel::Warning warning, std::string_view message) {}
+
+    virtual void WarningUnsetHandler(kernel::Warning warning) {}
+
+    virtual void FlushErrorHandler(std::string_view error) {}
+
+    virtual void FatalErrorHandler(std::string_view error) {}
+
+    friend class ContextOptions;
+};
+
 class BITCOINKERNEL_API ChainParameters
 {
 private:
@@ -154,6 +200,8 @@ public:
     ~ContextOptions() noexcept;
 
     void SetChainParameters(const ChainParameters& chain_parameters) noexcept;
+
+    void SetNotifications(std::shared_ptr<KernelNotifications> notifications) noexcept;
 
     friend class Context;
 };

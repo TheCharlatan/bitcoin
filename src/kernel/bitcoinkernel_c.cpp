@@ -6,6 +6,8 @@
 
 #include <kernel/bitcoinkernel.hpp>
 #include <kernel/logging_types.h>
+#include <kernel/types.h>
+#include <kernel/warning.h>
 #include <util/chaintype.h>
 
 #include <cassert>
@@ -13,12 +15,15 @@
 #include <cstdint>
 #include <exception>
 #include <functional>
+#include <memory>
 #include <span>
 #include <string_view>
 
+using kernel_header::BlockIndex;
 using kernel_header::ChainParameters;
 using kernel_header::Context;
 using kernel_header::ContextOptions;
+using kernel_header::KernelNotifications;
 using kernel_header::Logger;
 using kernel_header::ScriptPubkey;
 using kernel_header::Transaction;
@@ -116,6 +121,30 @@ ChainType get_chain_type(kernel_ChainType chain_type)
     assert(false);
 }
 
+kernel_SynchronizationState cast_state(SynchronizationState state)
+{
+    switch (state) {
+    case SynchronizationState::INIT_REINDEX:
+        return kernel_SynchronizationState::kernel_INIT_REINDEX;
+    case SynchronizationState::INIT_DOWNLOAD:
+        return kernel_SynchronizationState::kernel_INIT_DOWNLOAD;
+    case SynchronizationState::POST_INIT:
+        return kernel_SynchronizationState::kernel_POST_INIT;
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+kernel_Warning cast_kernel_warning(kernel::Warning warning)
+{
+    switch (warning) {
+    case kernel::Warning::UNKNOWN_NEW_RULES_ACTIVATED:
+        return kernel_Warning::kernel_LARGE_WORK_INVALID_CHAIN;
+    case kernel::Warning::LARGE_WORK_INVALID_CHAIN:
+        return kernel_Warning::kernel_LARGE_WORK_INVALID_CHAIN;
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
 const Transaction* cast_transaction(const kernel_Transaction* transaction)
 {
     assert(transaction);
@@ -169,6 +198,48 @@ Context* cast_context(kernel_Context* context)
     assert(context);
     return reinterpret_cast<Context*>(context);
 }
+
+class CallbackKernelNotifications : public KernelNotifications
+{
+private:
+    kernel_NotificationInterfaceCallbacks m_cbs;
+
+public:
+    CallbackKernelNotifications(kernel_NotificationInterfaceCallbacks cbs)
+        : m_cbs{cbs}
+    {
+    }
+
+    void BlockTipHandler(SynchronizationState state, BlockIndex index) override
+    {
+        if (m_cbs.block_tip) m_cbs.block_tip((void*)m_cbs.user_data, cast_state(state), reinterpret_cast<const kernel_BlockIndex*>(&index));
+    }
+    void HeaderTipHandler(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
+    {
+        if (m_cbs.header_tip) m_cbs.header_tip((void*)m_cbs.user_data, cast_state(state), height, timestamp, presync);
+    }
+    void ProgressHandler(std::string_view title, int progress_percent, bool resume_possible) override
+    {
+        if (m_cbs.progress) m_cbs.progress((void*)m_cbs.user_data, title.data(), title.length(), progress_percent, resume_possible);
+    }
+    void WarningSetHandler(kernel::Warning id, const std::string_view message) override
+    {
+        if (m_cbs.warning_set) m_cbs.warning_set((void*)m_cbs.user_data, cast_kernel_warning(id), message.data(), message.length());
+    }
+    void WarningUnsetHandler(kernel::Warning id) override
+    {
+        if (m_cbs.warning_unset) m_cbs.warning_unset((void*)m_cbs.user_data, cast_kernel_warning(id));
+    }
+    void FlushErrorHandler(std::string_view message) override
+    {
+        if (m_cbs.flush_error) m_cbs.flush_error((void*)m_cbs.user_data, message.data(), message.length());
+    }
+    void FatalErrorHandler(std::string_view message) override
+    {
+        if (m_cbs.fatal_error) m_cbs.fatal_error((void*)m_cbs.user_data, message.data(), message.length());
+    }
+};
+
 } // namespace
 
 kernel_Transaction* kernel_transaction_create(const unsigned char* raw_transaction, size_t raw_transaction_len)
@@ -316,6 +387,12 @@ void kernel_context_options_set_chainparams(kernel_ContextOptions* options_, con
     auto options{cast_context_options(options_)};
     auto chain_params{cast_const_chain_params(chain_parameters)};
     options->SetChainParameters(*chain_params);
+}
+
+void kernel_context_options_set_notifications(kernel_ContextOptions* options_, kernel_NotificationInterfaceCallbacks notifications)
+{
+    auto options{cast_context_options(options_)};
+    options->SetNotifications(std::make_shared<CallbackKernelNotifications>(notifications));
 }
 
 void kernel_context_options_destroy(kernel_ContextOptions* options)
