@@ -5,6 +5,7 @@
 #ifndef BITCOIN_KERNEL_BITCOINKERNEL_H
 #define BITCOIN_KERNEL_BITCOINKERNEL_H
 
+#include <kernel/block_hash.h>
 #include <kernel/logging_options.h>
 #include <kernel/script_verify.h>
 
@@ -361,13 +362,6 @@ typedef enum {
     kernel_CHAIN_TYPE_SIGNET,
     kernel_CHAIN_TYPE_REGTEST,
 } kernel_ChainType;
-
-/**
- * A type-safe block identifier.
- */
-typedef struct {
-    unsigned char hash[32];
-} kernel_BlockHash;
 
 /**
  * Convenience struct for holding serialized data.

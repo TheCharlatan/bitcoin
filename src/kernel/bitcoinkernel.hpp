@@ -5,6 +5,7 @@
 #ifndef BITCOIN_KERNEL_BITCOINKERNEL_HPP
 #define BITCOIN_KERNEL_BITCOINKERNEL_HPP
 
+#include <kernel/block_hash.h>
 #include <kernel/logging_options.h>
 #include <kernel/logging_types.h>
 #include <kernel/script_verify.h>
