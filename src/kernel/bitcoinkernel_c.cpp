@@ -11,12 +11,75 @@
 #include <cstring>
 #include <exception>
 #include <span>
+#include <string_view>
 
+using kernel_header::Logger;
 using kernel_header::Transaction;
 using kernel_header::ScriptPubkey;
 using kernel_header::TransactionOutput;
 
+using kernel_header::AddLogLevelCategory;
+using kernel_header::DisableLogCategory;
+using kernel_header::DisableLogging;
+using kernel_header::EnableLogCategory;
+
 namespace {
+
+BCLog::Level get_bclog_level(const kernel_LogLevel level)
+{
+    switch (level) {
+    case kernel_LogLevel::kernel_LOG_INFO: {
+        return BCLog::Level::Info;
+    }
+    case kernel_LogLevel::kernel_LOG_DEBUG: {
+        return BCLog::Level::Debug;
+    }
+    case kernel_LogLevel::kernel_LOG_TRACE: {
+        return BCLog::Level::Trace;
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+BCLog::LogFlags get_bclog_flag(const kernel_LogCategory category)
+{
+    switch (category) {
+    case kernel_LogCategory::kernel_LOG_BENCH: {
+        return BCLog::LogFlags::BENCH;
+    }
+    case kernel_LogCategory::kernel_LOG_BLOCKSTORAGE: {
+        return BCLog::LogFlags::BLOCKSTORAGE;
+    }
+    case kernel_LogCategory::kernel_LOG_COINDB: {
+        return BCLog::LogFlags::COINDB;
+    }
+    case kernel_LogCategory::kernel_LOG_LEVELDB: {
+        return BCLog::LogFlags::LEVELDB;
+    }
+    case kernel_LogCategory::kernel_LOG_MEMPOOL: {
+        return BCLog::LogFlags::MEMPOOL;
+    }
+    case kernel_LogCategory::kernel_LOG_PRUNE: {
+        return BCLog::LogFlags::PRUNE;
+    }
+    case kernel_LogCategory::kernel_LOG_RAND: {
+        return BCLog::LogFlags::RAND;
+    }
+    case kernel_LogCategory::kernel_LOG_REINDEX: {
+        return BCLog::LogFlags::REINDEX;
+    }
+    case kernel_LogCategory::kernel_LOG_VALIDATION: {
+        return BCLog::LogFlags::VALIDATION;
+    }
+    case kernel_LogCategory::kernel_LOG_KERNEL: {
+        return BCLog::LogFlags::KERNEL;
+    }
+    case kernel_LogCategory::kernel_LOG_ALL: {
+        return BCLog::LogFlags::ALL;
+    }
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
 
 const Transaction* cast_transaction(const kernel_Transaction* transaction)
 {
@@ -101,3 +164,30 @@ bool kernel_verify_script(const kernel_ScriptPubkey* script_pubkey_,
                         *status);
 }
 
+void kernel_add_log_level_category(const kernel_LogCategory category, const kernel_LogLevel level)
+{
+    AddLogLevelCategory(get_bclog_flag(category), get_bclog_level(level));
+}
+
+void kernel_enable_log_category(const kernel_LogCategory category)
+{
+    EnableLogCategory(get_bclog_flag(category));
+}
+
+void kernel_disable_log_category(const kernel_LogCategory category)
+{
+    DisableLogCategory(get_bclog_flag(category));
+}
+
+void kernel_disable_logging()
+{
+    DisableLogging();
+}
+
+kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback callback,
+                                                           void* user_data,
+                                                           const kernel_LoggingOptions options)
+{
+    auto logger = new Logger([callback, user_data](std::string_view message) { callback(user_data, message.data(), message.length()); }, options);
+    return reinterpret_cast<kernel_LoggingConnection*>(logger);
+}

@@ -10,6 +10,7 @@
 
 #include <consensus/amount.h>
 #include <kernel/context.h>
+#include <logging.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
@@ -141,5 +142,81 @@ int ScriptPubkey::VerifyScript(
                         TransactionSignatureChecker(&tx, input_index, amount, txdata, MissingDataBehavior::FAIL),
                         nullptr);
 }
+
+void AddLogLevelCategory(const BCLog::LogFlags category, const BCLog::Level level)
+{
+    if (category == BCLog::LogFlags::ALL ) {
+        LogInstance().SetLogLevel(level);
+    }
+
+    LogInstance().AddCategoryLogLevel(category, level);
+}
+
+void EnableLogCategory(const BCLog::LogFlags category)
+{
+    LogInstance().EnableCategory(category);
+}
+
+void DisableLogCategory(const BCLog::LogFlags category)
+{
+    LogInstance().DisableCategory(category);
+}
+
+void DisableLogging()
+{
+    LogInstance().DisableLogging();
+}
+
+struct Logger::LoggerImpl {
+    std::list<std::function<void(const std::string&)>>::iterator m_connection;
+
+    LoggerImpl(std::function<void(std::string_view)> callback, const kernel_LoggingOptions options)
+    {
+        LogInstance().m_log_timestamps = options.log_timestamps;
+        LogInstance().m_log_time_micros = options.log_time_micros;
+        LogInstance().m_log_threadnames = options.log_threadnames;
+        LogInstance().m_log_sourcelocations = options.log_sourcelocations;
+        LogInstance().m_always_print_category_level = options.always_print_category_levels;
+
+        m_connection = LogInstance().PushBackCallback([callback](const std::string& str) { callback(str); });
+
+        try {
+            // Only start logging if we just added the connection.
+            if (LogInstance().NumConnections() == 1 && !LogInstance().StartLogging()) {
+                LogError("Logger start failed.");
+                LogInstance().DeleteCallback(m_connection);
+            }
+        } catch (std::exception& e) {
+            LogError("Logger start failed.");
+            LogInstance().DeleteCallback(m_connection);
+            throw e;
+        }
+
+        LogDebug(BCLog::KERNEL, "Logger connected.");
+    }
+
+    ~LoggerImpl()
+    {
+        LogDebug(BCLog::KERNEL, "Logger disconnected.");
+        LogInstance().DeleteCallback(m_connection);
+
+        // We are not buffering if we have a connection, so check that it is not the
+        // last available connection.
+        if (!LogInstance().Enabled()) {
+            LogInstance().DisconnectTestLogger();
+        }
+    }
+};
+
+Logger::Logger(std::function<void(std::string_view)> callback, const kernel_LoggingOptions& logging_options) noexcept
+{
+    try {
+        m_impl = std::make_unique<LoggerImpl>(callback, logging_options);
+    } catch (std::exception&) {
+        m_impl = nullptr;
+    }
+}
+
+Logger::~Logger() = default;
 
 } // namespace kernel_header
