@@ -6,7 +6,7 @@
 
 #include <kernel/bitcoinkernel.hpp>
 
-#include <kernel/bitcoinkernel.h>
+#include <kernel/script_verify.h>
 
 #include <consensus/amount.h>
 #include <kernel/context.h>
@@ -91,12 +91,6 @@ TransactionOutput::TransactionOutput(TransactionOutput&& other) noexcept = defau
 TransactionOutput& TransactionOutput::operator=(TransactionOutput&& other) noexcept = default;
 
 
-/** Check that all specified flags are part of the libbitcoinkernel interface. */
-bool verify_flags(unsigned int flags)
-{
-    return (flags & ~(kernel_SCRIPT_FLAGS_VERIFY_ALL)) == 0;
-}
-
 int ScriptPubkey::VerifyScript(
     const int64_t amount_,
     const Transaction& tx_to,
@@ -107,17 +101,12 @@ int ScriptPubkey::VerifyScript(
 {
     const CAmount amount{amount_};
 
-    if (!verify_flags(flags)) {
-        status = kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS;
-        return false;
-    }
-
     if (!is_valid_flag_combination(flags)) {
         status = kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS_COMBINATION;
         return false;
     }
 
-    if (flags & kernel_SCRIPT_FLAGS_VERIFY_TAPROOT && spent_outputs.empty()) {
+    if (flags & SCRIPT_VERIFY_TAPROOT && spent_outputs.empty()) {
         status = kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_REQUIRED;
         return false;
     }
@@ -141,7 +130,7 @@ int ScriptPubkey::VerifyScript(
     }
     PrecomputedTransactionData txdata{tx};
 
-    if (!spent_outputs_vec.empty() && flags & kernel_SCRIPT_FLAGS_VERIFY_TAPROOT) {
+    if (!spent_outputs_vec.empty() && flags & SCRIPT_VERIFY_TAPROOT) {
         txdata.Init(tx, std::move(spent_outputs_vec));
     }
 

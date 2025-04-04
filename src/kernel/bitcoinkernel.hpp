@@ -2,10 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
-#define BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
+#ifndef BITCOIN_KERNEL_BITCOINKERNEL_HPP
+#define BITCOIN_KERNEL_BITCOINKERNEL_HPP
 
-#include <kernel/bitcoinkernel.h>
+#include <kernel/script_verify.h>
 
 #include <memory>
 #include <span>
@@ -77,4 +77,4 @@ public:
 
 } // namespace kernel_header
 
-#endif // BITCOIN_KERNEL_BITCOINKERNEL_WRAPPER_H
+#endif // BITCOIN_KERNEL_BITCOINKERNEL_HPP

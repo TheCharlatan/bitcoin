@@ -5,6 +5,8 @@
 #ifndef BITCOIN_KERNEL_BITCOINKERNEL_H
 #define BITCOIN_KERNEL_BITCOINKERNEL_H
 
+#include <kernel/script_verify.h>
+
 #ifndef __cplusplus
 #include <stdbool.h>
 #include <stddef.h>
@@ -104,41 +106,6 @@ typedef struct kernel_ScriptPubkey kernel_ScriptPubkey;
  */
 typedef struct kernel_TransactionOutput kernel_TransactionOutput;
 
-/**
- * A collection of status codes that may be issued by the script verify function.
- */
-typedef enum {
-    kernel_SCRIPT_VERIFY_OK = 0,
-    kernel_SCRIPT_VERIFY_ERROR_TX_INPUT_INDEX, //!< The provided input index is out of range of the actual number of inputs of the transaction.
-    kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS, //!< The provided bitfield for the flags was invalid.
-    kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS_COMBINATION, //!< The flags very combined in an invalid way.
-    kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_REQUIRED, //!< The taproot flag was set, so valid spent_outputs have to be provided.
-    kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_MISMATCH, //!< The number of spent outputs does not match the number of inputs of the tx.
-} kernel_ScriptVerifyStatus;
-
-/**
- * Script verification flags that may be composed with each other.
- */
-typedef enum
-{
-    kernel_SCRIPT_FLAGS_VERIFY_NONE                = 0,
-    kernel_SCRIPT_FLAGS_VERIFY_P2SH                = (1U << 0), //!< evaluate P2SH (BIP16) subscripts
-    kernel_SCRIPT_FLAGS_VERIFY_DERSIG              = (1U << 2), //!< enforce strict DER (BIP66) compliance
-    kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY           = (1U << 4), //!< enforce NULLDUMMY (BIP147)
-    kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY = (1U << 9), //!< enable CHECKLOCKTIMEVERIFY (BIP65)
-    kernel_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY = (1U << 10), //!< enable CHECKSEQUENCEVERIFY (BIP112)
-    kernel_SCRIPT_FLAGS_VERIFY_WITNESS             = (1U << 11), //!< enable WITNESS (BIP141)
-
-    kernel_SCRIPT_FLAGS_VERIFY_TAPROOT             = (1U << 17), //!< enable TAPROOT (BIPs 341 & 342)
-    kernel_SCRIPT_FLAGS_VERIFY_ALL                 = kernel_SCRIPT_FLAGS_VERIFY_P2SH |
-                                                     kernel_SCRIPT_FLAGS_VERIFY_DERSIG |
-                                                     kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY |
-                                                     kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY |
-                                                     kernel_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY |
-                                                     kernel_SCRIPT_FLAGS_VERIFY_WITNESS |
-                                                     kernel_SCRIPT_FLAGS_VERIFY_TAPROOT
-} kernel_ScriptFlags;
-
 /** @name Transaction
  * Functions for working with transactions.
  */
@@ -227,7 +194,7 @@ BITCOINKERNEL_API void kernel_transaction_output_destroy(kernel_TransactionOutpu
  *                              outputs spent by the transaction.
  * @param[in] spent_outputs_len Length of the spent_outputs array.
  * @param[in] input_index       Index of the input in tx_to spending the script_pubkey.
- * @param[in] flags             Bitfield of kernel_ScriptFlags controlling validation constraints.
+ * @param[in] flags             Bitfield of script flags for controlling validation constraints.
  * @param[out] status           Nullable, will be set to an error code if the operation fails.
  *                              Should be set to kernel_SCRIPT_VERIFY_OK.
  * @return                      True if the script is valid.
@@ -237,8 +204,8 @@ BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_verify_script(
     int64_t amount,
     const kernel_Transaction* tx_to,
     const kernel_TransactionOutput** spent_outputs, size_t spent_outputs_len,
-    unsigned int input_index,
-    unsigned int flags,
+    uint32_t input_index,
+    uint32_t flags,
     kernel_ScriptVerifyStatus* status
 ) BITCOINKERNEL_ARG_NONNULL(1, 3);
 

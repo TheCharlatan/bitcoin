@@ -4,6 +4,8 @@
 
 #include <kernel/bitcoinkernel.hpp>
 
+#include <kernel/script_verify.h>
+
 #include <cassert>
 #include <charconv>
 #include <cstdint>
@@ -31,10 +33,10 @@ std::vector<unsigned char> hex_string_to_char_vec(std::string_view hex)
     return bytes;
 }
 
-constexpr auto VERIFY_ALL_PRE_SEGWIT{kernel_SCRIPT_FLAGS_VERIFY_P2SH | kernel_SCRIPT_FLAGS_VERIFY_DERSIG |
-                                     kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY | kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY |
-                                     kernel_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY};
-constexpr auto VERIFY_ALL_PRE_TAPROOT{VERIFY_ALL_PRE_SEGWIT | kernel_SCRIPT_FLAGS_VERIFY_WITNESS};
+constexpr auto VERIFY_ALL_PRE_SEGWIT{SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_DERSIG |
+                                     SCRIPT_VERIFY_NULLDUMMY | SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY |
+                                     SCRIPT_VERIFY_CHECKSEQUENCEVERIFY};
+constexpr auto VERIFY_ALL_PRE_TAPROOT{VERIFY_ALL_PRE_SEGWIT | SCRIPT_VERIFY_WITNESS};
 
 void run_verify_test(
     const ScriptPubkey& spent_script_pubkey,
@@ -54,7 +56,7 @@ void run_verify_test(
             spending_tx,
             spent_outputs,
             input_index,
-            kernel_SCRIPT_FLAGS_VERIFY_ALL,
+            SCRIPT_VERIFY_ALL,
             status));
         assert(status == kernel_SCRIPT_VERIFY_OK);
     } else {
@@ -63,7 +65,7 @@ void run_verify_test(
             spending_tx,
             spent_outputs,
             input_index,
-            kernel_SCRIPT_FLAGS_VERIFY_ALL,
+            SCRIPT_VERIFY_ALL,
             status));
         assert(status == kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_REQUIRED);
         status = kernel_SCRIPT_VERIFY_OK;
@@ -86,15 +88,6 @@ void run_verify_test(
         VERIFY_ALL_PRE_SEGWIT,
         status));
     assert(status == kernel_SCRIPT_VERIFY_OK);
-
-    assert(!spent_script_pubkey.VerifyScript(
-        amount,
-        spending_tx,
-        spent_outputs,
-        input_index,
-        VERIFY_ALL_PRE_TAPROOT << 2,
-        status));
-    assert(status == kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS);
 
     assert(!spent_script_pubkey.VerifyScript(
         amount,
