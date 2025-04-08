@@ -9,6 +9,13 @@
 #include <string_view>
 #include <vector>
 
+#ifdef WIN32
+#include <windows.h>
+#include <codecvt>
+#include <shellapi.h>
+#include <locale>
+#endif
+
 std::vector<unsigned char> hex_string_to_char_vec(std::string_view hex)
 {
     std::vector<unsigned char> bytes;
@@ -136,6 +143,22 @@ int main(int argc, char* argv[])
             << "           BREAK IN FUTURE VERSIONS. DO NOT USE ON YOUR ACTUAL DATADIR." << std::endl;
         return 1;
     }
+
+#ifdef WIN32
+    int win_argc;
+    wchar_t** wargv = CommandLineToArgvW(GetCommandLineW(), &win_argc);
+    std::vector<std::string> utf8_args(win_argc);
+    std::vector<char*> win_argv(win_argc);
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> utf8_cvt;
+    for (int i = 0; i < win_argc; i++) {
+        utf8_args[i] = utf8_cvt.to_bytes(wargv[i]);
+        win_argv[i] = &utf8_args[i][0];
+    }
+    LocalFree(wargv);
+    argc = win_argc;
+    argv = win_argv.data();
+#endif
+
     std::filesystem::path abs_datadir{std::filesystem::absolute(argv[1])};
     std::filesystem::create_directories(abs_datadir);
 
