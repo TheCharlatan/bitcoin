@@ -125,6 +125,17 @@ For more information on ZMQ, see: [zmq.md](zmq.md)
 
 ---
 
+### Multiprocess Dependencies
+
+Compiles multiprocess-enabled binaries that communicate with each other through
+ipc and expose ipc sockets.
+
+```bash
+brew install capnp
+```
+
+---
+
 #### Test Suite Dependencies
 
 There is an included test suite that is useful for testing code changes when developing.

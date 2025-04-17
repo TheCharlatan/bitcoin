@@ -68,6 +68,10 @@ User-Space, Statically Defined Tracing (USDT) dependencies:
 
     sudo apt install systemtap-sdt-dev
 
+Multiprocess dependencies:
+
+    sudo apt-get install libcapnp-dev capnproto
+
 GUI dependencies:
 
 Bitcoin Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, we need to install
@@ -117,6 +121,10 @@ ZMQ dependencies (provides ZMQ API):
 User-Space, Statically Defined Tracing (USDT) dependencies:
 
     sudo dnf install systemtap-sdt-devel
+
+Multiprocess dependencies:
+
+    sudo dnf install capnproto
 
 GUI dependencies:
 
