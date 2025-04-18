@@ -160,7 +160,8 @@ template unsigned int GetP2SHSigOpCount<const Coin>(
 template unsigned int GetP2SHSigOpCount<std::reference_wrapper<const Coin>>(
     const CTransaction& tx, const std::span<std::reference_wrapper<const Coin>>);
 
-int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& inputs, uint32_t flags)
+template <typename T>
+int64_t GetTransactionSigOpCost(const CTransaction& tx, const std::span<T> coins, uint32_t flags)
 {
     int64_t nSigOps = GetLegacySigOpCount(tx) * WITNESS_SCALE_FACTOR;
 
@@ -168,19 +169,24 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
         return nSigOps;
 
     if (flags & SCRIPT_VERIFY_P2SH) {
-        auto coins{inputs.AccessCoins(tx)};
-        nSigOps += GetP2SHSigOpCount(tx, std::span{coins}) * WITNESS_SCALE_FACTOR;
+        nSigOps += GetP2SHSigOpCount(tx, coins) * WITNESS_SCALE_FACTOR;
     }
 
-    for (unsigned int i = 0; i < tx.vin.size(); i++)
-    {
-        const Coin& coin = inputs.AccessCoin(tx.vin[i].prevout);
+    Assert(coins.size() == tx.vin.size());
+    auto input_it = tx.vin.begin();
+    for (auto it = coins.begin(); it != coins.end(); ++it, ++input_it) {
+        const Coin& coin{GetCoin(*it)};
         assert(!coin.IsSpent());
         const CTxOut &prevout = coin.out;
-        nSigOps += CountWitnessSigOps(tx.vin[i].scriptSig, prevout.scriptPubKey, &tx.vin[i].scriptWitness, flags);
+        nSigOps += CountWitnessSigOps(input_it->scriptSig, prevout.scriptPubKey, &input_it->scriptWitness, flags);
     }
     return nSigOps;
 }
+template int64_t GetTransactionSigOpCost<const Coin>(
+    const CTransaction& tx, std::span<const Coin> coins, uint32_t flags);
+
+template int64_t GetTransactionSigOpCost<std::reference_wrapper<const Coin>>(
+    const CTransaction& tx, const std::span<std::reference_wrapper<const Coin>> coins, uint32_t flags);
 
 bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee)
 {
