@@ -55,12 +55,13 @@ unsigned int GetP2SHSigOpCount(const CTransaction& tx, const std::span<T> coins)
 
 /**
  * Compute total signature operation cost of a transaction.
- * @param[in] tx     Transaction for which we are computing the cost
- * @param[in] inputs Map of previous transactions that have outputs we're spending
+ * @param[in] tx    Transaction for which we are computing the cost
+ * @param[in] coins Sorted span of Coins containing previous transaction outputs we're spending
  * @param[in] flags Script verification flags
  * @return Total signature operation cost of tx
  */
-int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& inputs, uint32_t flags);
+template <Consensus::CoinRef T>
+int64_t GetTransactionSigOpCost(const CTransaction& tx, const std::span<T> coins, uint32_t flags);
 
 /**
  * Check if transaction is final and can be included in a block with the
