@@ -5,9 +5,12 @@
 #ifndef BITCOIN_CONSENSUS_TX_VERIFY_H
 #define BITCOIN_CONSENSUS_TX_VERIFY_H
 
+#include <coins.h>
 #include <consensus/amount.h>
 
+#include <concepts>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 class CBlockIndex;
@@ -18,6 +21,10 @@ class TxValidationState;
 /** Transaction validation functions */
 
 namespace Consensus {
+
+template <typename T>
+concept CoinRef = std::convertible_to<T, const Coin&>;
+
 /**
  * Check whether all inputs of this transaction are valid (no double spends and amounts)
  * This does not modify the UTXO set. This does not check scripts and sigs.
@@ -39,11 +46,12 @@ unsigned int GetLegacySigOpCount(const CTransaction& tx);
 /**
  * Count ECDSA signature operations in pay-to-script-hash inputs.
  *
- * @param[in] mapInputs Map of previous transactions that have outputs we're spending
+ * @param[in] coins Sorted span of Coins containing previous transaction outputs we're spending
  * @return maximum number of sigops required to validate this transaction's inputs
  * @see CTransaction::FetchInputs
  */
-unsigned int GetP2SHSigOpCount(const CTransaction& tx, const CCoinsViewCache& mapInputs);
+template <Consensus::CoinRef T>
+unsigned int GetP2SHSigOpCount(const CTransaction& tx, const std::span<T> coins);
 
 /**
  * Compute total signature operation cost of a transaction.
