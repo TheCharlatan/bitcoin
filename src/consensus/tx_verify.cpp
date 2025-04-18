@@ -14,6 +14,16 @@
 #include <util/check.h>
 #include <util/moneystr.h>
 
+template <typename T>
+static constexpr const Coin& GetCoin(const T& item)
+{
+    if constexpr (std::is_same_v<T, std::reference_wrapper<const Coin>>) {
+        return item.get();
+    } else {
+        return item;
+    }
+}
+
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime)
 {
     if (tx.nLockTime == 0)
@@ -123,22 +133,30 @@ unsigned int GetLegacySigOpCount(const CTransaction& tx)
     return nSigOps;
 }
 
-unsigned int GetP2SHSigOpCount(const CTransaction& tx, const CCoinsViewCache& inputs)
+template <typename T>
+unsigned int GetP2SHSigOpCount(const CTransaction& tx, const T coins)
 {
     if (tx.IsCoinBase())
         return 0;
 
     unsigned int nSigOps = 0;
-    for (unsigned int i = 0; i < tx.vin.size(); i++)
-    {
-        const Coin& coin = inputs.AccessCoin(tx.vin[i].prevout);
+    Assume(coins.size() == tx.vin.size());
+    auto input_it = tx.vin.begin();
+    for (auto it = coins.begin(); it != coins.end(); ++it, ++input_it) {
+        const Coin& coin{GetCoin(*it)};
         assert(!coin.IsSpent());
         const CTxOut &prevout = coin.out;
         if (prevout.scriptPubKey.IsPayToScriptHash())
-            nSigOps += prevout.scriptPubKey.GetSigOpCount(tx.vin[i].scriptSig);
+            nSigOps += prevout.scriptPubKey.GetSigOpCount(input_it->scriptSig);
     }
     return nSigOps;
 }
+
+template unsigned int GetP2SHSigOpCount<std::span<const Coin>>(
+    const CTransaction& tx, const std::span<const Coin>);
+
+template unsigned int GetP2SHSigOpCount<std::span<std::reference_wrapper<const Coin>>>(
+    const CTransaction& tx, const std::span<std::reference_wrapper<const Coin>>);
 
 int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& inputs, uint32_t flags)
 {
@@ -147,8 +165,10 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
     if (tx.IsCoinBase())
         return nSigOps;
 
+
     if (flags & SCRIPT_VERIFY_P2SH) {
-        nSigOps += GetP2SHSigOpCount(tx, inputs) * WITNESS_SCALE_FACTOR;
+        auto coins{inputs.AccessCoins(tx)};
+        nSigOps += GetP2SHSigOpCount(tx, std::span{coins}) * WITNESS_SCALE_FACTOR;
     }
 
     for (unsigned int i = 0; i < tx.vin.size(); i++)
