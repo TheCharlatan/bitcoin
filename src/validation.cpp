@@ -5257,7 +5257,7 @@ bool ChainstateManager::ShouldCheckBlockIndex() const
     return true;
 }
 
-void ChainstateManager::CheckBlockIndex()
+void ChainstateManager::CheckBlockIndex() const
 {
     if (!ShouldCheckBlockIndex()) {
         return;
@@ -5288,7 +5288,7 @@ void ChainstateManager::CheckBlockIndex()
         if (!best_hdr_chain.Contains(&block_index)) {
             // Only genesis, which must be part of the best header chain, can have a nullptr parent.
             assert(block_index.pprev);
-            forward.emplace(block_index.pprev, &block_index);
+            forward.emplace(block_index.pprev, const_cast<CBlockIndex*>(&block_index));
         }
     }
     assert(forward.size() + best_hdr_chain.Height() + 1 == m_blockman.m_block_index.size());
@@ -5465,7 +5465,7 @@ void ChainstateManager::CheckBlockIndex()
             }
         }
         // Check whether this block is in m_blocks_unlinked.
-        std::pair<std::multimap<CBlockIndex*,CBlockIndex*>::iterator,std::multimap<CBlockIndex*,CBlockIndex*>::iterator> rangeUnlinked = m_blockman.m_blocks_unlinked.equal_range(pindex->pprev);
+        std::pair<std::multimap<CBlockIndex*,CBlockIndex*>::const_iterator,std::multimap<CBlockIndex*,CBlockIndex*>::const_iterator> rangeUnlinked = m_blockman.m_blocks_unlinked.equal_range(pindex->pprev);
         bool foundInUnlinked = false;
         while (rangeUnlinked.first != rangeUnlinked.second) {
             assert(rangeUnlinked.first->first == pindex->pprev);
@@ -5645,7 +5645,7 @@ std::optional<uint256> ChainstateManager::SnapshotBlockhash() const
     return std::nullopt;
 }
 
-std::vector<Chainstate*> ChainstateManager::GetAll()
+std::vector<Chainstate*> ChainstateManager::GetAll() const
 {
     LOCK(::cs_main);
     std::vector<Chainstate*> out;

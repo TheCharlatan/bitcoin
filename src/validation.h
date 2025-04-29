@@ -985,7 +985,7 @@ public:
      *
      * By default this only executes fully when using the Regtest chain; see: m_options.check_block_index.
      */
-    void CheckBlockIndex();
+    void CheckBlockIndex() const;
 
     /**
      * Alias for ::cs_main.
@@ -1077,7 +1077,7 @@ public:
     Chainstate& InitializeChainstate(CTxMemPool* mempool) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! Get all chainstates currently being used.
-    std::vector<Chainstate*> GetAll();
+    std::vector<Chainstate*> GetAll() const;
 
     //! Construct and activate a Chainstate on the basis of UTXO snapshot data.
     //!
