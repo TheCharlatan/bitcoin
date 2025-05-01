@@ -254,6 +254,8 @@ private:
 
     BlockfileType BlockfileTypeForHeight(int height);
 
+    std::unique_ptr<BlockTreeStore> CreateAndMigrateBlockTree();
+
     const kernel::BlockManagerOpts m_opts;
 
     const FlatFileSeq m_block_file_seq;
