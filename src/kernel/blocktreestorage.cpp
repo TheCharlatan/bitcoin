@@ -185,7 +185,7 @@ void BlockTreeStore::WriteReindexing(bool reindexing) const
 {
     LOCK(m_mutex);
     if (reindexing) {
-        std::ofstream{m_reindex_flag_file_path}.close();
+        std::ofstream{fs::PathToString(m_reindex_flag_file_path)}.close();
     } else {
         fs::remove(m_reindex_flag_file_path);
     }
@@ -240,7 +240,7 @@ void BlockTreeStore::WritePruned(bool pruned) const
 {
     LOCK(m_mutex);
     if (pruned) {
-        std::ofstream{m_prune_flag_file_path}.close();
+        std::ofstream{fs::PathToString(m_prune_flag_file_path)}.close();
     } else {
         fs::remove(m_prune_flag_file_path);
     }
