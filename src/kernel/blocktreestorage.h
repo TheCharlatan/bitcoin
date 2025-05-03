@@ -21,8 +21,6 @@ namespace kernel {
 
 class CBlockFileInfo;
 
-inline constexpr uint64_t HEADER_FILE_SIZE{1_MiB}; // Will be changed to a chainparams field.
-
 //! The data layout of the headers file is as follows:
 //! <magic> <version> <data end position> <checksum> [<DiskBlockIndexWrapper> <checksum>]
 inline constexpr uint32_t HEADER_FILE_MAGIC{0x1d5e2eb2}; // sha256sum(BLOCK_HEADER_FILE_MAGIC)
@@ -71,6 +69,8 @@ private:
     fs::path m_block_files_file_path;
     fs::path m_reindex_flag_file_path;
     fs::path m_prune_flag_file_path;
+
+    const CChainParams m_params;
 
     // TEST ONLY
     bool m_incomplete_log_write{false};

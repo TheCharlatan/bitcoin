@@ -137,7 +137,8 @@ BlockTreeStore::BlockTreeStore(const fs::path& path, const CChainParams& params,
       m_log_file_path{path / LOG_FILE_NAME},
       m_block_files_file_path{path / BLOCK_FILES_FILE_NAME},
       m_reindex_flag_file_path{path / REINDEX_FLAG_FILE_NAME},
-      m_prune_flag_file_path{path / PRUNE_FLAG_FILE_NAME}
+      m_prune_flag_file_path{path / PRUNE_FLAG_FILE_NAME},
+      m_params{params}
 {
     assert(GetSerializeSize(DiskBlockIndexWrapper{}) == DISK_BLOCK_INDEX_WRAPPER_SIZE);
     assert(GetSerializeSize(BlockFileInfoWrapper{}) == BLOCK_FILE_INFO_WRAPPER_SIZE);
@@ -167,7 +168,7 @@ void BlockTreeStore::CreateHeaderFile() const
         if (!file) {
             throw BlockTreeStoreError(strprintf("Unable to open file %s", fs::PathToString(m_header_file_path)));
         }
-        AllocateFileRange(file, 0, HEADER_FILE_SIZE);
+        AllocateFileRange(file, 0, m_params.AssumedHeaderStoreSize());
         auto autofile{AutoFile{file}};
         if (!autofile.Commit()) {
             throw BlockTreeStoreError(strprintf("Failed to create header file %s", fs::PathToString(m_header_file_path)));
