@@ -58,11 +58,7 @@ static ChainstateLoadResult CompleteChainstateInitialization(
         return {ChainstateLoadStatus::FAILURE, _("You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain")};
     }
 
-    // At this point blocktree args are consistent with what's on disk.
-    // If we're not mid-reindex (based on disk + args), add a genesis block on disk
-    // (otherwise we use the one already on disk).
-    // This is called again in ImportBlocks after the reindex completes.
-    if (chainman.m_blockman.m_blockfiles_indexed && !chainman.ActiveChainstate().LoadGenesisBlock()) {
+    if (!chainman.ActiveChainstate().LoadGenesisBlock()) {
         return {ChainstateLoadStatus::FAILURE, _("Error initializing block database")};
     }
 

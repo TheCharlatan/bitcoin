@@ -56,8 +56,6 @@ public:
     bool WriteBatchSync(const std::vector<std::pair<int, const CBlockFileInfo*>>& fileInfo, int nLastFile, const std::vector<const CBlockIndex*>& blockinfo);
     bool ReadBlockFileInfo(int nFile, CBlockFileInfo& info);
     bool ReadLastBlockFile(int& nFile);
-    bool WriteReindexing(bool fReindexing);
-    void ReadReindexing(bool& fReindexing);
     bool WriteFlag(const std::string& name, bool fValue);
     bool ReadFlag(const std::string& name, bool& fValue);
     bool LoadBlockIndexGuts(const Consensus::Params& consensusParams, std::function<CBlockIndex*(const uint256&)> insertBlockIndex, const util::SignalInterrupt& interrupt)
@@ -269,14 +267,6 @@ public:
     const util::SignalInterrupt& m_interrupt;
     std::atomic<bool> m_importing{false};
 
-    /**
-     * Whether all blockfiles have been added to the block tree database.
-     * Normally true, but set to false when a reindex is requested and the
-     * database is wiped. The value is persisted in the database across restarts
-     * and will be false until reindexing completes.
-     */
-    std::atomic_bool m_blockfiles_indexed{true};
-
     BlockMap m_block_index GUARDED_BY(cs_main);
 
     /**
@@ -340,14 +330,6 @@ public:
      */
     FlatFilePos WriteBlock(const CBlock& block, int nHeight);
 
-    /** Update blockfile info while processing a block during reindex. The block must be available on disk.
-     *
-     * @param[in]  block        the block being processed
-     * @param[in]  nHeight      the height of the block
-     * @param[in]  pos          the position of the serialized CBlock on disk
-     */
-    void UpdateBlockInfo(const CBlock& block, unsigned int nHeight, const FlatFilePos& pos);
-
     /** Whether running in -prune mode. */
     [[nodiscard]] bool IsPruneMode() const { return m_prune_mode; }
 
@@ -355,7 +337,7 @@ public:
     [[nodiscard]] uint64_t GetPruneTarget() const { return m_opts.prune_target; }
     static constexpr auto PRUNE_TARGET_MANUAL{std::numeric_limits<uint64_t>::max()};
 
-    [[nodiscard]] bool LoadingBlocks() const { return m_importing || !m_blockfiles_indexed; }
+    [[nodiscard]] bool LoadingBlocks() const { return m_importing; }
 
     /** Calculate the amount of disk space the block & undo files currently use */
     uint64_t CalculateCurrentUsage();
@@ -419,8 +401,6 @@ public:
     bool ReadRawBlock(std::vector<uint8_t>& block, const FlatFilePos& pos) const;
 
     bool ReadBlockUndo(CBlockUndo& blockundo, const CBlockIndex& index) const;
-
-    void CleanupBlockRevFiles() const;
 };
 
 // Calls ActivateBestChain() even if no blocks are imported.

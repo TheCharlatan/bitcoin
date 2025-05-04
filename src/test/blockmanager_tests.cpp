@@ -38,20 +38,6 @@ BOOST_AUTO_TEST_CASE(blockmanager_find_block_pos)
     BlockManager blockman{*Assert(m_node.shutdown_signal), blockman_opts};
     // simulate adding a genesis block normally
     BOOST_CHECK_EQUAL(blockman.WriteBlock(params->GenesisBlock(), 0).nPos, STORAGE_HEADER_BYTES);
-    // simulate what happens during reindex
-    // simulate a well-formed genesis block being found at offset 8 in the blk00000.dat file
-    // the block is found at offset 8 because there is an 8 byte serialization header
-    // consisting of 4 magic bytes + 4 length bytes before each block in a well-formed blk file.
-    const FlatFilePos pos{0, STORAGE_HEADER_BYTES};
-    blockman.UpdateBlockInfo(params->GenesisBlock(), 0, pos);
-    // now simulate what happens after reindex for the first new block processed
-    // the actual block contents don't matter, just that it's a block.
-    // verify that the write position is at offset 0x12d.
-    // this is a check to make sure that https://github.com/bitcoin/bitcoin/issues/21379 does not recur
-    // 8 bytes (for serialization header) + 285 (for serialized genesis block) = 293
-    // add another 8 bytes for the second block's serialization header and we get 293 + 8 = 301
-    FlatFilePos actual{blockman.WriteBlock(params->GenesisBlock(), 1)};
-    BOOST_CHECK_EQUAL(actual.nPos, STORAGE_HEADER_BYTES + ::GetSerializeSize(TX_WITH_WITNESS(params->GenesisBlock())) + STORAGE_HEADER_BYTES);
 }
 
 BOOST_FIXTURE_TEST_CASE(blockmanager_scan_unlink_already_pruned_files, TestChain100Setup)
@@ -182,18 +168,6 @@ BOOST_AUTO_TEST_CASE(blockmanager_flush_block_file)
         BOOST_CHECK(!blockman.ReadBlock(read_block, pos2));
         BOOST_CHECK_EQUAL(read_block.nVersion, 2);
     }
-
-    // During reindex, the flat file block storage will not be written to.
-    // UpdateBlockInfo will, however, update the blockfile metadata.
-    // Verify this behavior by attempting (and failing) to write block 3 data
-    // to block 2 location.
-    CBlockFileInfo* block_data = blockman.GetBlockFileInfo(0);
-    BOOST_CHECK_EQUAL(block_data->nBlocks, 2);
-    blockman.UpdateBlockInfo(block3, /*nHeight=*/3, /*pos=*/pos2);
-    // Metadata is updated...
-    BOOST_CHECK_EQUAL(block_data->nBlocks, 3);
-    // ...but there are still only two blocks in the file
-    BOOST_CHECK_EQUAL(blockman.CalculateCurrentUsage(), (TEST_BLOCK_SIZE + STORAGE_HEADER_BYTES) * 2);
 
     // Block 2 was not overwritten:
     blockman.ReadBlock(read_block, pos2);

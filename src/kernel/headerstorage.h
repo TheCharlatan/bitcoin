@@ -19,12 +19,11 @@ class SignalInterrupt;
 namespace kernel {
 
 //! The layout of the headers file is as follows:
-// <magic> <version> <reindex flag> <data end position> [<message start> <DiskBlockIndexWrapper>]
+// <magic> <version> <data end position> [<message start> <DiskBlockIndexWrapper>]
 inline constexpr uint32_t HEADER_FILE_MAGIC{0x1d5e2eb2}; // sha256sum(BLOCK_HEADER_FILE_MAGIC)
 inline constexpr uint32_t HEADER_FILE_VERSION{1};
-inline constexpr uint32_t HEADER_FILE_REINDEX_FLAG_POS{8}; // after magic (4bytes) and version (4bytes)
-inline constexpr uint32_t HEADER_FILE_DATA_END_POS{9};     // after magic (4bytes), version (4bytes), and reindex flag (1byte)
-inline constexpr uint32_t HEADER_FILE_DATA_START_POS{17};  // after magic (4bytes), version (4bytes), reindex flag (1byte), and end pos (8bytes)
+inline constexpr uint32_t HEADER_FILE_DATA_END_POS{8};     // after magic (4bytes), version (4bytes)
+inline constexpr uint32_t HEADER_FILE_DATA_START_POS{16};  // after magic (4bytes), version (4bytes), and end pos (8bytes)
 inline constexpr const char* HEADER_FILE_NAME{"headers.dat"};
 
 //! The layout of the headers file is as follows:
@@ -57,10 +56,7 @@ private:
     void CheckMagicAndVersion() const;
 
 public:
-    BlockTreeStore(const fs::path& file_path, const CChainParams& params, bool wipe_data = false);
-
-    void ReadReindexing(bool& reindexing) const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
-    void WriteReindexing(bool reindexing) const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
+    BlockTreeStore(const fs::path& file_path, const CChainParams& params);
 
     void ReadLastBlockFile(int32_t& last_block) const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 

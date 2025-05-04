@@ -1224,7 +1224,6 @@ bool CheckHostPortOptions(const ArgsManager& args) {
 // The function therefore has to support re-entry.
 static ChainstateLoadResult InitAndLoadChainstate(
     NodeContext& node,
-    bool do_reindex,
     const bool do_reindex_chainstate,
     const kernel::CacheSizes& cache_sizes,
     const ArgsManager& args)
@@ -1253,7 +1252,6 @@ static ChainstateLoadResult InitAndLoadChainstate(
         .chainparams = chainman_opts.chainparams,
         .blocks_dir = args.GetBlocksDirPath(),
         .block_tree_dir = args.GetDataDirNet() / "blocks" / "index",
-        .wipe_block_tree_data = do_reindex,
         .notifications = chainman_opts.notifications,
     };
     Assert(ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
@@ -1294,7 +1292,7 @@ static ChainstateLoadResult InitAndLoadChainstate(
     };
     node::ChainstateLoadOptions options;
     options.mempool = Assert(node.mempool.get());
-    options.wipe_chainstate_db = do_reindex || do_reindex_chainstate;
+    options.wipe_chainstate_db = do_reindex_chainstate;
     options.prune = chainman.m_blockman.IsPruneMode();
     options.check_blocks = args.GetIntArg("-checkblocks", DEFAULT_CHECKBLOCKS);
     options.check_level = args.GetIntArg("-checklevel", DEFAULT_CHECKLEVEL);
@@ -1678,13 +1676,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     assert(!node.mempool);
     assert(!node.chainman);
 
-    bool do_reindex{args.GetBoolArg("-reindex", false)};
-    const bool do_reindex_chainstate{args.GetBoolArg("-reindex-chainstate", false)};
+    const bool do_reindex{args.GetBoolArg("-reindex", false)};
+    bool do_reindex_chainstate{args.GetBoolArg("-reindex-chainstate", false) || do_reindex};
 
     // Chainstate initialization and loading may be retried once with reindexing by GUI users
     auto [status, error] = InitAndLoadChainstate(
         node,
-        do_reindex,
         do_reindex_chainstate,
         kernel_cache_sizes,
         args);
@@ -1697,13 +1694,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         if (!do_retry) {
             return false;
         }
-        do_reindex = true;
+        do_reindex_chainstate = true;
         if (!Assert(node.shutdown_signal)->reset()) {
             LogError("Internal error: failed to reset shutdown signal.\n");
         }
         std::tie(status, error) = InitAndLoadChainstate(
             node,
-            do_reindex,
             do_reindex_chainstate,
             kernel_cache_sizes,
             args);
@@ -1760,12 +1756,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // if pruning, perform the initial blockstore prune
     // after any wallet rescanning has taken place.
     if (chainman.m_blockman.IsPruneMode()) {
-        if (chainman.m_blockman.m_blockfiles_indexed) {
-            LOCK(cs_main);
-            for (Chainstate* chainstate : chainman.GetAll()) {
-                uiInterface.InitMessage(_("Pruning blockstore…"));
-                chainstate->PruneAndFlush();
-            }
+        LOCK(cs_main);
+        for (Chainstate* chainstate : chainman.GetAll()) {
+            uiInterface.InitMessage(_("Pruning blockstore…"));
+            chainstate->PruneAndFlush();
         }
     } else {
         // Prior to setting NODE_NETWORK, check if we can provide historical blocks.

@@ -15,12 +15,6 @@
 
 namespace kernel {
 
-static void WriteReindexingImpl(AutoFile& file, bool fReindexing)
-{
-    file.seek(HEADER_FILE_REINDEX_FLAG_POS, SEEK_SET);
-    file << fReindexing;
-}
-
 static void WriteLastBlock(AutoFile& file, int32_t last_file)
 {
     file.seek(BLOCK_FILES_LAST_BLOCK_POS, SEEK_SET);
@@ -90,16 +84,12 @@ void BlockTreeStore::CheckMagicAndVersion() const
     }
 }
 
-BlockTreeStore::BlockTreeStore(const fs::path& path, const CChainParams& params, bool wipe_data)
+BlockTreeStore::BlockTreeStore(const fs::path& path, const CChainParams& params)
     : m_header_file_path{path / HEADER_FILE_NAME},
       m_block_files_file_path{path / BLOCK_FILES_FILE_NAME},
       m_params{params}
 {
     fs::create_directories(path);
-    if (wipe_data) {
-        fs::remove(m_header_file_path);
-        fs::remove(m_block_files_file_path);
-    }
     bool header_file_exists{fs::exists(m_header_file_path)};
     bool block_files_file_exists{fs::exists(m_block_files_file_path)};
     if (header_file_exists ^ block_files_file_exists) {
@@ -132,32 +122,7 @@ void BlockTreeStore::CreateHeaderFile() const
     }
     file << HEADER_FILE_MAGIC;
     file << HEADER_FILE_VERSION;
-    WriteReindexingImpl(file, false);
     WriteHeaderFileDataEnd(file, HEADER_FILE_DATA_START_POS);
-    if (!file.Commit()) {
-        throw BlockTreeStoreError(strprintf("Failed to write file %s\n", fs::PathToString(m_header_file_path)));
-    }
-}
-
-void BlockTreeStore::ReadReindexing(bool& reindexing) const
-{
-    LOCK(m_mutex);
-    auto file{AutoFile{fsbridge::fopen(m_header_file_path, "rb")}};
-    if (file.IsNull()) {
-        throw BlockTreeStoreError(strprintf("Unable to open file %s\n", fs::PathToString(m_header_file_path)));
-    }
-    file.seek(HEADER_FILE_REINDEX_FLAG_POS, SEEK_SET);
-    file >> reindexing;
-}
-
-void BlockTreeStore::WriteReindexing(bool reindexing) const
-{
-    LOCK(m_mutex);
-    auto file{AutoFile{fsbridge::fopen(m_header_file_path, "rb+")}};
-    if (file.IsNull()) {
-        throw BlockTreeStoreError(strprintf("Unable to open file %s\n", fs::PathToString(m_header_file_path)));
-    }
-    WriteReindexingImpl(file, reindexing);
     if (!file.Commit()) {
         throw BlockTreeStoreError(strprintf("Failed to write file %s\n", fs::PathToString(m_header_file_path)));
     }

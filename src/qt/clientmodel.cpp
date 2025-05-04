@@ -234,8 +234,8 @@ void ClientModel::TipChanged(SynchronizationState sync_state, interfaces::BlockT
         WITH_LOCK(m_cached_tip_mutex, m_cached_tip_blocks = tip.block_hash;);
     }
 
-    // Throttle GUI notifications about (a) blocks during initial sync, and (b) both blocks and headers during reindex.
-    const bool throttle = (sync_state != SynchronizationState::POST_INIT && synctype == SyncType::BLOCK_SYNC) || sync_state == SynchronizationState::INIT_REINDEX;
+    // Throttle GUI notifications about (a) blocks during initial sync.
+    const bool throttle = (sync_state != SynchronizationState::POST_INIT && synctype == SyncType::BLOCK_SYNC);
     const auto now{throttle ? SteadyClock::now() : SteadyClock::time_point{}};
     auto& nLastUpdateNotification = synctype != SyncType::BLOCK_SYNC ? g_last_header_tip_update_notification : g_last_block_tip_update_notification;
     if (throttle && now < nLastUpdateNotification + MODEL_UPDATE_DELAY) {

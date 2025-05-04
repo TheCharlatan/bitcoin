@@ -51,7 +51,7 @@ namespace BCLog {
         ESTIMATEFEE = (CategoryMask{1} <<  8),
         ADDRMAN     = (CategoryMask{1} <<  9),
         SELECTCOINS = (CategoryMask{1} << 10),
-        REINDEX     = (CategoryMask{1} << 11),
+        BLOCKIMPORT = (CategoryMask{1} << 11),
         CMPCTBLOCK  = (CategoryMask{1} << 12),
         RAND        = (CategoryMask{1} << 13),
         PRUNE       = (CategoryMask{1} << 14),

@@ -179,7 +179,7 @@ static const std::map<std::string, BCLog::LogFlags, std::less<>> LOG_CATEGORIES_
     {"estimatefee", BCLog::ESTIMATEFEE},
     {"addrman", BCLog::ADDRMAN},
     {"selectcoins", BCLog::SELECTCOINS},
-    {"reindex", BCLog::REINDEX},
+    {"importblocks", BCLog::BLOCKIMPORT},
     {"cmpctblock", BCLog::CMPCTBLOCK},
     {"rand", BCLog::RAND},
     {"prune", BCLog::PRUNE},

@@ -2811,7 +2811,7 @@ bool Chainstate::FlushStateToDisk(
 
         CoinsCacheSizeState cache_state = GetCoinsCacheSizeState();
         LOCK(m_blockman.cs_LastBlockFile);
-        if (m_blockman.IsPruneMode() && (m_blockman.m_check_for_pruning || nManualPruneHeight > 0) && m_chainman.m_blockman.m_blockfiles_indexed) {
+        if (m_blockman.IsPruneMode() && (m_blockman.m_check_for_pruning || nManualPruneHeight > 0)) {
             // make sure we don't prune above any of the prune locks bestblocks
             // pruning is height-based
             int last_prune{m_chain.Height()}; // last height we can prune
@@ -3402,10 +3402,9 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
     return true;
 }
 
-static SynchronizationState GetSynchronizationState(bool init, bool blockfiles_indexed)
+static SynchronizationState GetSynchronizationState(bool init)
 {
     if (!init) return SynchronizationState::POST_INIT;
-    if (!blockfiles_indexed) return SynchronizationState::INIT_REINDEX;
     return SynchronizationState::INIT_DOWNLOAD;
 }
 
@@ -3426,7 +3425,7 @@ bool ChainstateManager::NotifyHeaderTip()
     }
     // Send block tip changed notifications without the lock held
     if (fNotify) {
-        GetNotifications().headerTip(GetSynchronizationState(fInitialBlockDownload, m_blockman.m_blockfiles_indexed), pindexHeader->nHeight, pindexHeader->nTime, false);
+        GetNotifications().headerTip(GetSynchronizationState(fInitialBlockDownload), pindexHeader->nHeight, pindexHeader->nTime, false);
     }
     return fNotify;
 }
@@ -3549,7 +3548,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                     m_chainman.m_options.signals->UpdatedBlockTip(pindexNewTip, pindexFork, still_in_ibd);
                 }
 
-                if (kernel::IsInterrupted(m_chainman.GetNotifications().blockTip(GetSynchronizationState(still_in_ibd, m_chainman.m_blockman.m_blockfiles_indexed), *pindexNewTip))) {
+                if (kernel::IsInterrupted(m_chainman.GetNotifications().blockTip(GetSynchronizationState(still_in_ibd), *pindexNewTip))) {
                     // Just breaking and returning success for now. This could
                     // be changed to bubble up the kernel::Interrupted value to
                     // the caller so the caller could distinguish between
@@ -3782,7 +3781,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         // parameter indicating the source of the tip change so hooks can
         // distinguish user-initiated invalidateblock changes from other
         // changes.
-        (void)m_chainman.GetNotifications().blockTip(GetSynchronizationState(m_chainman.IsInitialBlockDownload(), m_chainman.m_blockman.m_blockfiles_indexed), *to_mark_failed->pprev);
+        (void)m_chainman.GetNotifications().blockTip(GetSynchronizationState(m_chainman.IsInitialBlockDownload()), *to_mark_failed->pprev);
 
         // Fire ActiveTipChange now for the current chain tip to make sure clients are notified.
         // ActivateBestChain may call this as well, but not necessarily.
@@ -4426,7 +4425,7 @@ void ChainstateManager::ReportHeadersPresync(const arith_uint256& work, int64_t 
         m_last_presync_update = now;
     }
     bool initial_download = IsInitialBlockDownload();
-    GetNotifications().headerTip(GetSynchronizationState(initial_download, m_blockman.m_blockfiles_indexed), height, timestamp, /*presync=*/true);
+    GetNotifications().headerTip(GetSynchronizationState(initial_download), height, timestamp, /*presync=*/true);
     if (initial_download) {
         int64_t blocks_left{(NodeClock::now() - NodeSeconds{std::chrono::seconds{timestamp}}) / GetConsensus().PowTargetSpacing()};
         blocks_left = std::max<int64_t>(0, blocks_left);
@@ -4436,7 +4435,7 @@ void ChainstateManager::ReportHeadersPresync(const arith_uint256& work, int64_t 
 }
 
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
-bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock, bool min_pow_checked)
+bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, bool* fNewBlock, bool min_pow_checked)
 {
     const CBlock& block = *pblock;
 
@@ -4508,15 +4507,10 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
     if (fNewBlock) *fNewBlock = true;
     try {
         FlatFilePos blockPos{};
-        if (dbp) {
-            blockPos = *dbp;
-            m_blockman.UpdateBlockInfo(block, pindex->nHeight, blockPos);
-        } else {
-            blockPos = m_blockman.WriteBlock(block, pindex->nHeight);
-            if (blockPos.IsNull()) {
-                state.Error(strprintf("%s: Failed to find position to write new block to disk", __func__));
-                return false;
-            }
+        blockPos = m_blockman.WriteBlock(block, pindex->nHeight);
+        if (blockPos.IsNull()) {
+            state.Error(strprintf("%s: Failed to find position to write new block to disk", __func__));
+            return false;
         }
         ReceivedBlockTransactions(block, pindex, blockPos);
     } catch (const std::runtime_error& e) {
@@ -4558,7 +4552,7 @@ bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& blo
         bool ret = CheckBlock(*block, state, GetConsensus());
         if (ret) {
             // Store to disk
-            ret = AcceptBlock(block, state, &pindex, force_processing, nullptr, new_block, min_pow_checked);
+            ret = AcceptBlock(block, state, &pindex, force_processing, new_block, min_pow_checked);
         }
         if (!ret) {
             if (m_options.signals) {
@@ -4678,7 +4672,7 @@ bool Chainstate::LoadChainTip()
     // Ensure KernelNotifications m_tip_block is set even if no new block arrives.
     if (this->GetRole() != ChainstateRole::BACKGROUND) {
         // Ignoring return value for now.
-        (void)m_chainman.GetNotifications().blockTip(GetSynchronizationState(/*init=*/true, m_chainman.m_blockman.m_blockfiles_indexed), *pindex);
+        (void)m_chainman.GetNotifications().blockTip(GetSynchronizationState(/*init=*/true), *pindex);
     }
 
     return true;
@@ -4960,37 +4954,35 @@ bool ChainstateManager::LoadBlockIndex()
 {
     AssertLockHeld(cs_main);
     // Load block index from databases
-    if (m_blockman.m_blockfiles_indexed) {
-        bool ret{m_blockman.LoadBlockIndexDB(SnapshotBlockhash())};
-        if (!ret) return false;
+    bool ret{m_blockman.LoadBlockIndexDB(SnapshotBlockhash())};
+    if (!ret) return false;
 
-        m_blockman.ScanAndUnlinkAlreadyPrunedFiles();
+    m_blockman.ScanAndUnlinkAlreadyPrunedFiles();
 
-        std::vector<CBlockIndex*> vSortedByHeight{m_blockman.GetAllBlockIndices()};
-        std::sort(vSortedByHeight.begin(), vSortedByHeight.end(),
-                  CBlockIndexHeightOnlyComparator());
+    std::vector<CBlockIndex*> vSortedByHeight{m_blockman.GetAllBlockIndices()};
+    std::sort(vSortedByHeight.begin(), vSortedByHeight.end(),
+              CBlockIndexHeightOnlyComparator());
 
-        for (CBlockIndex* pindex : vSortedByHeight) {
-            if (m_interrupt) return false;
-            // If we have an assumeutxo-based chainstate, then the snapshot
-            // block will be a candidate for the tip, but it may not be
-            // VALID_TRANSACTIONS (eg if we haven't yet downloaded the block),
-            // so we special-case the snapshot block as a potential candidate
-            // here.
-            if (pindex == GetSnapshotBaseBlock() ||
-                    (pindex->IsValid(BLOCK_VALID_TRANSACTIONS) &&
-                     (pindex->HaveNumChainTxs() || pindex->pprev == nullptr))) {
+    for (CBlockIndex* pindex : vSortedByHeight) {
+        if (m_interrupt) return false;
+        // If we have an assumeutxo-based chainstate, then the snapshot
+        // block will be a candidate for the tip, but it may not be
+        // VALID_TRANSACTIONS (eg if we haven't yet downloaded the block),
+        // so we special-case the snapshot block as a potential candidate
+        // here.
+        if (pindex == GetSnapshotBaseBlock() ||
+                (pindex->IsValid(BLOCK_VALID_TRANSACTIONS) &&
+                 (pindex->HaveNumChainTxs() || pindex->pprev == nullptr))) {
 
-                for (Chainstate* chainstate : GetAll()) {
-                    chainstate->TryAddBlockIndexCandidate(pindex);
-                }
+            for (Chainstate* chainstate : GetAll()) {
+                chainstate->TryAddBlockIndexCandidate(pindex);
             }
-            if (pindex->nStatus & BLOCK_FAILED_MASK && (!m_best_invalid || pindex->nChainWork > m_best_invalid->nChainWork)) {
-                m_best_invalid = pindex;
-            }
-            if (pindex->IsValid(BLOCK_VALID_TREE) && (m_best_header == nullptr || CBlockIndexWorkComparator()(m_best_header, pindex)))
-                m_best_header = pindex;
         }
+        if (pindex->nStatus & BLOCK_FAILED_MASK && (!m_best_invalid || pindex->nChainWork > m_best_invalid->nChainWork)) {
+            m_best_invalid = pindex;
+        }
+        if (pindex->IsValid(BLOCK_VALID_TREE) && (m_best_header == nullptr || CBlockIndexWorkComparator()(m_best_header, pindex)))
+            m_best_header = pindex;
     }
     return true;
 }
@@ -5025,14 +5017,8 @@ bool Chainstate::LoadGenesisBlock()
     return true;
 }
 
-void ChainstateManager::LoadExternalBlockFile(
-    AutoFile& file_in,
-    FlatFilePos* dbp,
-    std::multimap<uint256, FlatFilePos>* blocks_with_unknown_parent)
+void ChainstateManager::LoadExternalBlockFile(AutoFile& file_in)
 {
-    // Either both should be specified (-reindex), or neither (-loadblock).
-    assert(!dbp == !blocks_with_unknown_parent);
-
     const auto start{SteadyClock::now()};
     const CChainParams& params{GetParams()};
 
@@ -5070,8 +5056,6 @@ void ChainstateManager::LoadExternalBlockFile(
             try {
                 // read block header
                 const uint64_t nBlockPos{blkdat.GetPos()};
-                if (dbp)
-                    dbp->nPos = nBlockPos;
                 blkdat.SetLimit(nBlockPos + nSize);
                 CBlockHeader header;
                 blkdat >> header;
@@ -5085,13 +5069,10 @@ void ChainstateManager::LoadExternalBlockFile(
 
                 {
                     LOCK(cs_main);
-                    // detect out of order blocks, and store them for later
+                    // detect out of order blocks, and skip over them
                     if (hash != params.GetConsensus().hashGenesisBlock && !m_blockman.LookupBlockIndex(header.hashPrevBlock)) {
-                        LogDebug(BCLog::REINDEX, "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
+                        LogDebug(BCLog::BLOCKIMPORT, "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
                                  header.hashPrevBlock.ToString());
-                        if (dbp && blocks_with_unknown_parent) {
-                            blocks_with_unknown_parent->emplace(header.hashPrevBlock, *dbp);
-                        }
                         continue;
                     }
 
@@ -5105,32 +5086,18 @@ void ChainstateManager::LoadExternalBlockFile(
                         nRewind = blkdat.GetPos();
 
                         BlockValidationState state;
-                        if (AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, true)) {
+                        if (AcceptBlock(pblock, state, nullptr, true, nullptr, true)) {
                             nLoaded++;
                         }
                         if (state.IsError()) {
                             break;
                         }
                     } else if (hash != params.GetConsensus().hashGenesisBlock && pindex->nHeight % 1000 == 0) {
-                        LogDebug(BCLog::REINDEX, "Block Import: already had block %s at height %d\n", hash.ToString(), pindex->nHeight);
+                        LogDebug(BCLog::BLOCKIMPORT, "Block Import: already had block %s at height %d\n", hash.ToString(), pindex->nHeight);
                     }
                 }
 
-                // Activate the genesis block so normal node progress can continue
-                // During first -reindex, this will only connect Genesis since
-                // ActivateBestChain only connects blocks which are in the block tree db,
-                // which only contains blocks whose parents are in it.
-                // But do this only if genesis isn't activated yet, to avoid connecting many blocks
-                // without assumevalid in the case of a continuation of a reindex that
-                // was interrupted by the user.
-                if (hash == params.GetConsensus().hashGenesisBlock && WITH_LOCK(::cs_main, return ActiveHeight()) == -1) {
-                    BlockValidationState state;
-                    if (!ActiveChainstate().ActivateBestChain(state, nullptr)) {
-                        break;
-                    }
-                }
-
-                if (m_blockman.IsPruneMode() && m_blockman.m_blockfiles_indexed && pblock) {
+                if (m_blockman.IsPruneMode() && pblock) {
                     // must update the tip for pruning to work while importing with -loadblock.
                     // this is a tradeoff to conserve disk space at the expense of time
                     // spent updating the tip to be able to prune.
@@ -5142,7 +5109,7 @@ void ChainstateManager::LoadExternalBlockFile(
                     for (auto c : GetAll()) {
                         BlockValidationState state;
                         if (!c->ActivateBestChain(state, pblock)) {
-                            LogDebug(BCLog::REINDEX, "failed to activate chain (%s)\n", state.ToString());
+                            LogDebug(BCLog::BLOCKIMPORT, "failed to activate chain (%s)\n", state.ToString());
                             activation_failure = true;
                             break;
                         }
@@ -5153,35 +5120,7 @@ void ChainstateManager::LoadExternalBlockFile(
                 }
 
                 NotifyHeaderTip();
-
-                if (!blocks_with_unknown_parent) continue;
-
-                // Recursively process earlier encountered successors of this block
-                std::deque<uint256> queue;
-                queue.push_back(hash);
-                while (!queue.empty()) {
-                    uint256 head = queue.front();
-                    queue.pop_front();
-                    auto range = blocks_with_unknown_parent->equal_range(head);
-                    while (range.first != range.second) {
-                        std::multimap<uint256, FlatFilePos>::iterator it = range.first;
-                        std::shared_ptr<CBlock> pblockrecursive = std::make_shared<CBlock>();
-                        if (m_blockman.ReadBlock(*pblockrecursive, it->second)) {
-                            LogDebug(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, pblockrecursive->GetHash().ToString(),
-                                    head.ToString());
-                            LOCK(cs_main);
-                            BlockValidationState dummy;
-                            if (AcceptBlock(pblockrecursive, dummy, nullptr, true, &it->second, nullptr, true)) {
-                                nLoaded++;
-                                queue.push_back(pblockrecursive->GetHash());
-                            }
-                        }
-                        range.first++;
-                        blocks_with_unknown_parent->erase(it);
-                        NotifyHeaderTip();
-                    }
-                }
-            } catch (const std::exception& e) {
+           } catch (const std::exception& e) {
                 // historical bugs added extra data to the block files that does not deserialize cleanly.
                 // commonly this data is between readable blocks, but it does not really matter. such data is not fatal to the import process.
                 // the code that reads the block files deals with invalid data by simply ignoring it.
@@ -5193,7 +5132,7 @@ void ChainstateManager::LoadExternalBlockFile(
                 // the reindex process is not the place to attempt to clean and/or compact the block files. if so desired, a studious node operator
                 // may use knowledge of the fact that the block files are not entirely pristine in order to prepare a set of pristine, and
                 // perhaps ordered, block files for later reindexing.
-                LogDebug(BCLog::REINDEX, "%s: unexpected data at file offset 0x%x - %s. continuing\n", __func__, (nRewind - 1), e.what());
+                LogDebug(BCLog::BLOCKIMPORT, "%s: unexpected data at file offset 0x%x - %s. continuing\n", __func__, (nRewind - 1), e.what());
             }
         }
     } catch (const std::runtime_error& e) {

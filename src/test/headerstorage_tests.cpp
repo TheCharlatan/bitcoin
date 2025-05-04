@@ -83,9 +83,6 @@ BOOST_AUTO_TEST_CASE(HeaderFilesFormat)
     uint32_t version;
     header_file >> version;
     BOOST_CHECK_EQUAL(version, HEADER_FILE_VERSION);
-    bool reindexing;
-    header_file >> reindexing;
-    BOOST_CHECK_EQUAL(reindexing, false);
     int64_t data_end;
     header_file >> data_end;
     BOOST_CHECK_EQUAL(data_end, HEADER_FILE_DATA_START_POS);
@@ -138,16 +135,6 @@ BOOST_AUTO_TEST_CASE(HeaderStore)
     auto block_files_file{block_tree_store_dir / BLOCK_FILES_FILE_NAME};
     auto params{CreateChainParams(gArgs, ChainType::REGTEST)};
     BlockTreeStore store{block_tree_store_dir, *params};
-
-    bool reindexing = true;
-    store.ReadReindexing(reindexing);
-    BOOST_CHECK(!reindexing);
-    store.WriteReindexing(true);
-    store.ReadReindexing(reindexing);
-    BOOST_CHECK(reindexing);
-    store.WriteReindexing(false);
-    store.ReadReindexing(reindexing);
-    BOOST_CHECK(!reindexing);
 
     int last_block;
     store.ReadLastBlockFile(last_block);

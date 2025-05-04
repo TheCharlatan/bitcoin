@@ -102,15 +102,6 @@ FUZZ_TARGET(block_index, .init = init_block_index)
     block_index.ReadLastBlockFile(last_block_file);
     assert(last_block_file == files_count - 1);
 
-    // We should be able to flip and read the reindexing flag.
-    bool reindexing;
-    block_index.WriteReindexing(true);
-    block_index.ReadReindexing(reindexing);
-    assert(reindexing);
-    block_index.WriteReindexing(false);
-    block_index.ReadReindexing(reindexing);
-    assert(!reindexing);
-
     // We should be able to set and read the value of any random flag.
     const std::string flag_name = fuzzed_data_provider.ConsumeRandomLengthString(100);
     bool pruning = true;

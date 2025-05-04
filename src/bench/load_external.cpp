@@ -60,13 +60,11 @@ static void LoadExternalBlockFile(benchmark::Bench& bench)
         fclose(file);
     }
 
-    std::multimap<uint256, FlatFilePos> blocks_with_unknown_parent;
-    FlatFilePos pos;
     bench.run([&] {
         // "rb" is "binary, O_RDONLY", positioned to the start of the file.
         // The file will be closed by LoadExternalBlockFile().
         AutoFile file{fsbridge::fopen(blkfile, "rb")};
-        testing_setup->m_node.chainman->LoadExternalBlockFile(file, &pos, &blocks_with_unknown_parent);
+        testing_setup->m_node.chainman->LoadExternalBlockFile(file);
     });
     fs::remove(blkfile);
 }

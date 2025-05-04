@@ -44,7 +44,6 @@ namespace kernel {
 static constexpr uint8_t DB_BLOCK_FILES{'f'};
 static constexpr uint8_t DB_BLOCK_INDEX{'b'};
 static constexpr uint8_t DB_FLAG{'F'};
-static constexpr uint8_t DB_REINDEX_FLAG{'R'};
 static constexpr uint8_t DB_LAST_BLOCK{'l'};
 // Keys used in previous version that might still be found in the DB:
 // BlockTreeDB::DB_TXINDEX_BLOCK{'T'};
@@ -54,20 +53,6 @@ static constexpr uint8_t DB_LAST_BLOCK{'l'};
 bool BlockTreeDB::ReadBlockFileInfo(int nFile, CBlockFileInfo& info)
 {
     return Read(std::make_pair(DB_BLOCK_FILES, nFile), info);
-}
-
-bool BlockTreeDB::WriteReindexing(bool fReindexing)
-{
-    if (fReindexing) {
-        return Write(DB_REINDEX_FLAG, uint8_t{'1'});
-    } else {
-        return Erase(DB_REINDEX_FLAG);
-    }
-}
-
-void BlockTreeDB::ReadReindexing(bool& fReindexing)
-{
-    fReindexing = Exists(DB_REINDEX_FLAG);
 }
 
 bool BlockTreeDB::ReadLastBlockFile(int& nFile)
@@ -549,11 +534,6 @@ bool BlockManager::LoadBlockIndexDB(const std::optional<uint256>& snapshot_block
         LogPrintf("LoadBlockIndexDB(): Block files have previously been pruned\n");
     }
 
-    // Check whether we need to continue reindexing
-    bool fReindexing = false;
-    m_block_tree_db->ReadReindexing(fReindexing);
-    if (fReindexing) m_blockfiles_indexed = false;
-
     return true;
 }
 
@@ -604,48 +584,6 @@ bool BlockManager::CheckBlockDataAvailability(const CBlockIndex& upper_block, co
 {
     if (!(upper_block.nStatus & BLOCK_HAVE_DATA)) return false;
     return GetFirstBlock(upper_block, BLOCK_HAVE_DATA, &lower_block) == &lower_block;
-}
-
-// If we're using -prune with -reindex, then delete block files that will be ignored by the
-// reindex.  Since reindexing works by starting at block file 0 and looping until a blockfile
-// is missing, do the same here to delete any later block files after a gap.  Also delete all
-// rev files since they'll be rewritten by the reindex anyway.  This ensures that m_blockfile_info
-// is in sync with what's actually on disk by the time we start downloading, so that pruning
-// works correctly.
-void BlockManager::CleanupBlockRevFiles() const
-{
-    std::map<std::string, fs::path> mapBlockFiles;
-
-    // Glob all blk?????.dat and rev?????.dat files from the blocks directory.
-    // Remove the rev files immediately and insert the blk file paths into an
-    // ordered map keyed by block file index.
-    LogPrintf("Removing unusable blk?????.dat and rev?????.dat files for -reindex with -prune\n");
-    for (fs::directory_iterator it(m_opts.blocks_dir); it != fs::directory_iterator(); it++) {
-        const std::string path = fs::PathToString(it->path().filename());
-        if (fs::is_regular_file(*it) &&
-            path.length() == 12 &&
-            path.ends_with(".dat"))
-        {
-            if (path.starts_with("blk")) {
-                mapBlockFiles[path.substr(3, 5)] = it->path();
-            } else if (path.starts_with("rev")) {
-                remove(it->path());
-            }
-        }
-    }
-
-    // Remove all block files that aren't part of a contiguous set starting at
-    // zero by walking the ordered map (keys are block file indices) by
-    // keeping a separate counter.  Once we hit a gap (or if 0 doesn't exist)
-    // start removing block files.
-    int nContigCounter = 0;
-    for (const std::pair<const std::string, fs::path>& item : mapBlockFiles) {
-        if (LocaleIndependentAtoi<int>(item.first) == nContigCounter) {
-            nContigCounter++;
-            continue;
-        }
-        remove(item.second);
-    }
 }
 
 CBlockFileInfo* BlockManager::GetBlockFileInfo(size_t n)
@@ -848,13 +786,11 @@ FlatFilePos BlockManager::FindNextBlockPos(unsigned int nAddSize, unsigned int n
         LogDebug(BCLog::BLOCKSTORAGE, "Leaving block file %i: %s (onto %i) (height %i)\n",
                  last_blockfile, m_blockfile_info[last_blockfile].ToString(), nFile, nHeight);
 
-        // Do not propagate the return code. The flush concerns a previous block
-        // and undo file that has already been written to. If a flush fails
-        // here, and we crash, there is no expected additional block data
-        // inconsistency arising from the flush failure here. However, the undo
-        // data may be inconsistent after a crash if the flush is called during
-        // a reindex. A flush error might also leave some of the data files
-        // untrimmed.
+        // Do not propagate the return code. The flush concerns a previous
+        // block and undo file that has already been written to. If a flush
+        // fails here, and we crash, there is no expected additional block data
+        // inconsistency arising from the flush failure here. A flush error
+        // might also leave some of the data files untrimmed.
         if (!FlushBlockFile(last_blockfile, /*fFinalize=*/true, finalize_undo)) {
             LogPrintLevel(BCLog::BLOCKSTORAGE, BCLog::Level::Warning,
                           "Failed to flush previous block file %05i (finalize=1, finalize_undo=%i) before opening new block file %05i\n",
@@ -879,28 +815,6 @@ FlatFilePos BlockManager::FindNextBlockPos(unsigned int nAddSize, unsigned int n
 
     m_dirty_fileinfo.insert(nFile);
     return pos;
-}
-
-void BlockManager::UpdateBlockInfo(const CBlock& block, unsigned int nHeight, const FlatFilePos& pos)
-{
-    LOCK(cs_LastBlockFile);
-
-    // Update the cursor so it points to the last file.
-    const BlockfileType chain_type{BlockfileTypeForHeight(nHeight)};
-    auto& cursor{m_blockfile_cursors[chain_type]};
-    if (!cursor || cursor->file_num < pos.nFile) {
-        m_blockfile_cursors[chain_type] = BlockfileCursor{pos.nFile};
-    }
-
-    // Update the file information with the current block.
-    const unsigned int added_size = ::GetSerializeSize(TX_WITH_WITNESS(block));
-    const int nFile = pos.nFile;
-    if (static_cast<int>(m_blockfile_info.size()) <= nFile) {
-        m_blockfile_info.resize(nFile + 1);
-    }
-    m_blockfile_info[nFile].AddBlock(nHeight, block.GetBlockTime());
-    m_blockfile_info[nFile].nSize = std::max(pos.nPos + added_size, m_blockfile_info[nFile].nSize);
-    m_dirty_fileinfo.insert(nFile);
 }
 
 bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFilePos& pos, unsigned int nAddSize)
@@ -1159,12 +1073,7 @@ std::unique_ptr<kernel::BlockTreeStore> BlockManager::CreateAndMigrateBlockTree(
 {
     LOCK(::cs_main);
     if (!fs::exists(m_opts.block_tree_dir / "CURRENT")) {
-        return std::make_unique<kernel::BlockTreeStore>(m_opts.block_tree_dir, m_opts.chainparams, m_opts.wipe_block_tree_data);
-    }
-
-    if (m_opts.wipe_block_tree_data) {
-        fs::remove_all(m_opts.block_tree_dir);
-        return std::make_unique<kernel::BlockTreeStore>(m_opts.block_tree_dir, m_opts.chainparams, m_opts.wipe_block_tree_data);
+        return std::make_unique<kernel::BlockTreeStore>(m_opts.block_tree_dir, m_opts.chainparams);
     }
 
     LogInfo("Migrating leveldb block tree db to new flat file block tree store.");
@@ -1174,7 +1083,6 @@ std::unique_ptr<kernel::BlockTreeStore> BlockManager::CreateAndMigrateBlockTree(
 
     std::vector<std::pair<int, CBlockFileInfo>> files;
     int max_blockfile_num{0};
-    bool reindexing{false};
     bool pruned_block_files{false};
 
     {
@@ -1191,7 +1099,6 @@ std::unique_ptr<kernel::BlockTreeStore> BlockManager::CreateAndMigrateBlockTree(
                 GetConsensus(), [this](const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main) { return this->InsertBlockIndex(hash); }, m_interrupt)) {
             throw std::runtime_error("Failed to load block index guts");
         }
-        block_tree_db->ReadReindexing(reindexing);
         block_tree_db->ReadFlag("prunedblockfiles", pruned_block_files);
     }
 
@@ -1200,10 +1107,9 @@ std::unique_ptr<kernel::BlockTreeStore> BlockManager::CreateAndMigrateBlockTree(
     {
         // Cleanup a potentially previously failed migration
         fs::remove_all(migration_dir);
-        LogInfo("    Writing data back to migration directory, reindexing: %b, pruned: %b", reindexing, pruned_block_files);
-        auto block_tree_store{std::make_unique<kernel::BlockTreeStore>(migration_dir, m_opts.chainparams, m_opts.wipe_block_tree_data)};
+        LogInfo("    Writing data back to migration directory, pruned: %b", pruned_block_files);
+        auto block_tree_store{std::make_unique<kernel::BlockTreeStore>(migration_dir, m_opts.chainparams)};
         block_tree_store->WritePruned(pruned_block_files);
-        block_tree_store->WriteReindexing(reindexing);
 
         std::vector<std::pair<int, CBlockFileInfo*>> dump_files;
         dump_files.reserve(files.size());
@@ -1226,7 +1132,7 @@ std::unique_ptr<kernel::BlockTreeStore> BlockManager::CreateAndMigrateBlockTree(
     LogInfo("   Successfully migrated the leveldb block tree db to new flat file block tree store.");
     m_block_index.clear();
 
-    return std::make_unique<kernel::BlockTreeStore>(m_opts.block_tree_dir, m_opts.chainparams, m_opts.wipe_block_tree_data);
+    return std::make_unique<kernel::BlockTreeStore>(m_opts.block_tree_dir, m_opts.chainparams);
 }
 
 BlockManager::BlockManager(const util::SignalInterrupt& interrupt, Options opts)
@@ -1238,15 +1144,6 @@ BlockManager::BlockManager(const util::SignalInterrupt& interrupt, Options opts)
       m_interrupt{interrupt}
 {
     m_block_tree_db = CreateAndMigrateBlockTree();
-
-    if (m_opts.wipe_block_tree_data) {
-        m_block_tree_db->WriteReindexing(true);
-        m_blockfiles_indexed = false;
-        // If we're reindexing in prune mode, wipe away unusable block files and all undo data files
-        if (m_prune_mode) {
-            CleanupBlockRevFiles();
-        }
-    }
 }
 
 class ImportingNow
@@ -1269,36 +1166,7 @@ public:
 void ImportBlocks(ChainstateManager& chainman, std::span<const fs::path> import_paths)
 {
     ImportingNow imp{chainman.m_blockman.m_importing};
-
-    // -reindex
-    if (!chainman.m_blockman.m_blockfiles_indexed) {
-        int nFile = 0;
-        // Map of disk positions for blocks with unknown parent (only used for reindex);
-        // parent hash -> child disk position, multiple children can have the same parent.
-        std::multimap<uint256, FlatFilePos> blocks_with_unknown_parent;
-        while (true) {
-            FlatFilePos pos(nFile, 0);
-            if (!fs::exists(chainman.m_blockman.GetBlockPosFilename(pos))) {
-                break; // No block files left to reindex
-            }
-            AutoFile file{chainman.m_blockman.OpenBlockFile(pos, /*fReadOnly=*/true)};
-            if (file.IsNull()) {
-                break; // This error is logged in OpenBlockFile
-            }
-            LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
-            chainman.LoadExternalBlockFile(file, &pos, &blocks_with_unknown_parent);
-            if (chainman.m_interrupt) {
-                LogPrintf("Interrupt requested. Exit %s\n", __func__);
-                return;
-            }
-            nFile++;
-        }
-        WITH_LOCK(::cs_main, chainman.m_blockman.m_block_tree_db->WriteReindexing(false));
-        chainman.m_blockman.m_blockfiles_indexed = true;
-        LogPrintf("Reindexing finished\n");
-        // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
-        chainman.ActiveChainstate().LoadGenesisBlock();
-    }
+    LogInfo("Do we reach this function?");
 
     // -loadblock=
     for (const fs::path& path : import_paths) {

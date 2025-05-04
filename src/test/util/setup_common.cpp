@@ -266,7 +266,6 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, TestOpts opts)
             .chainparams = chainman_opts.chainparams,
             .blocks_dir = m_args.GetBlocksDirPath(),
             .block_tree_dir = m_args.GetDataDirNet() / "blocks" / "index",
-            .wipe_block_tree_data = m_args.GetBoolArg("-reindex", false),
             .notifications = chainman_opts.notifications,
         };
         m_node.chainman = std::make_unique<ChainstateManager>(*Assert(m_node.shutdown_signal), chainman_opts, blockman_opts);
