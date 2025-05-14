@@ -14,6 +14,8 @@
 #include <limits>
 #include <optional>
 
+struct bilingual_str;
+
 /**
  * Ensure file contents are fully committed to disk, using a platform-specific
  * feature analogous to fsync().
@@ -37,14 +39,21 @@ void AllocateFileRange(FILE* file, unsigned int offset, unsigned int length);
 [[nodiscard]] bool RenameOver(fs::path src, fs::path dest);
 
 namespace util {
-enum class LockResult {
-    Success,
-    ErrorWrite,
-    ErrorLock,
+class DirectoryLock
+{
+    std::unique_ptr<fsbridge::FileLock> m_lock;
+
+public:
+    explicit DirectoryLock(const fs::path& directory, const fs::path& lockfile_name, bilingual_str& error);
+
+    DirectoryLock(const DirectoryLock&) = delete;
+    DirectoryLock& operator=(const DirectoryLock&) = delete;
+
+    DirectoryLock(DirectoryLock&& other) = delete;
+    DirectoryLock& operator=(DirectoryLock&& other) = delete;
 };
-[[nodiscard]] LockResult LockDirectory(const fs::path& directory, const fs::path& lockfile_name, bool probe_only = false);
+
 } // namespace util
-void UnlockDirectory(const fs::path& directory, const fs::path& lockfile_name);
 bool CheckDiskSpace(const fs::path& dir, uint64_t additional_bytes = 0);
 
 /** Get the size of a file by scanning it.
@@ -58,7 +67,7 @@ std::streampos GetFileSize(const char* path, std::streamsize max = std::numeric_
 /** Release all directory locks. This is used for unit testing only, at runtime
  * the global destructor will take care of the locks.
  */
-void ReleaseDirectoryLocks();
+// void ReleaseDirectoryLocks();
 
 bool TryCreateDirectories(const fs::path& p);
 fs::path GetDefaultDataDir();

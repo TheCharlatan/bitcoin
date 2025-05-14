@@ -18,6 +18,7 @@
 #include <policy/fees.h>
 #include <scheduler.h>
 #include <txmempool.h>
+#include <util/fs_helpers.h>
 #include <validation.h>
 #include <validationinterface.h>
 

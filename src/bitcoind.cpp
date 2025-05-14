@@ -229,7 +229,7 @@ static bool AppInit(NodeContext& node)
 #endif // HAVE_DECL_FORK
         }
         // Lock critical directories after daemonization
-        if (!AppInitLockDirectories())
+        if (!AppInitLockDirectories(node))
         {
             // If locking a directory failed, exit immediately
             return false;

@@ -59,7 +59,7 @@ bool AppInitSanityChecks(const kernel::Context& kernel);
  * @note This should only be done after daemonization. Do not call Shutdown() if this function fails.
  * @pre Parameters should be parsed and config file should be read, AppInitSanityChecks should have been called.
  */
-bool AppInitLockDirectories();
+bool AppInitLockDirectories(node::NodeContext& node);
 /**
  * Initialize node and wallet interface pointers. Has no prerequisites or side effects besides allocating memory.
  */

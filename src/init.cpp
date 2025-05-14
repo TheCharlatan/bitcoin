@@ -1117,24 +1117,6 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     return true;
 }
 
-static bool LockDirectory(const fs::path& dir, bool probeOnly)
-{
-    // Make sure only a single process is using the directory.
-    switch (util::LockDirectory(dir, ".lock", probeOnly)) {
-    case util::LockResult::ErrorWrite:
-        return InitError(strprintf(_("Cannot write to directory '%s'; check permissions."), fs::PathToString(dir)));
-    case util::LockResult::ErrorLock:
-        return InitError(strprintf(_("Cannot obtain a lock on directory %s. %s is probably already running."), fs::PathToString(dir), CLIENT_NAME));
-    case util::LockResult::Success: return true;
-    } // no default case, so the compiler can warn about missing cases
-    assert(false);
-}
-static bool LockDirectories(bool probeOnly)
-{
-    return LockDirectory(gArgs.GetDataDirNet(), probeOnly) && \
-           LockDirectory(gArgs.GetBlocksDirPath(), probeOnly);
-}
-
 bool AppInitSanityChecks(const kernel::Context& kernel)
 {
     // ********************************************************* Step 4: sanity checks
@@ -1151,16 +1133,28 @@ bool AppInitSanityChecks(const kernel::Context& kernel)
     // Probe the directory locks to give an early error message, if possible
     // We cannot hold the directory locks here, as the forking for daemon() hasn't yet happened,
     // and a fork will cause weird behavior to them.
-    return LockDirectories(true);
+    bilingual_str error;
+    util::DirectoryLock{gArgs.GetDataDirNet(), ".lock", error};
+    if (!error.empty()) {
+        return InitError(error);
+    }
+    util::DirectoryLock{gArgs.GetBlocksDirPath(), ".lock", error};
+    if (!error.empty()) {
+        return InitError(error);
+    }
+    return true;
 }
 
-bool AppInitLockDirectories()
+bool AppInitLockDirectories(NodeContext& node)
 {
     // After daemonization get the directory locks again and hold on to them until exit
     // This creates a slight window for a race condition to happen, however this condition is harmless: it
     // will at most make us exit without printing a message to console.
-    if (!LockDirectories(false)) {
-        // Detailed error printed inside LockDirectory
+    bilingual_str error;
+    node.directory_lock = std::make_unique<util::DirectoryLock>(gArgs.GetDataDirNet(), ".lock", error);
+    if (!error.empty()) {
+        node.directory_lock = nullptr;
+        LogError("%s", error.original);
         return false;
     }
     return true;

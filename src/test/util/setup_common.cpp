@@ -167,7 +167,9 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, TestOpts opts)
 
         // Try to obtain the lock; if unsuccessful don't disturb the existing test.
         TryCreateDirectories(m_path_lock);
-        if (util::LockDirectory(m_path_lock, ".lock", /*probe_only=*/false) != util::LockResult::Success) {
+        bilingual_str error;
+        m_node.directory_lock = std::make_unique<util::DirectoryLock>(m_path_lock, ".lock", error);
+        if (!error.empty()) {
             ExitFailure("Cannot obtain a lock on test data lock directory " + fs::PathToString(m_path_lock) + '\n' + "The test executable is probably already running.");
         }
 
@@ -209,7 +211,6 @@ BasicTestingSetup::~BasicTestingSetup()
     LogInstance().DisconnectTestLogger();
     if (m_has_custom_datadir) {
         // Only remove the lock file, preserve the data directory.
-        UnlockDirectory(m_path_lock, ".lock");
         fs::remove(m_path_lock / ".lock");
     } else {
         fs::remove_all(m_path_root);

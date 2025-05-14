@@ -118,7 +118,7 @@ public:
         m_context->ecc_context = std::make_unique<ECC_Context>();
         if (!AppInitSanityChecks(*m_context->kernel)) return false;
 
-        if (!AppInitLockDirectories()) return false;
+        if (!AppInitLockDirectories(*m_context)) return false;
         if (!AppInitInterfaces(*m_context)) return false;
 
         return true;

@@ -11,6 +11,7 @@
 #include <sync.h>
 #include <util/fs.h>
 #include <util/syserror.h>
+#include <util/translation.h>
 
 #include <cerrno>
 #include <fstream>
@@ -19,7 +20,6 @@
 #include <optional>
 #include <string>
 #include <system_error>
-#include <utility>
 
 #ifndef WIN32
 // for posix_fallocate, in cmake/introspection.cmake we check if it is present after this
@@ -41,54 +41,26 @@
 #include <shlobj.h> /* For SHGetSpecialFolderPathW */
 #endif // WIN32
 
-/** Mutex to protect dir_locks. */
-static GlobalMutex cs_dir_locks;
-/** A map that contains all the currently held directory locks. After
- * successful locking, these will be held here until the global destructor
- * cleans them up and thus automatically unlocks them, or ReleaseDirectoryLocks
- * is called.
- */
-static std::map<std::string, std::unique_ptr<fsbridge::FileLock>> dir_locks GUARDED_BY(cs_dir_locks);
 namespace util {
-LockResult LockDirectory(const fs::path& directory, const fs::path& lockfile_name, bool probe_only)
+DirectoryLock::DirectoryLock(const fs::path& directory, const fs::path& lockfile_name, bilingual_str& error)
 {
-    LOCK(cs_dir_locks);
     fs::path pathLockFile = directory / lockfile_name;
-
-    // If a lock for this directory already exists in the map, don't try to re-lock it
-    if (dir_locks.count(fs::PathToString(pathLockFile))) {
-        return LockResult::Success;
-    }
 
     // Create empty lock file if it doesn't exist.
     if (auto created{fsbridge::fopen(pathLockFile, "a")}) {
         std::fclose(created);
     } else {
-        return LockResult::ErrorWrite;
+        error = strprintf(_("Cannot write %s to directory '%s'; check permissions."), fs::PathToString(lockfile_name), fs::PathToString(directory));
     }
-    auto lock = std::make_unique<fsbridge::FileLock>(pathLockFile);
-    if (!lock->TryLock()) {
-        LogError("Error while attempting to lock directory %s: %s\n", fs::PathToString(directory), lock->GetReason());
-        return LockResult::ErrorLock;
+    m_lock = std::make_unique<fsbridge::FileLock>(pathLockFile);
+    if (!m_lock->TryLock()) {
+        LogError("Error while attempting to lock directory %s: %s\n", fs::PathToString(directory), m_lock->GetReason());
+        error = strprintf(_("Cannot obtain a lock on %s directory %s."), fs::PathToString(lockfile_name), fs::PathToString(directory));
+    } else {
+        LogInfo("Lock success on directory %s: %s", fs::PathToString(directory), m_lock->GetReason());
     }
-    if (!probe_only) {
-        // Lock successful and we're not just probing, put it into the map
-        dir_locks.emplace(fs::PathToString(pathLockFile), std::move(lock));
-    }
-    return LockResult::Success;
 }
 } // namespace util
-void UnlockDirectory(const fs::path& directory, const fs::path& lockfile_name)
-{
-    LOCK(cs_dir_locks);
-    dir_locks.erase(fs::PathToString(directory / lockfile_name));
-}
-
-void ReleaseDirectoryLocks()
-{
-    LOCK(cs_dir_locks);
-    dir_locks.clear();
-}
 
 bool CheckDiskSpace(const fs::path& dir, uint64_t additional_bytes)
 {
