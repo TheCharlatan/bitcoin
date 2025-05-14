@@ -16,16 +16,6 @@
 
 #include <span>
 
-template <typename T>
-static constexpr const Coin& GetCoin(const T& item)
-{
-    if constexpr (std::is_same_v<T, std::reference_wrapper<const Coin>>) {
-        return item.get();
-    } else {
-        return item;
-    }
-}
-
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime)
 {
     if (tx.nLockTime == 0)
@@ -145,7 +135,7 @@ unsigned int GetP2SHSigOpCount(const CTransaction& tx, const std::span<T> coins)
     Assert(coins.size() == tx.vin.size());
     auto input_it = tx.vin.begin();
     for (auto it = coins.begin(); it != coins.end(); ++it, ++input_it) {
-        const Coin& coin{GetCoin(*it)};
+        const Coin& coin{*it};
         assert(!coin.IsSpent());
         const CTxOut &prevout = coin.out;
         if (prevout.scriptPubKey.IsPayToScriptHash())
@@ -175,7 +165,7 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const std::span<T> coins
     Assert(coins.size() == tx.vin.size());
     auto input_it = tx.vin.begin();
     for (auto it = coins.begin(); it != coins.end(); ++it, ++input_it) {
-        const Coin& coin{GetCoin(*it)};
+        const Coin& coin{*it};
         assert(!coin.IsSpent());
         const CTxOut &prevout = coin.out;
         nSigOps += CountWitnessSigOps(input_it->scriptSig, prevout.scriptPubKey, &input_it->scriptWitness, flags);
@@ -195,7 +185,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
     Assert(coins.size() == tx.vin.size());
     auto input_it = tx.vin.begin();
     for (auto it = coins.begin(); it != coins.end(); ++it, ++input_it) {
-        const Coin& coin{GetCoin(*it)};
+        const Coin& coin{*it};
         assert(!coin.IsSpent());
 
         // If prev is coinbase, check that it's matured
