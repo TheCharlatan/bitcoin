@@ -142,8 +142,7 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState& state,
                        const CCoinsViewCache& inputs, unsigned int flags, bool cacheSigStore,
                        bool cacheFullScriptStore, PrecomputedTransactionData& txdata,
                        ValidationCache& validation_cache,
-                       std::vector<CScriptCheck>* pvChecks = nullptr)
-                       EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+                       std::vector<CScriptCheck>* pvChecks = nullptr);
 
 bool CheckFinalTxAtTip(const CBlockIndex& active_chain_tip, const CTransaction& tx)
 {
@@ -683,7 +682,7 @@ private:
 
     // Run the script checks using our policy flags. As this can be slow, we should
     // only invoke this on transactions that have otherwise passed policy checks.
-    bool PolicyScriptChecks(const ATMPArgs& args, Workspace& ws) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_pool.cs);
+    bool PolicyScriptChecks(const ATMPArgs& args, Workspace& ws);
 
     // Re-run the script checks, using consensus flags, and try to cache the
     // result in the scriptcache. This should be done after
@@ -1228,8 +1227,6 @@ bool MemPoolAccept::PackageMempoolChecks(const std::vector<CTransactionRef>& txn
 
 bool MemPoolAccept::PolicyScriptChecks(const ATMPArgs& args, Workspace& ws)
 {
-    AssertLockHeld(cs_main);
-    AssertLockHeld(m_pool.cs);
     const CTransaction& tx = *ws.m_ptx;
     TxValidationState& state = ws.m_state;
 
@@ -2182,8 +2179,7 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState& state,
     uint256 hashCacheEntry;
     CSHA256 hasher = validation_cache.ScriptExecutionCacheHasher();
     hasher.Write(UCharCast(tx.GetWitnessHash().begin()), 32).Write((unsigned char*)&flags, sizeof(flags)).Finalize(hashCacheEntry.begin());
-    AssertLockHeld(cs_main); //TODO: Remove this requirement by making CuckooCache not require external locks
-    if (validation_cache.m_script_execution_cache.contains(hashCacheEntry, !cacheFullScriptStore)) {
+    if (WITH_LOCK(validation_cache.m_script_execution_cache.m_mutex, return validation_cache.m_script_execution_cache.contains(hashCacheEntry, !cacheFullScriptStore))) {
         return true;
     }
 
@@ -2248,6 +2244,7 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState& state,
     if (cacheFullScriptStore && !pvChecks) {
         // We executed all of the provided scripts, and were told to
         // cache the result. Do so now.
+        LOCK(validation_cache.m_script_execution_cache.m_mutex);
         validation_cache.m_script_execution_cache.insert(hashCacheEntry);
     }
 

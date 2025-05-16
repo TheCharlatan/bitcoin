@@ -5,6 +5,7 @@
 #ifndef BITCOIN_CUCKOOCACHE_H
 #define BITCOIN_CUCKOOCACHE_H
 
+#include <sync.h>
 #include <util/fastrange.h>
 
 #include <algorithm> // std::find
@@ -14,6 +15,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <utility>
 #include <vector>
 
@@ -160,9 +162,11 @@ public:
 template <typename Element, typename Hash>
 class cache
 {
+public:
+    Mutex m_mutex;
 private:
     /** table stores all the elements */
-    std::vector<Element> table;
+    std::vector<Element> table GUARDED_BY(m_mutex);
 
     /** size stores the total available slots in the hash table */
     uint32_t size{0};
@@ -333,7 +337,7 @@ public:
      * @param new_size the desired number of elements to store
      * @returns the maximum number of elements storable
      */
-    uint32_t setup(uint32_t new_size)
+    uint32_t setup(uint32_t new_size) EXCLUSIVE_LOCKS_REQUIRED(m_mutex)
     {
         // depth_limit must be at least one otherwise errors can occur.
         size = std::max<uint32_t>(2, new_size);
@@ -361,7 +365,7 @@ public:
      * documentation for more detail) and the approximate total size of these
      * elements in bytes.
      */
-    std::pair<uint32_t, size_t> setup_bytes(size_t bytes)
+    std::pair<uint32_t, size_t> setup_bytes(size_t bytes) EXCLUSIVE_LOCKS_REQUIRED(m_mutex)
     {
         uint32_t requested_num_elems(std::min<size_t>(
             bytes / sizeof(Element),
@@ -394,7 +398,7 @@ public:
      * now in the table, one previously inserted element is evicted from the
      * table, the entry attempted to be inserted is evicted.
      */
-    inline void insert(Element e)
+    inline void insert(Element e) EXCLUSIVE_LOCKS_REQUIRED(m_mutex)
     {
         epoch_check();
         uint32_t last_loc = invalid();
@@ -471,7 +475,7 @@ public:
      * flag is set
      * @returns true if the element is found, false otherwise
      */
-    inline bool contains(const Element& e, const bool erase) const
+    inline bool contains(const Element& e, const bool erase) const EXCLUSIVE_LOCKS_REQUIRED(m_mutex)
     {
         std::array<uint32_t, 8> locs = compute_hashes(e);
         for (const uint32_t loc : locs)
