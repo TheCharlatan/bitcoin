@@ -9,6 +9,7 @@
 #include <variant>
 
 class CBlockIndex;
+class CTransaction;
 enum class SynchronizationState;
 struct bilingual_str;
 
@@ -42,6 +43,8 @@ public:
     virtual void progress(const bilingual_str& title, int progress_percent, bool resume_possible) {}
     virtual void warningSet(Warning id, const bilingual_str& message) {}
     virtual void warningUnset(Warning id) {}
+
+    virtual void removeRecursive(const CTransaction& tx) {}
 
     //! The flush error notification is sent to notify the user that an error
     //! occurred while flushing block data to disk. Kernel code may ignore flush

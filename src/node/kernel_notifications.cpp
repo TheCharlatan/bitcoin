@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "kernel/mempool_removal_reason.h"
 #include <node/kernel_notifications.h>
 
 #include <bitcoin-build-config.h> // IWYU pragma: keep
@@ -15,6 +16,7 @@
 #include <node/abort.h>
 #include <node/interface_ui.h>
 #include <node/warnings.h>
+#include <txmempool.h>
 #include <util/check.h>
 #include <util/signalinterrupt.h>
 #include <util/strencodings.h>
@@ -87,6 +89,13 @@ void KernelNotifications::warningSet(kernel::Warning id, const bilingual_str& me
 void KernelNotifications::warningUnset(kernel::Warning id)
 {
     m_warnings.Unset(id);
+}
+
+void KernelNotifications::removeRecursive(const CTransaction& tx)
+{
+    if (!m_mempool) return;
+    LOCK(m_mempool->cs);
+    m_mempool->removeRecursive(tx, MemPoolRemovalReason::BLOCK);
 }
 
 void KernelNotifications::flushError(const bilingual_str& message)
