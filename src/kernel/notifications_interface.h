@@ -10,7 +10,9 @@
 
 class CBlock;
 class CBlockIndex;
+class Chainstate;
 class CTransaction;
+class DisconnectedBlockTransactions;
 enum class SynchronizationState;
 struct bilingual_str;
 
@@ -49,6 +51,7 @@ public:
     virtual void removeForBlock(const CBlock& vtx, unsigned int nBlockHeight) {}
     virtual size_t measureExternalDynamicMemoryUsage() { return 0; }
     virtual void addTransactionsUpdated(uint32_t n) {}
+    virtual void MaybeUpdateMempoolForReorg(Chainstate& active_chainstate, DisconnectedBlockTransactions& disconnectpool, bool fAddToMempool) {}
 
     //! The flush error notification is sent to notify the user that an error
     //! occurred while flushing block data to disk. Kernel code may ignore flush
