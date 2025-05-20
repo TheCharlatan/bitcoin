@@ -16,6 +16,7 @@
 #include <functional>
 
 class ArgsManager;
+class CBlock;
 class CBlockIndex;
 class CTxMemPool;
 enum class SynchronizationState;
@@ -47,6 +48,8 @@ public:
     void warningUnset(kernel::Warning id) override;
 
     void removeRecursive(const CTransaction& tx) override;
+
+    void removeForBlock(const CBlock& block, unsigned int nBlockHeight) override;
 
     void flushError(const bilingual_str& message) override;
 

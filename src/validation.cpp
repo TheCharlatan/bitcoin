@@ -1513,7 +1513,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
              Ticks<MillisecondsDouble>(m_chainman.time_chainstate) / m_chainman.num_blocks_total);
     // Remove conflicting transactions from the mempool.;
     if (m_mempool) {
-        m_mempool->removeForBlock(blockConnecting.vtx, pindexNew->nHeight);
+        m_chainman.GetNotifications().removeForBlock(blockConnecting, pindexNew->nHeight);
         disconnectpool.removeForBlock(blockConnecting.vtx);
     }
     // Update m_chain & related variables.

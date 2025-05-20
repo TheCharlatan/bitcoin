@@ -98,6 +98,9 @@ int main(int argc, char* argv[])
         void removeRecursive(const CTransaction&) override
         {
         }
+        void removeForBlock(const CBlock& vtx, unsigned int nBlockHeight) override
+        {
+        }
         void flushError(const bilingual_str& message) override
         {
             std::cerr << "Error flushing block data to disk: " << message.original << std::endl;
