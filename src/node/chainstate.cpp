@@ -165,7 +165,7 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
     chainman.m_total_coinsdb_cache = cache_sizes.coins_db;
 
     // Load the fully validated chainstate.
-    chainman.InitializeChainstate(options.mempool);
+    chainman.InitializeChainstate();
 
     // Load a chain created from a UTXO snapshot, if any exist.
     bool has_snapshot = chainman.DetectSnapshotChainstate();
@@ -207,7 +207,7 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
         assert(!chainman.IsSnapshotActive());
         assert(!chainman.IsSnapshotValidated());
 
-        chainman.InitializeChainstate(options.mempool);
+        chainman.InitializeChainstate();
 
         // A reload of the block index is required to recompute setBlockIndexCandidates
         // for the fully validated chainstate.

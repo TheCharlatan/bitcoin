@@ -213,8 +213,6 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
     auto tx_pool_{MakeMempool(fuzzed_data_provider, node)};
     MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(tx_pool_.get());
 
-    chainstate.SetMempool(&tx_pool);
-
     // Helper to query an amount
     const CCoinsViewMemPool amount_view{WITH_LOCK(::cs_main, return &chainstate.CoinsTip()), tx_pool};
     const auto GetAmount = [&](const COutPoint& outpoint) {
@@ -310,7 +308,7 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
                    it->second.m_result_type == MempoolAcceptResult::ResultType::INVALID);
         }
 
-        const auto res = WITH_LOCK(::cs_main, return AcceptToMemoryPool(chainstate, tx, GetTime(), bypass_limits, /*test_accept=*/false));
+        const auto res = WITH_LOCK(::cs_main, return AcceptToMemoryPool(chainstate, tx, tx_pool, GetTime(), bypass_limits, /*test_accept=*/false));
         const bool accepted = res.m_result_type == MempoolAcceptResult::ResultType::VALID;
         node.validation_signals->SyncWithValidationInterfaceQueue();
         node.validation_signals->UnregisterSharedValidationInterface(txr);
@@ -391,8 +389,6 @@ FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
     auto tx_pool_{MakeMempool(fuzzed_data_provider, node)};
     MockedTxPool& tx_pool = *static_cast<MockedTxPool*>(tx_pool_.get());
 
-    chainstate.SetMempool(&tx_pool);
-
     LIMITED_WHILE(fuzzed_data_provider.ConsumeBool(), 300)
     {
         const auto mut_tx = ConsumeTransaction(fuzzed_data_provider, txids);
@@ -413,7 +409,7 @@ FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
 
         const auto tx = MakeTransactionRef(mut_tx);
         const bool bypass_limits = fuzzed_data_provider.ConsumeBool();
-        const auto res = WITH_LOCK(::cs_main, return AcceptToMemoryPool(chainstate, tx, GetTime(), bypass_limits, /*test_accept=*/false));
+        const auto res = WITH_LOCK(::cs_main, return AcceptToMemoryPool(chainstate, tx, tx_pool, GetTime(), bypass_limits, /*test_accept=*/false));
         const bool accepted = res.m_result_type == MempoolAcceptResult::ResultType::VALID;
         if (accepted) {
             txids.push_back(tx->GetHash());
