@@ -105,6 +105,12 @@ void KernelNotifications::removeForBlock(const CBlock& block, unsigned int block
     m_mempool->removeForBlock(block.vtx, block_height);
 }
 
+size_t KernelNotifications::measureExternalDynamicMemoryUsage()
+{
+    if (!m_mempool) return 0;
+    return m_mempool->DynamicMemoryUsage();
+}
+
 void KernelNotifications::flushError(const bilingual_str& message)
 {
     AbortNode(m_shutdown_request, m_exit_status, message, &m_warnings);
