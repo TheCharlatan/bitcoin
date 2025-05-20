@@ -125,6 +125,13 @@ void KernelNotifications::MaybeUpdateMempoolForReorg(Chainstate& active_chainsta
     m_mempool->MaybeUpdateMempoolForReorg(active_chainstate, disconnectpool, fAddToMempool);
 }
 
+void KernelNotifications::check(const CCoinsViewCache& active_coins_tip, int64_t spendheight)
+{
+    if (!m_mempool) return;
+    LOCK(::cs_main);
+    m_mempool->check(active_coins_tip, spendheight);
+}
+
 void KernelNotifications::flushError(const bilingual_str& message)
 {
     AbortNode(m_shutdown_request, m_exit_status, message, &m_warnings);

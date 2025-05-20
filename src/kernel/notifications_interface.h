@@ -11,6 +11,7 @@
 
 class CBlock;
 class CBlockIndex;
+class CCoinsViewCache;
 class Chainstate;
 class CTransaction;
 class DisconnectedBlockTransactions;
@@ -53,6 +54,7 @@ public:
     virtual size_t measureExternalDynamicMemoryUsage() { return 0; }
     virtual void addTransactionsUpdated(uint32_t n) {}
     virtual void MaybeUpdateMempoolForReorg(Chainstate& active_chainstate, DisconnectedBlockTransactions& disconnectpool, bool fAddToMempool) {}
+    virtual void check(const CCoinsViewCache& active_coins_tip, int64_t spendheight) {}
 
     //! The flush error notification is sent to notify the user that an error
     //! occurred while flushing block data to disk. Kernel code may ignore flush
