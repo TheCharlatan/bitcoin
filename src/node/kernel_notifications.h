@@ -51,6 +51,8 @@ public:
 
     void removeForBlock(const CBlock& block, unsigned int nBlockHeight) override;
 
+    size_t measureExternalDynamicMemoryUsage() override;
+
     void flushError(const bilingual_str& message) override;
 
     void fatalError(const bilingual_str& message) override;

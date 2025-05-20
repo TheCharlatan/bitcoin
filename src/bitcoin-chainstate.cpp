@@ -101,6 +101,10 @@ int main(int argc, char* argv[])
         void removeForBlock(const CBlock& vtx, unsigned int nBlockHeight) override
         {
         }
+        size_t measureExternalDynamicMemoryUsage() override
+        {
+            return 0;
+        }
         void flushError(const bilingual_str& message) override
         {
             std::cerr << "Error flushing block data to disk: " << message.original << std::endl;
