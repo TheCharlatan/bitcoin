@@ -49,6 +49,7 @@ public:
     virtual void removeRecursive(const CTransaction& tx) {}
     virtual void removeForBlock(const CBlock& block, unsigned int block_height) {}
     virtual size_t measureExternalDynamicMemoryUsage() { return 0; }
+    virtual void addTransactionsUpdated(uint32_t n) {}
 
     //! The flush error notification is sent to notify the user that an error
     //! occurred while flushing block data to disk. Kernel code may ignore flush
