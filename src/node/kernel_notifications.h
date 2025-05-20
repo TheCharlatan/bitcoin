@@ -55,6 +55,8 @@ public:
 
     void addTransactionsUpdated(uint32_t n) override;
 
+    void MaybeUpdateMempoolForReorg(Chainstate& active_chainstate, DisconnectedBlockTransactions& disconnectpool, bool fAddToMempool) override;
+
     void flushError(const bilingual_str& message) override;
 
     void fatalError(const bilingual_str& message) override;

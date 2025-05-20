@@ -117,6 +117,14 @@ void KernelNotifications::addTransactionsUpdated(uint32_t n)
     m_mempool->AddTransactionsUpdated(n);
 }
 
+void KernelNotifications::MaybeUpdateMempoolForReorg(Chainstate& active_chainstate, DisconnectedBlockTransactions& disconnectpool, bool fAddToMempool)
+{
+    if (!m_mempool) return;
+    LOCK(m_mempool->cs);
+    LOCK(::cs_main);
+    m_mempool->MaybeUpdateMempoolForReorg(active_chainstate, disconnectpool, fAddToMempool);
+}
+
 void KernelNotifications::flushError(const bilingual_str& message)
 {
     AbortNode(m_shutdown_request, m_exit_status, message, &m_warnings);

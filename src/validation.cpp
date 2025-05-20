@@ -1638,7 +1638,7 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
         if (!DisconnectTip(state, &disconnectpool)) {
             // This is likely a fatal error, but keep the mempool consistent,
             // just in case. Only remove from the mempool in this case.
-            m_mempool->MaybeUpdateMempoolForReorg(*this, disconnectpool, false);
+            if (m_mempool) m_chainman.GetNotifications().MaybeUpdateMempoolForReorg(*this, disconnectpool, false);
 
             // If we're unable to disconnect a block during normal operation,
             // then that is a failure of our local system -- we should abort
@@ -1682,7 +1682,7 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
                     // A system error occurred (disk space, database error, ...).
                     // Make the mempool consistent with the current tip, just in case
                     // any observers try to use it before shutdown.
-                    m_mempool->MaybeUpdateMempoolForReorg(*this, disconnectpool, false);
+                    if (m_mempool) m_chainman.GetNotifications().MaybeUpdateMempoolForReorg(*this, disconnectpool, false);
                     return false;
                 }
             } else {
@@ -1699,7 +1699,7 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
     if (fBlocksDisconnected) {
         // If any blocks were disconnected, disconnectpool may be non empty.  Add
         // any disconnected transactions back to the mempool.
-        m_mempool->MaybeUpdateMempoolForReorg(*this, disconnectpool, true);
+        if (m_mempool) m_chainman.GetNotifications().MaybeUpdateMempoolForReorg(*this, disconnectpool, true);
     }
     if (m_mempool) m_mempool->check(this->CoinsTip(), this->m_chain.Height() + 1);
 
@@ -2013,7 +2013,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         // transactions back to the mempool if disconnecting was successful,
         // and we're not doing a very deep invalidation (in which case
         // keeping the mempool up to date is probably futile anyway).
-        m_mempool->MaybeUpdateMempoolForReorg(*this, disconnectpool, /* fAddToMempool = */ (++disconnected <= 10) && ret);
+        if (m_mempool) m_chainman.GetNotifications().MaybeUpdateMempoolForReorg(*this, disconnectpool, /* fAddToMempool = */ (++disconnected <= 10) && ret);
         if (!ret) return false;
         assert(invalid_walk_tip->pprev == m_chain.Tip());
 
