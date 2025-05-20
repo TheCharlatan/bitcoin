@@ -57,6 +57,8 @@ public:
 
     void MaybeUpdateMempoolForReorg(Chainstate& active_chainstate, DisconnectedBlockTransactions& disconnectpool, bool fAddToMempool) override;
 
+    void check(const CCoinsViewCache& active_coins_tip, int64_t spendheight) override;
+
     void flushError(const bilingual_str& message) override;
 
     void fatalError(const bilingual_str& message) override;
