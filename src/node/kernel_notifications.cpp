@@ -111,6 +111,12 @@ size_t KernelNotifications::measureExternalDynamicMemoryUsage()
     return m_mempool->DynamicMemoryUsage();
 }
 
+void KernelNotifications::addTransactionsUpdated(uint32_t n)
+{
+    if (!m_mempool) return;
+    m_mempool->AddTransactionsUpdated(n);
+}
+
 void KernelNotifications::flushError(const bilingual_str& message)
 {
     AbortNode(m_shutdown_request, m_exit_status, message, &m_warnings);

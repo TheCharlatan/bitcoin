@@ -53,6 +53,8 @@ public:
 
     size_t measureExternalDynamicMemoryUsage() override;
 
+    void addTransactionsUpdated(uint32_t n) override;
+
     void flushError(const bilingual_str& message) override;
 
     void fatalError(const bilingual_str& message) override;
