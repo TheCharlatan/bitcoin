@@ -36,6 +36,8 @@ inline constexpr uint32_t BLOCK_FILES_PRUNE_FLAG_POS{12}; // after magic (4bytes
 inline constexpr uint32_t BLOCK_FILES_DATA_START_POS{13}; // after magic (4bytes), version (4bytes), last block (4bytes), and prune flag (1byte)
 inline constexpr const char* BLOCK_FILES_FILE_NAME{"blockfiles.dat"};
 
+inline constexpr const char* LOG_FILE_NAME{"log.dat"};
+
 class BlockTreeStoreError : public std::runtime_error
 {
 public:
@@ -47,6 +49,7 @@ class BlockTreeStore
 private:
     // File path for the flat file storage
     fs::path m_header_file_path;
+    fs::path m_log_file_path;
     fs::path m_block_files_file_path;
     const CChainParams& m_params;
 

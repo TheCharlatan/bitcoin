@@ -22,7 +22,7 @@ using kernel::HEADER_FILE_MAGIC;
 using kernel::HEADER_FILE_NAME;
 using kernel::HEADER_FILE_VERSION;
 
-BOOST_FIXTURE_TEST_SUITE(headerstorage_tests, TestChain100Setup)
+BOOST_FIXTURE_TEST_SUITE(headerstorage_tests, BasicTestingSetup)
 
 CBlockIndex* InsertBlockIndex(std::unordered_map<uint256, CBlockIndex, BlockHasher>& block_map, const uint256& hash)
 {
@@ -51,11 +51,11 @@ void check_block_file_info(uint32_t file, CBlockFileInfo& file_info, BlockTreeSt
     BOOST_CHECK_EQUAL(file_info.nTimeLast, retrieved_info.nTimeLast);
 }
 
-void check_block_map(const std::unordered_map<uint256, CBlockIndex, BlockHasher>& block_map, const std::vector<CBlockIndex*>& blockinfo)
+void check_block_map(const std::unordered_map<uint256, CBlockIndex, BlockHasher>& block_map, const std::vector<CBlockIndex*>& blocks)
 {
     LOCK(::cs_main);
-    BOOST_CHECK_EQUAL(block_map.size(), blockinfo.size());
-    for (const auto& block : blockinfo) {
+    BOOST_CHECK_EQUAL(block_map.size(), blocks.size());
+    for (const auto& block : blocks) {
         auto hash{block->GetBlockHeader().GetHash()};
         auto it = block_map.find(hash);
         BOOST_CHECK(it != block_map.end());
@@ -188,6 +188,7 @@ BOOST_AUTO_TEST_CASE(HeaderStore)
         [&](const uint256& hash) { return InsertBlockIndex(block_map, hash); },
         m_interrupt));
     check_block_map(block_map, blockinfo);
+    check_block_file_info(0, info, store);
 
     // Write another CBlockFileInfo and update the CBlockIndex
     info.nBlocks = 2;
@@ -215,6 +216,7 @@ BOOST_AUTO_TEST_CASE(HeaderStore)
         [&](const uint256& hash) { return InsertBlockIndex(block_map, hash); },
         m_interrupt));
     check_block_map(block_map, blockinfo);
+    check_block_file_info(0, info, store);
 
     // Update the new CBlockFileInfo and the CBlockIndex
     block_index->nStatus = 99;
