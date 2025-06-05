@@ -17,6 +17,9 @@
 
 namespace kernel {
 
+static size_t constexpr BLOCK_FILE_INFO_WRAPPER_SIZE{36};
+static size_t constexpr DISK_BLOCK_INDEX_WRAPPER_SIZE{108};
+
 static void WriteReindexingImpl(AutoFile& file, bool fReindexing)
 {
     file.seek(HEADER_FILE_REINDEX_FLAG_POS, SEEK_SET);
@@ -98,6 +101,8 @@ BlockTreeStore::BlockTreeStore(const fs::path& path, const CChainParams& params,
       m_block_files_file_path{path / BLOCK_FILES_FILE_NAME},
       m_params{params}
 {
+    assert(GetSerializeSize(DiskBlockIndexWrapper{}) == DISK_BLOCK_INDEX_WRAPPER_SIZE);
+    assert(GetSerializeSize(BlockFileInfoWrapper{}) == BLOCK_FILE_INFO_WRAPPER_SIZE);
     fs::create_directories(path);
     if (wipe_data) {
         fs::remove(m_header_file_path);
@@ -230,15 +235,15 @@ bool BlockTreeStore::ReadBlockFileInfo(int nFile, CBlockFileInfo& info)
     }
 
     DataStream data;
-    data.resize(36);
+    data.resize(BLOCK_FILE_INFO_WRAPPER_SIZE);
     uint32_t checksum;
     DataStream pos;
     try {
-        file.read(std::span<std::byte, 36>{data});
+        file.read(std::span<std::byte, BLOCK_FILE_INFO_WRAPPER_SIZE>{data});
         file >> checksum;
         pos << CalculateBlockFilesPos(nFile);
         pos.clear();
-        uint32_t re_check = crc32c::Crc32c(UCharCast(data.data()), 36);
+        uint32_t re_check = crc32c::Crc32c(UCharCast(data.data()), BLOCK_FILE_INFO_WRAPPER_SIZE);
         re_check = crc32c::Extend(re_check, UCharCast(pos.data()), 4);
         assert(re_check == checksum);
     } catch (std::ios_base::failure::exception&) {
@@ -257,6 +262,81 @@ bool BlockTreeStore::ReadBlockFileInfo(int nFile, CBlockFileInfo& info)
     return true;
 }
 
+template<size_t entry_size>
+void BlockTreeStore::ApplyLog(fs::path log_file_path, fs::path target_file_path) const
+{
+    AssertLockHeld(m_mutex);
+    auto block_files_file{AutoFile{fsbridge::fopen(m_block_files_file_path, "rb+")}};
+    if (block_files_file.IsNull()) {
+        throw BlockTreeStoreError(strprintf("Unable to open file %s\n", fs::PathToString(m_header_file_path)));
+    }
+    block_files_file.seek(BLOCK_FILES_DATA_START_POS, SEEK_SET);
+
+    auto log_file{AutoFile{fsbridge::fopen(log_file_path, "rb")}};
+
+    uint32_t re_rolling_checksum = 0;
+    DataStream stream;
+    stream.resize(entry_size + 4);
+    log_file.seek(0, SEEK_END);
+    size_t end = log_file.tell();
+    uint32_t num_iterations = (end - 4) / (entry_size + 8); // Skip the end checksum, then divide by the entry size + position + checksum
+    log_file.seek(0, SEEK_SET);
+
+    // Do a dry run to check the integrity of the log file
+    for (uint32_t i = 0; i < num_iterations; i++) {
+        log_file.read(std::span<std::byte>(stream));
+        stream.ignore(entry_size);
+        int32_t pos;
+        stream >> pos;
+
+        re_rolling_checksum = crc32c::Extend(re_rolling_checksum, UCharCast(stream.data()), entry_size + 4);
+        log_file.ignore(4);
+
+        if (block_files_file.tell() != pos) {
+            block_files_file.seek(pos, SEEK_SET);
+        }
+        stream.Rewind();
+        stream.resize(entry_size + 4);
+    }
+
+    uint32_t rolling_checksum;
+    log_file >> rolling_checksum;
+    assert(rolling_checksum == re_rolling_checksum);
+    re_rolling_checksum = 0;
+    log_file.seek(0, SEEK_SET);
+
+    // Run through the file again, but this time write it to the target data file.
+    for (uint32_t i = 0; i < num_iterations; i++) {
+        log_file.read(std::span<std::byte>(stream));
+        stream.ignore(entry_size);
+        int32_t pos;
+        stream >> pos;
+
+        uint32_t re_checksum = crc32c::Crc32c(UCharCast(stream.data()), entry_size + 4);
+        re_rolling_checksum = crc32c::Extend(re_rolling_checksum, UCharCast(stream.data()), entry_size + 4);
+        uint32_t checksum;
+        log_file >> checksum;
+        assert(re_checksum == checksum);
+
+        if (block_files_file.tell() != pos) {
+            block_files_file.seek(pos, SEEK_SET);
+        }
+        stream.Rewind();
+
+        // block_files_file << std::span<std::byte, entry_size>{stream};
+        block_files_file << std::span<std::byte>{stream.data(), entry_size};
+        block_files_file << checksum;
+        stream.clear();
+        stream.resize(entry_size + 4);
+    }
+
+    log_file >> rolling_checksum;
+    assert(rolling_checksum == re_rolling_checksum);
+
+    log_file.fclose();
+    fs::remove(log_file_path);
+}
+
 bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileInfo*>>& fileInfo, int32_t last_file, const std::vector<CBlockIndex*>& blockinfo)
 {
     AssertLockHeld(::cs_main);
@@ -264,24 +344,17 @@ bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileI
 
     // Write the block files data
     {
-        auto block_files_file{AutoFile{fsbridge::fopen(m_block_files_file_path, "rb+")}};
-        if (block_files_file.IsNull()) {
-            throw BlockTreeStoreError(strprintf("Unable to open file %s\n", fs::PathToString(m_header_file_path)));
-        }
-
-        block_files_file.seek(BLOCK_FILES_DATA_START_POS, SEEK_SET);
-
         {
             DataStream stream;
-            stream.reserve(40); // BlockFileInfoWrapper size + sizeof(uint32_t)
+            stream.reserve(BLOCK_FILE_INFO_WRAPPER_SIZE + 4); // BlockFileInfoWrapper size + sizeof(uint32_t)
             uint32_t rolling_checksum = 0;
             auto log_file{AutoFile{fsbridge::fopen(m_log_file_path, "wb")}};
             for (const auto& [file, info] : fileInfo) {
                 int32_t pos{CalculateBlockFilesPos(file)};
                 stream << BlockFileInfoWrapper{info};
                 stream << pos;
-                uint32_t checksum = crc32c::Crc32c(UCharCast(stream.data()), 40);
-                rolling_checksum = crc32c::Extend(rolling_checksum, UCharCast(stream.data()), 40);
+                uint32_t checksum = crc32c::Crc32c(UCharCast(stream.data()), BLOCK_FILE_INFO_WRAPPER_SIZE + 4);
+                rolling_checksum = crc32c::Extend(rolling_checksum, UCharCast(stream.data()), BLOCK_FILE_INFO_WRAPPER_SIZE + 4);
                 log_file.write(stream);
                 log_file << checksum;
                 stream.clear();
@@ -291,41 +364,12 @@ bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileI
             log_file.fclose();
         }
 
-        auto log_file{AutoFile{fsbridge::fopen(m_log_file_path, "rb")}};
+        ApplyLog<BLOCK_FILE_INFO_WRAPPER_SIZE>(m_log_file_path, m_block_files_file_path);
 
-        uint32_t re_rolling_checksum = 0;
-        DataStream stream;
-        stream.resize(40);
-        for (const auto& [file, _] : fileInfo) {
-            log_file.read(std::span<std::byte, 40>(stream));
-            stream.ignore(36);
-            int32_t pos;
-            stream >> pos;
-            auto calculated_pos = CalculateBlockFilesPos(file);
-            assert(pos == calculated_pos);
-
-            uint32_t re_checksum = crc32c::Crc32c(UCharCast(stream.data()), 40);
-            re_rolling_checksum = crc32c::Extend(re_rolling_checksum, UCharCast(stream.data()), 40);
-            uint32_t checksum;
-            log_file >> checksum;
-            assert(re_checksum == checksum);
-
-            if (block_files_file.tell() != pos) {
-                block_files_file.seek(pos, SEEK_SET);
-            }
-            stream.Rewind();
-
-            block_files_file << std::span<std::byte, 36>{stream};
-            block_files_file << checksum;
-            stream.clear();
-            stream.resize(40);
+        auto block_files_file{AutoFile{fsbridge::fopen(m_block_files_file_path, "rb+")}};
+        if (block_files_file.IsNull()) {
+            throw BlockTreeStoreError(strprintf("Unable to open file %s\n", fs::PathToString(m_header_file_path)));
         }
-
-        uint32_t rolling_checksum;
-        log_file >> rolling_checksum;
-        assert(rolling_checksum == re_rolling_checksum);
-
-        log_file.fclose();
 
         WriteLastBlock(block_files_file, last_file);
         if (!block_files_file.Commit()) {

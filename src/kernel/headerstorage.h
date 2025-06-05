@@ -70,6 +70,9 @@ public:
     void ReadPruned(bool& pruned) const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
     void WritePruned(bool pruned) const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
+    template<size_t entry_size>
+    void ApplyLog(fs::path log_file_path, fs::path target_file_path) const EXCLUSIVE_LOCKS_REQUIRED(m_mutex);
+
     [[nodiscard]] bool WriteBatchSync(const std::vector<std::pair<int, CBlockFileInfo*>>& fileInfo, int32_t last_file, const std::vector<CBlockIndex*>& blockinfo)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !m_mutex);
 
