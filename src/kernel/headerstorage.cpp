@@ -262,7 +262,6 @@ bool BlockTreeStore::ReadBlockFileInfo(int nFile, CBlockFileInfo& info)
     return true;
 }
 
-template<size_t entry_size>
 void BlockTreeStore::ApplyLog(fs::path log_file_path, fs::path target_file_path) const
 {
     AssertLockHeld(m_mutex);
@@ -275,12 +274,13 @@ void BlockTreeStore::ApplyLog(fs::path log_file_path, fs::path target_file_path)
     auto log_file{AutoFile{fsbridge::fopen(log_file_path, "rb")}};
 
     uint32_t re_rolling_checksum = 0;
+    size_t entry_size;
+    log_file >> entry_size;
+    size_t num_iterations;
+    log_file >> num_iterations;
+
     DataStream stream;
     stream.resize(entry_size + 4);
-    log_file.seek(0, SEEK_END);
-    size_t end = log_file.tell();
-    uint32_t num_iterations = (end - 4) / (entry_size + 8); // Skip the end checksum, then divide by the entry size + position + checksum
-    log_file.seek(0, SEEK_SET);
 
     // Do a dry run to check the integrity of the log file
     for (uint32_t i = 0; i < num_iterations; i++) {
@@ -303,7 +303,7 @@ void BlockTreeStore::ApplyLog(fs::path log_file_path, fs::path target_file_path)
     log_file >> rolling_checksum;
     assert(rolling_checksum == re_rolling_checksum);
     re_rolling_checksum = 0;
-    log_file.seek(0, SEEK_SET);
+    log_file.seek(16, SEEK_SET);
 
     // Run through the file again, but this time write it to the target data file.
     for (uint32_t i = 0; i < num_iterations; i++) {
@@ -323,7 +323,6 @@ void BlockTreeStore::ApplyLog(fs::path log_file_path, fs::path target_file_path)
         }
         stream.Rewind();
 
-        // block_files_file << std::span<std::byte, entry_size>{stream};
         block_files_file << std::span<std::byte>{stream.data(), entry_size};
         block_files_file << checksum;
         stream.clear();
@@ -348,7 +347,12 @@ bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileI
             DataStream stream;
             stream.reserve(BLOCK_FILE_INFO_WRAPPER_SIZE + 4); // BlockFileInfoWrapper size + sizeof(uint32_t)
             uint32_t rolling_checksum = 0;
-            auto log_file{AutoFile{fsbridge::fopen(m_log_file_path, "wb")}};
+            auto raw_log_file{fsbridge::fopen(m_log_file_path, "wb")};
+            AllocateFileRange(raw_log_file, 0, fileInfo.size() * (BLOCK_FILE_INFO_WRAPPER_SIZE + 8) + blockinfo.size() * (DISK_BLOCK_INDEX_WRAPPER_SIZE + 8));
+            auto log_file{AutoFile{raw_log_file}};
+
+            log_file << BLOCK_FILE_INFO_WRAPPER_SIZE;
+            log_file << fileInfo.size();
             for (const auto& [file, info] : fileInfo) {
                 int32_t pos{CalculateBlockFilesPos(file)};
                 stream << BlockFileInfoWrapper{info};
@@ -359,12 +363,13 @@ bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileI
                 log_file << checksum;
                 stream.clear();
             }
+
             log_file << rolling_checksum;
             log_file.Commit();
             log_file.fclose();
         }
 
-        ApplyLog<BLOCK_FILE_INFO_WRAPPER_SIZE>(m_log_file_path, m_block_files_file_path);
+        ApplyLog(m_log_file_path, m_block_files_file_path);
 
         auto block_files_file{AutoFile{fsbridge::fopen(m_block_files_file_path, "rb+")}};
         if (block_files_file.IsNull()) {
