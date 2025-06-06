@@ -52,7 +52,7 @@ static void WriteHeaderFileDataEnd(AutoFile& file, int64_t end)
     file << end;
 }
 
-static int32_t CalculateBlockFilesPos(int nFile)
+static int64_t CalculateBlockFilesPos(int nFile)
 {
     // start position + nFile * (serialized size of BlockFileInfoWrapper + checksum)
     return BLOCK_FILES_DATA_START_POS + nFile * (36 + 4);
@@ -62,7 +62,21 @@ enum ValueType : uint32_t {
     LAST_BLOCK,
     BLOCK_FILE_INFO,
     DISK_BLOCK_INDEX,
+    HEADER_DATA_END,
 };
+
+const fs::path& BlockTreeStore::GetDataFile(uint32_t value_type) const
+{
+    switch (value_type) {
+        case LAST_BLOCK:
+        case BLOCK_FILE_INFO:
+            return m_block_files_file_path;
+        case DISK_BLOCK_INDEX:
+        case HEADER_DATA_END:
+            return m_header_file_path;
+    }
+    throw BlockTreeStoreError(strprintf("Unrecognized value in block tree store"));
+}
 
 void BlockTreeStore::CheckMagicAndVersion() const
 {
@@ -248,9 +262,8 @@ bool BlockTreeStore::ReadBlockFileInfo(int nFile, CBlockFileInfo& info)
         file.read(std::span<std::byte, BLOCK_FILE_INFO_WRAPPER_SIZE>{data});
         file >> checksum;
         pos << CalculateBlockFilesPos(nFile);
-        pos.clear();
         uint32_t re_check = crc32c::Crc32c(UCharCast(data.data()), BLOCK_FILE_INFO_WRAPPER_SIZE);
-        re_check = crc32c::Extend(re_check, UCharCast(pos.data()), 4);
+        re_check = crc32c::Extend(re_check, UCharCast(pos.data()), 8);
         assert(re_check == checksum);
     } catch (std::ios_base::failure::exception&) {
         return false;
@@ -268,22 +281,19 @@ bool BlockTreeStore::ReadBlockFileInfo(int nFile, CBlockFileInfo& info)
     return true;
 }
 
-void BlockTreeStore::ApplyLog(fs::path log_file_path, fs::path target_file_path) const
+void BlockTreeStore::ApplyLog() const
 {
     AssertLockHeld(m_mutex);
-    auto block_files_file{AutoFile{fsbridge::fopen(m_block_files_file_path, "rb+")}};
-    if (block_files_file.IsNull()) {
-        throw BlockTreeStoreError(strprintf("Unable to open file %s\n", fs::PathToString(m_header_file_path)));
-    }
-    block_files_file.seek(BLOCK_FILES_DATA_START_POS, SEEK_SET);
 
-    auto log_file{AutoFile{fsbridge::fopen(log_file_path, "rb")}};
+    auto log_file{AutoFile{fsbridge::fopen(m_log_file_path, "rb")}};
+    if (log_file.IsNull()) {
+        return;
+    }
 
     uint32_t re_rolling_checksum = 0;
 
     uint32_t num_types;
     log_file >> num_types;
-
 
     // Do a dry run to check the integrity of the log file. This should prevent corrupting the data with a corrupt/incomplete log
     for (uint32_t i = 0; i < num_types; i++) {
@@ -296,24 +306,22 @@ void BlockTreeStore::ApplyLog(fs::path log_file_path, fs::path target_file_path)
         log_file >> num_iterations;
 
         DataStream stream;
-        stream.resize(entry_size + 4);
+        stream.resize(entry_size + 8);
 
         for (uint32_t j = 0; j < num_iterations; j++) {
             log_file.read(std::span<std::byte>(stream));
             stream.ignore(entry_size);
-            int32_t pos;
+            int64_t pos;
             stream >> pos;
 
-            uint32_t re_checksum = crc32c::Crc32c(UCharCast(stream.data()), entry_size + 4);
-            re_rolling_checksum = crc32c::Extend(re_rolling_checksum, UCharCast(stream.data()), entry_size + 4);
+            uint32_t re_checksum = crc32c::Crc32c(UCharCast(stream.data()), entry_size + 8);
+            re_rolling_checksum = crc32c::Extend(re_rolling_checksum, UCharCast(stream.data()), entry_size + 8);
             uint32_t checksum;
             log_file >> checksum;
             assert(checksum == re_checksum);
 
-            // log_file.ignore(4);
-
             stream.Rewind();
-            stream.resize(entry_size + 4);
+            stream.resize(entry_size + 8);
         }
     }
 
@@ -323,11 +331,16 @@ void BlockTreeStore::ApplyLog(fs::path log_file_path, fs::path target_file_path)
     re_rolling_checksum = 0;
     log_file.seek(4, SEEK_SET);
 
-
     // Run through the file again, but this time write it to the target data file.
     for (uint32_t i = 0; i < num_types; i++) {
         uint32_t value_type;
         log_file >> value_type;
+        auto data_file_path = GetDataFile(value_type);
+        auto data_file{AutoFile{fsbridge::fopen(data_file_path, "rb+")}};
+        if (data_file.IsNull()) {
+            throw BlockTreeStoreError(strprintf("Unable to open file %s\n", fs::PathToString(data_file_path)));
+        }
+        data_file.seek(BLOCK_FILES_DATA_START_POS, SEEK_SET);
 
         uint32_t entry_size;
         log_file >> entry_size;
@@ -335,36 +348,36 @@ void BlockTreeStore::ApplyLog(fs::path log_file_path, fs::path target_file_path)
         log_file >> num_iterations;
 
         DataStream stream;
-        stream.resize(entry_size + 4);
+        stream.resize(entry_size + 8);
 
         for (uint32_t i = 0; i < num_iterations; i++) {
             log_file.read(std::span<std::byte>(stream));
             stream.ignore(entry_size);
-            int32_t pos;
+            int64_t pos;
             stream >> pos;
 
-            uint32_t re_checksum = crc32c::Crc32c(UCharCast(stream.data()), entry_size + 4);
-            re_rolling_checksum = crc32c::Extend(re_rolling_checksum, UCharCast(stream.data()), entry_size + 4);
+            uint32_t re_checksum = crc32c::Crc32c(UCharCast(stream.data()), entry_size + 8);
+            re_rolling_checksum = crc32c::Extend(re_rolling_checksum, UCharCast(stream.data()), entry_size + 8);
             uint32_t checksum;
             log_file >> checksum;
             assert(re_checksum == checksum);
 
-            if (block_files_file.tell() != pos) {
-                block_files_file.seek(pos, SEEK_SET);
+            if (data_file.tell() != pos) {
+                data_file.seek(pos, SEEK_SET);
             }
             stream.Rewind();
 
-            block_files_file << std::span<std::byte>{stream.data(), entry_size};
-            block_files_file << checksum;
+            data_file << std::span<std::byte>{stream.data(), entry_size};
+            data_file << checksum;
             stream.clear();
-            stream.resize(entry_size + 4);
+            stream.resize(entry_size + 8);
         }
     }
 
     assert(rolling_checksum == re_rolling_checksum);
 
     log_file.fclose();
-    fs::remove(log_file_path);
+    fs::remove(m_log_file_path);
 }
 
 bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileInfo*>>& fileInfo, int32_t last_file, const std::vector<CBlockIndex*>& blockinfo)
@@ -372,63 +385,43 @@ bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileI
     AssertLockHeld(::cs_main);
     LOCK(m_mutex);
 
-    // Write the block files data
-    {
-        {
-            DataStream stream;
-            stream.reserve(BLOCK_FILE_INFO_WRAPPER_SIZE + 4); // BlockFileInfoWrapper size + sizeof(uint32_t)
-            uint32_t rolling_checksum = 0;
-            auto raw_log_file{fsbridge::fopen(m_log_file_path, "wb")};
-            size_t log_file_prealloc_size{fileInfo.size() * (BLOCK_FILE_INFO_WRAPPER_SIZE + 8) + blockinfo.size() * (DISK_BLOCK_INDEX_WRAPPER_SIZE + 8)};
-            AllocateFileRange(raw_log_file, 0, log_file_prealloc_size);
-            auto log_file{AutoFile{raw_log_file}};
+    auto raw_log_file{fsbridge::fopen(m_log_file_path, "wb")};
+    size_t log_file_prealloc_size{fileInfo.size() * (BLOCK_FILE_INFO_WRAPPER_SIZE + 8) + blockinfo.size() * (DISK_BLOCK_INDEX_WRAPPER_SIZE + 8)};
+    AllocateFileRange(raw_log_file, 0, log_file_prealloc_size);
+    auto log_file{AutoFile{raw_log_file}};
 
-            log_file << uint32_t{2}; // We are writing two different types to the file for now.
+    DataStream stream;
+    stream.reserve(DISK_BLOCK_INDEX_WRAPPER_SIZE + 8); // BlockFileInfoWrapper size + sizeof(int64_t)
+    uint32_t rolling_checksum = 0;
 
-            log_file << ValueType::LAST_BLOCK;
-            log_file << uint32_t{4}; // sizeof(uint32_t)
-            log_file << uint32_t{1}; // just the one entry
-            stream << last_file;
-            stream << BLOCK_FILES_LAST_BLOCK_POS;
-            uint32_t checksum = crc32c::Crc32c(UCharCast(stream.data()), 8);
-            rolling_checksum = crc32c::Extend(rolling_checksum, UCharCast(stream.data()), 8);
-            log_file << std::span<std::byte>{stream.data(), 8};
-            log_file << checksum;
-            stream.clear();
+    log_file << uint32_t{2}; // We are writing two different types to the file for now.
 
-            log_file << ValueType::BLOCK_FILE_INFO;
-            log_file << BLOCK_FILE_INFO_WRAPPER_SIZE;
-            log_file << static_cast<uint32_t>(fileInfo.size());
-            for (const auto& [file, info] : fileInfo) {
-                int32_t pos{CalculateBlockFilesPos(file)};
-                stream << BlockFileInfoWrapper{info};
-                stream << pos;
-                uint32_t checksum = crc32c::Crc32c(UCharCast(stream.data()), BLOCK_FILE_INFO_WRAPPER_SIZE + 4);
-                rolling_checksum = crc32c::Extend(rolling_checksum, UCharCast(stream.data()), BLOCK_FILE_INFO_WRAPPER_SIZE + 4);
-                log_file.write(stream);
-                log_file << checksum;
-                stream.clear();
-            }
+    // Write the last block file number to the log
+    log_file << ValueType::LAST_BLOCK;
+    log_file << uint32_t{4}; // sizeof(uint32_t)
+    log_file << uint32_t{1}; // just the one entry
+    stream << last_file;
+    stream << BLOCK_FILES_LAST_BLOCK_POS;
+    uint32_t checksum = crc32c::Crc32c(UCharCast(stream.data()), 12);
+    rolling_checksum = crc32c::Extend(rolling_checksum, UCharCast(stream.data()), 12);
+    log_file << std::span<std::byte>{stream.data(), 12};
+    log_file << checksum;
+    stream.clear();
 
-            log_file << rolling_checksum;
-            log_file.Commit();
-            log_file.fclose();
-        }
-
-        ApplyLog(m_log_file_path, m_block_files_file_path);
-
-        // auto block_files_file{AutoFile{fsbridge::fopen(m_block_files_file_path, "rb+")}};
-        // if (block_files_file.IsNull()) {
-        //     throw BlockTreeStoreError(strprintf("Unable to open file %s\n", fs::PathToString(m_header_file_path)));
-        // }
-
-        // WriteLastBlock(block_files_file, last_file);
-        // if (!block_files_file.Commit()) {
-        //     throw BlockTreeStoreError(strprintf("Failed to commit block file info batch write to file %s\n", fs::PathToString(m_header_file_path)));
-        // }
+    // Write thefileInfo entries to the log
+    log_file << ValueType::BLOCK_FILE_INFO;
+    log_file << BLOCK_FILE_INFO_WRAPPER_SIZE;
+    log_file << static_cast<uint32_t>(fileInfo.size());
+    for (const auto& [file, info] : fileInfo) {
+        int64_t pos{CalculateBlockFilesPos(file)};
+        stream << BlockFileInfoWrapper{info};
+        stream << pos;
+        uint32_t checksum = crc32c::Crc32c(UCharCast(stream.data()), BLOCK_FILE_INFO_WRAPPER_SIZE + 8);
+        rolling_checksum = crc32c::Extend(rolling_checksum, UCharCast(stream.data()), BLOCK_FILE_INFO_WRAPPER_SIZE + 8);
+        log_file.write(stream);
+        log_file << checksum;
+        stream.clear();
     }
-
-    fs::remove(m_log_file_path);
 
     // Read the header data end position
     int64_t header_data_end;
@@ -440,10 +433,19 @@ bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileI
         header_data_end = ReadHeaderFileDataEnd(header_file);
     }
 
+    // Write the header data to the log
+    // log_file << ValueType::DISK_BLOCK_INDEX;
+    // log_file << DISK_BLOCK_INDEX_WRAPPER_SIZE;
+    // log_file << static_cast<uint32_t>(blockinfo.size());
+
+
+
+    // Write the last header position to the log
+
+
     // Write the header data
     {
         auto header_file{AutoFile{fsbridge::fopen(m_header_file_path, "rb+")}};
-        auto log_file{AutoFile{fsbridge::fopen(m_log_file_path, "w")}};
         if (header_file.IsNull()) {
             throw BlockTreeStoreError(strprintf("Unable to open file %s\n", fs::PathToString(m_header_file_path)));
         }
@@ -472,6 +474,16 @@ bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileI
             throw BlockTreeStoreError(strprintf("Failed to commit block index batch write to file %s\n", fs::PathToString(m_header_file_path)));
         }
     }
+
+    log_file << rolling_checksum;
+    log_file.Commit();
+    log_file.fclose();
+
+    ApplyLog();
+
+    fs::remove(m_log_file_path);
+
+
 
     return true;
 }

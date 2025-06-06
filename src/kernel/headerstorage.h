@@ -22,18 +22,18 @@ namespace kernel {
 // <magic> <version> <reindex flag> <data end position> [<message start> <DiskBlockIndexWrapper>]
 inline constexpr uint32_t HEADER_FILE_MAGIC{0x1d5e2eb2}; // sha256sum(BLOCK_HEADER_FILE_MAGIC)
 inline constexpr uint32_t HEADER_FILE_VERSION{1};
-inline constexpr uint32_t HEADER_FILE_REINDEX_FLAG_POS{8}; // after magic (4bytes) and version (4bytes)
-inline constexpr uint32_t HEADER_FILE_DATA_END_POS{9};     // after magic (4bytes), version (4bytes), and reindex flag (1byte)
-inline constexpr uint32_t HEADER_FILE_DATA_START_POS{17};  // after magic (4bytes), version (4bytes), reindex flag (1byte), and end pos (8bytes)
+inline constexpr int64_t HEADER_FILE_REINDEX_FLAG_POS{8}; // after magic (4bytes) and version (4bytes)
+inline constexpr int64_t HEADER_FILE_DATA_END_POS{9};     // after magic (4bytes), version (4bytes), and reindex flag (1byte)
+inline constexpr int64_t HEADER_FILE_DATA_START_POS{17};  // after magic (4bytes), version (4bytes), reindex flag (1byte), and end pos (8bytes)
 inline constexpr const char* HEADER_FILE_NAME{"headers.dat"};
 
 //! The layout of the headers file is as follows:
 // <magic> <version> <last block position> <prune flag> [<message start> <BlockFileInfoWrapper>]
 inline constexpr uint32_t BLOCK_FILES_FILE_MAGIC{0x6e2e2f44}; // sha256sum(BLOCK_FILES_FILE_MAGIC)
 inline constexpr uint32_t BLOCK_FILES_FILE_VERSION{1};
-inline constexpr uint32_t BLOCK_FILES_LAST_BLOCK_POS{8};  // after magic (4bytes) and version (4bytes)
-inline constexpr uint32_t BLOCK_FILES_PRUNE_FLAG_POS{12}; // after magic (4bytes), version (4bytes), and last block (4bytes)
-inline constexpr uint32_t BLOCK_FILES_DATA_START_POS{13}; // after magic (4bytes), version (4bytes), last block (4bytes), and prune flag (1byte)
+inline constexpr int64_t BLOCK_FILES_LAST_BLOCK_POS{8};  // after magic (4bytes) and version (4bytes)
+inline constexpr int64_t BLOCK_FILES_PRUNE_FLAG_POS{12}; // after magic (4bytes), version (4bytes), and last block (4bytes)
+inline constexpr int64_t BLOCK_FILES_DATA_START_POS{13}; // after magic (4bytes), version (4bytes), last block (4bytes), and prune flag (1byte)
 inline constexpr const char* BLOCK_FILES_FILE_NAME{"blockfiles.dat"};
 
 inline constexpr const char* LOG_FILE_NAME{"log.dat"};
@@ -70,7 +70,9 @@ public:
     void ReadPruned(bool& pruned) const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
     void WritePruned(bool pruned) const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
-    void ApplyLog(fs::path log_file_path, fs::path target_file_path) const EXCLUSIVE_LOCKS_REQUIRED(m_mutex);
+    void ApplyLog() const EXCLUSIVE_LOCKS_REQUIRED(m_mutex);
+
+    const fs::path& GetDataFile(uint32_t value_type) const;
 
     [[nodiscard]] bool WriteBatchSync(const std::vector<std::pair<int, CBlockFileInfo*>>& fileInfo, int32_t last_file, const std::vector<CBlockIndex*>& blockinfo)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !m_mutex);
