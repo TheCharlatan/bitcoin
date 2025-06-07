@@ -24,7 +24,7 @@ inline constexpr uint32_t HEADER_FILE_MAGIC{0x1d5e2eb2}; // sha256sum(BLOCK_HEAD
 inline constexpr uint32_t HEADER_FILE_VERSION{1};
 inline constexpr int64_t HEADER_FILE_REINDEX_FLAG_POS{8}; // after magic (4bytes) and version (4bytes)
 inline constexpr int64_t HEADER_FILE_DATA_END_POS{9};     // after magic (4bytes), version (4bytes), and reindex flag (1byte)
-inline constexpr int64_t HEADER_FILE_DATA_START_POS{17};  // after magic (4bytes), version (4bytes), reindex flag (1byte), and end pos (8bytes)
+inline constexpr int64_t HEADER_FILE_DATA_START_POS{21};  // after magic (4bytes), version (4bytes), reindex flag (1byte), end pos (8bytes) and its checksum (4bytes)
 inline constexpr const char* HEADER_FILE_NAME{"headers.dat"};
 
 //! The layout of the headers file is as follows:
@@ -32,8 +32,8 @@ inline constexpr const char* HEADER_FILE_NAME{"headers.dat"};
 inline constexpr uint32_t BLOCK_FILES_FILE_MAGIC{0x6e2e2f44}; // sha256sum(BLOCK_FILES_FILE_MAGIC)
 inline constexpr uint32_t BLOCK_FILES_FILE_VERSION{1};
 inline constexpr int64_t BLOCK_FILES_LAST_BLOCK_POS{8};  // after magic (4bytes) and version (4bytes)
-inline constexpr int64_t BLOCK_FILES_PRUNE_FLAG_POS{12}; // after magic (4bytes), version (4bytes), and last block (4bytes)
-inline constexpr int64_t BLOCK_FILES_DATA_START_POS{13}; // after magic (4bytes), version (4bytes), last block (4bytes), and prune flag (1byte)
+inline constexpr int64_t BLOCK_FILES_PRUNE_FLAG_POS{16}; // after magic (4bytes), version (4bytes), last block (4bytes) and its checksum (4bytes)
+inline constexpr int64_t BLOCK_FILES_DATA_START_POS{17}; // after magic (4bytes), version (4bytes), last block (4bytes), and prune flag (1byte)
 inline constexpr const char* BLOCK_FILES_FILE_NAME{"blockfiles.dat"};
 
 inline constexpr const char* LOG_FILE_NAME{"log.dat"};

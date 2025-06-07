@@ -100,6 +100,8 @@ BOOST_AUTO_TEST_CASE(HeaderFilesFormat)
     BOOST_CHECK_EQUAL(version, BLOCK_FILES_FILE_VERSION);
     int32_t last_block;
     file >> last_block;
+    int32_t checksum;
+    file >> checksum;
     BOOST_CHECK_EQUAL(last_block, 0);
     bool pruned;
     file >> pruned;
@@ -132,7 +134,6 @@ BOOST_AUTO_TEST_CASE(HeaderStoreInvalidFiles)
 BOOST_AUTO_TEST_CASE(HeaderStore)
 {
     LOCK(::cs_main);
-    std::unordered_map<uint256, CBlockIndex, BlockHasher> block_map;
     fs::path block_tree_store_dir{m_args.GetDataDirBase()};
     auto header_file{block_tree_store_dir / HEADER_FILE_NAME};
     auto block_files_file{block_tree_store_dir / BLOCK_FILES_FILE_NAME};
@@ -163,7 +164,15 @@ BOOST_AUTO_TEST_CASE(HeaderStore)
     store.ReadPruned(pruned);
     BOOST_CHECK(!pruned);
 
+    std::unordered_map<uint256, CBlockIndex, BlockHasher> block_map;
     std::vector<std::pair<int, CBlockFileInfo*>> fileinfo;
+    BOOST_CHECK(store.LoadBlockIndexGuts(
+        params->GetConsensus(),
+        [&](const uint256& hash) { return InsertBlockIndex(block_map, hash); },
+        m_interrupt));
+    BOOST_CHECK(block_map.empty());
+
+    // Write and read a CBlockFileInfo and a CBlockIndex
     CBlockFileInfo info{};
     info.nBlocks = 1;
     info.nSize = 2;
@@ -172,8 +181,6 @@ BOOST_AUTO_TEST_CASE(HeaderStore)
     info.nHeightLast = 5;
     info.nTimeFirst = 6;
     info.nTimeLast = 7;
-
-    // Write and read a CBlockFileInfo and a CBlockIndex
     fileinfo.emplace_back(0, &info);
     int32_t last_file{1};
     std::vector<CBlockIndex*> blockinfo;

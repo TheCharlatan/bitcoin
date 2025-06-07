@@ -18,7 +18,7 @@
 namespace kernel {
 
 static uint32_t constexpr BLOCK_FILE_INFO_WRAPPER_SIZE{36};
-static uint32_t constexpr DISK_BLOCK_INDEX_WRAPPER_SIZE{108};
+static uint32_t constexpr DISK_BLOCK_INDEX_WRAPPER_SIZE{112};
 
 static void WriteReindexingImpl(AutoFile& file, bool fReindexing)
 {
@@ -30,6 +30,11 @@ static void WriteLastBlock(AutoFile& file, int32_t last_file)
 {
     file.seek(BLOCK_FILES_LAST_BLOCK_POS, SEEK_SET);
     file << last_file;
+    DataStream data;
+    data << last_file;
+    data << BLOCK_FILES_LAST_BLOCK_POS;
+    uint32_t checksum = crc32c::Crc32c(UCharCast(data.data()), 12);
+    file << checksum;
 }
 
 static void WritePrunedImpl(AutoFile& file, bool prune)
@@ -41,8 +46,16 @@ static void WritePrunedImpl(AutoFile& file, bool prune)
 static int64_t ReadHeaderFileDataEnd(AutoFile& file)
 {
     int64_t data_end;
+    uint32_t checksum;
+    DataStream data;
     file.seek(HEADER_FILE_DATA_END_POS, SEEK_SET);
     file >> data_end;
+    data << data_end;
+    data << HEADER_FILE_DATA_END_POS;
+    uint32_t re_check = crc32c::Crc32c(UCharCast(data.data()), 16);
+    file >> checksum;
+    assert(re_check == checksum);
+    data >> data_end;
     return data_end;
 }
 
@@ -50,6 +63,11 @@ static void WriteHeaderFileDataEnd(AutoFile& file, int64_t end)
 {
     file.seek(HEADER_FILE_DATA_END_POS, SEEK_SET);
     file << end;
+    DataStream data;
+    data << end;
+    data << HEADER_FILE_DATA_END_POS;
+    uint32_t checksum = crc32c::Crc32c(UCharCast(data.data()), 16);
+    file << checksum;
 }
 
 static int64_t CalculateBlockFilesPos(int nFile)
@@ -215,6 +233,13 @@ void BlockTreeStore::ReadLastBlockFile(int32_t& last_block) const
     }
     file.seek(BLOCK_FILES_LAST_BLOCK_POS, SEEK_SET);
     file >> last_block;
+    DataStream data;
+    data << last_block;
+    data << BLOCK_FILES_LAST_BLOCK_POS;
+    uint32_t re_check = crc32c::Crc32c(UCharCast(data.data()), 12);
+    uint32_t checksum;
+    file >> checksum;
+    assert(re_check == checksum);
 }
 
 void BlockTreeStore::ReadPruned(bool& pruned) const
@@ -394,7 +419,7 @@ bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileI
     stream.reserve(DISK_BLOCK_INDEX_WRAPPER_SIZE + 8); // BlockFileInfoWrapper size + sizeof(int64_t)
     uint32_t rolling_checksum = 0;
 
-    log_file << uint32_t{2}; // We are writing two different types to the file for now.
+    log_file << uint32_t{4}; // We are writing four different types to the file for now.
 
     // Write the last block file number to the log
     log_file << ValueType::LAST_BLOCK;
@@ -416,7 +441,7 @@ bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileI
         int64_t pos{CalculateBlockFilesPos(file)};
         stream << BlockFileInfoWrapper{info};
         stream << pos;
-        uint32_t checksum = crc32c::Crc32c(UCharCast(stream.data()), BLOCK_FILE_INFO_WRAPPER_SIZE + 8);
+        checksum = crc32c::Crc32c(UCharCast(stream.data()), BLOCK_FILE_INFO_WRAPPER_SIZE + 8);
         rolling_checksum = crc32c::Extend(rolling_checksum, UCharCast(stream.data()), BLOCK_FILE_INFO_WRAPPER_SIZE + 8);
         log_file.write(stream);
         log_file << checksum;
@@ -434,46 +459,69 @@ bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileI
     }
 
     // Write the header data to the log
-    // log_file << ValueType::DISK_BLOCK_INDEX;
-    // log_file << DISK_BLOCK_INDEX_WRAPPER_SIZE;
-    // log_file << static_cast<uint32_t>(blockinfo.size());
+    log_file << ValueType::DISK_BLOCK_INDEX;
+    log_file << DISK_BLOCK_INDEX_WRAPPER_SIZE;
+    log_file << static_cast<uint32_t>(blockinfo.size());
 
-
-
-    // Write the last header position to the log
-
-
-    // Write the header data
-    {
-        auto header_file{AutoFile{fsbridge::fopen(m_header_file_path, "rb+")}};
-        if (header_file.IsNull()) {
-            throw BlockTreeStoreError(strprintf("Unable to open file %s\n", fs::PathToString(m_header_file_path)));
-        }
-
-        for (CBlockIndex* bi : blockinfo) {
-            std::vector<const char*> data;
-            // Append a new header to the end
-            if (bi->header_pos == 0 && header_file.tell() != header_data_end) {
-                header_file.seek(header_data_end, SEEK_SET);
-            }
-            // Seek to the existing header
-            if (bi->header_pos != 0 && header_file.tell() != bi->header_pos) {
-                header_file.seek(bi->header_pos, SEEK_SET);
-            }
-            auto disk_bi{CDiskBlockIndex{bi}};
-            header_file << m_params.MessageStart();
-            header_file << DiskBlockIndexWrapper{&disk_bi};
-            // Update the header_pos to the previous end, and data_end to the new end
-            if (bi->header_pos == 0) {
-                bi->header_pos = header_data_end;
-                header_data_end = header_file.tell();
-            }
-        }
-        WriteHeaderFileDataEnd(header_file, header_data_end);
-        if (!header_file.Commit()) {
-            throw BlockTreeStoreError(strprintf("Failed to commit block index batch write to file %s\n", fs::PathToString(m_header_file_path)));
+    for (CBlockIndex* bi : blockinfo) {
+        int64_t pos = bi->header_pos == 0 ? header_data_end : bi->header_pos;
+        auto disk_bi{CDiskBlockIndex{bi}};
+        stream << DiskBlockIndexWrapper{&disk_bi};
+        stream << pos;
+        checksum = crc32c::Crc32c(UCharCast(stream.data()), DISK_BLOCK_INDEX_WRAPPER_SIZE + 8);
+        rolling_checksum = crc32c::Extend(rolling_checksum, UCharCast(stream.data()), DISK_BLOCK_INDEX_WRAPPER_SIZE + 8);
+        log_file.write(stream);
+        log_file << checksum;
+        stream.clear();
+        if (bi->header_pos == 0) {
+            bi->header_pos = header_data_end;
+            header_data_end = header_data_end + DISK_BLOCK_INDEX_WRAPPER_SIZE + 4;
         }
     }
+
+    // Write the last header position to the log
+    log_file << ValueType::HEADER_DATA_END; // value_type
+    log_file << uint32_t{8}; // element_size
+    log_file << uint32_t{1}; // number of entries
+    stream << header_data_end;
+    stream << HEADER_FILE_DATA_END_POS;
+    checksum = crc32c::Crc32c(UCharCast(stream.data()), 16);
+    rolling_checksum = crc32c::Extend(rolling_checksum, UCharCast(stream.data()), 16);
+    log_file << std::span<std::byte>{stream.data(), 16};
+    log_file << checksum;
+    stream.clear();
+
+    // Write the header data
+    // if (false) {
+    //     auto header_file{AutoFile{fsbridge::fopen(m_header_file_path, "rb+")}};
+    //     if (header_file.IsNull()) {
+    //         throw BlockTreeStoreError(strprintf("Unable to open file %s\n", fs::PathToString(m_header_file_path)));
+    //     }
+
+    //     for (CBlockIndex* bi : blockinfo) {
+    //         std::vector<const char*> data;
+    //         // Append a new header to the end
+    //         if (bi->header_pos == 0 && header_file.tell() != header_data_end) {
+    //             header_file.seek(header_data_end, SEEK_SET);
+    //         }
+    //         // Seek to the existing header
+    //         if (bi->header_pos != 0 && header_file.tell() != bi->header_pos) {
+    //             header_file.seek(bi->header_pos, SEEK_SET);
+    //         }
+    //         auto disk_bi{CDiskBlockIndex{bi}};
+    //         header_file << m_params.MessageStart();
+    //         header_file << DiskBlockIndexWrapper{&disk_bi};
+    //         // Update the header_pos to the previous end, and data_end to the new end
+    //         if (bi->header_pos == 0) {
+    //             bi->header_pos = header_data_end;
+    //             header_data_end = header_file.tell();
+    //         }
+    //     }
+    //     WriteHeaderFileDataEnd(header_file, header_data_end);
+    //     if (!header_file.Commit()) {
+    //         throw BlockTreeStoreError(strprintf("Failed to commit block index batch write to file %s\n", fs::PathToString(m_header_file_path)));
+    //     }
+    // }
 
     log_file << rolling_checksum;
     log_file.Commit();
@@ -482,9 +530,6 @@ bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileI
     ApplyLog();
 
     fs::remove(m_log_file_path);
-
-
-
     return true;
 }
 
@@ -505,15 +550,20 @@ bool BlockTreeStore::LoadBlockIndexGuts(
     auto data_end_pos{ReadHeaderFileDataEnd(file)};
     while (file.tell() < data_end_pos) {
         if (interrupt) return false;
-        DiskBlockIndexWrapper diskindex;
-        MessageStartChars buf;
-        file >> buf;
-        if (buf != m_params.MessageStart()) {
-            LogPrintf("did not find message start char");
-            break;
-        }
 
-        file >> diskindex;
+        DataStream data;
+        data.resize(DISK_BLOCK_INDEX_WRAPPER_SIZE);
+        uint32_t checksum;
+        DataStream pos;
+        DiskBlockIndexWrapper diskindex;
+        pos << file.tell();
+        file.read(std::span<std::byte, DISK_BLOCK_INDEX_WRAPPER_SIZE>{data});
+        file >> checksum;
+        uint32_t re_check = crc32c::Crc32c(UCharCast(data.data()), DISK_BLOCK_INDEX_WRAPPER_SIZE);
+        re_check = crc32c::Extend(re_check, UCharCast(pos.data()), 8);
+        assert(re_check == checksum);
+        data >> diskindex;
+
         // Construct block index object
         CBlockIndex* pindexNew = insertBlockIndex(diskindex.ConstructBlockHash());
         pindexNew->pprev = insertBlockIndex(diskindex.hashPrev);
