@@ -99,7 +99,8 @@ public:
     [[nodiscard]] bool LoadBlockIndexGuts(
         const Consensus::Params& consensusParams,
         std::function<CBlockIndex*(const uint256&)> insertBlockIndex,
-        const util::SignalInterrupt& interrupt)
+        const util::SignalInterrupt& interrupt,
+        int64_t start_pos = HEADER_FILE_DATA_START_POS)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !m_mutex);
 };
 

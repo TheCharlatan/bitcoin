@@ -531,7 +531,8 @@ bool BlockTreeStore::WriteBatchSync(const std::vector<std::pair<int, CBlockFileI
 bool BlockTreeStore::LoadBlockIndexGuts(
     const Consensus::Params& consensusParams,
     std::function<CBlockIndex*(const uint256&)> insertBlockIndex,
-    const util::SignalInterrupt& interrupt)
+    const util::SignalInterrupt& interrupt,
+    int64_t start_pos)
 {
     AssertLockHeld(::cs_main);
     LOCK(m_mutex);
@@ -541,7 +542,7 @@ bool BlockTreeStore::LoadBlockIndexGuts(
         throw BlockTreeStoreError(strprintf("Unable to open file %s\n", fs::PathToString(m_header_file_path)));
     }
 
-    file.seek(HEADER_FILE_DATA_START_POS, SEEK_SET);
+    file.seek(start_pos, SEEK_SET);
     auto data_end_pos{ReadHeaderFileDataEnd(file)};
 
     DataStream pos;
