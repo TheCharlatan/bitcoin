@@ -2871,7 +2871,7 @@ bool Chainstate::FlushStateToDisk(
         // Combine all conditions that result in a full cache flush.
         fDoFullFlush = (mode == FlushStateMode::ALWAYS) || fCacheLarge || fCacheCritical || fPeriodicFlush || fFlushForPrune;
         // Write blocks and block index to disk.
-        if (fDoFullFlush || fPeriodicWrite) {
+        if (fDoFullFlush || fPeriodicWrite || !m_chainman.IsInitialBlockDownload()) {
             // Ensure we can write block index
             if (!CheckDiskSpace(m_blockman.m_opts.blocks_dir)) {
                 return FatalError(m_chainman.GetNotifications(), state, _("Disk space is too low!"));

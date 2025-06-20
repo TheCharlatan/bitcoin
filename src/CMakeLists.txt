@@ -459,6 +459,17 @@ if(BUILD_UTIL_CHAINSTATE)
   )
 endif()
 
+add_executable(bitcoin-reader
+  reader.cpp
+)
+set_target_properties(bitcoin-reader PROPERTIES
+  SKIP_BUILD_RPATH OFF
+)
+target_link_libraries(bitcoin-reader
+  PRIVATE
+    core_interface
+    bitcoinkernel
+)
 
 add_subdirectory(test/util)
 if(BUILD_BENCH)
