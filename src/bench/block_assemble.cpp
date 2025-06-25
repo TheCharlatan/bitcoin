@@ -43,8 +43,6 @@ static void AssembleBlock(benchmark::Bench& bench)
             txs.at(b) = MakeTransactionRef(tx);
     }
     {
-        LOCK(::cs_main);
-
         for (const auto& txr : txs) {
             const MempoolAcceptResult res = test_setup->m_node.chainman->ProcessTransaction(txr);
             assert(res.m_result_type == MempoolAcceptResult::ResultType::VALID);

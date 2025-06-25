@@ -202,7 +202,6 @@ BOOST_AUTO_TEST_CASE(package_sanitization_tests)
 
 BOOST_AUTO_TEST_CASE(package_validation_tests)
 {
-    LOCK(cs_main);
     unsigned int initialPoolSize = m_node.mempool->size();
 
     // Parent and Child Package
@@ -355,7 +354,6 @@ BOOST_AUTO_TEST_CASE(noncontextual_package_tests)
 
 BOOST_AUTO_TEST_CASE(package_submission_tests)
 {
-    LOCK(cs_main);
     unsigned int expected_pool_size = m_node.mempool->size();
     CKey parent_key = GenerateRandomKey();
     CScript parent_locking_script = GetScriptForDestination(PKHash(parent_key.GetPubKey()));
@@ -499,7 +497,6 @@ BOOST_AUTO_TEST_CASE(package_single_tx)
 {
     // Mine blocks to mature coinbases.
     mineBlocks(3);
-    LOCK(cs_main);
     auto expected_pool_size{m_node.mempool->size()};
 
     const CAmount high_fee{1000};
@@ -592,7 +589,6 @@ BOOST_AUTO_TEST_CASE(package_witness_swap_tests)
     // Mine blocks to mature coinbases.
     mineBlocks(5);
     MockMempoolMinFee(CFeeRate(5000));
-    LOCK(cs_main);
 
     // Transactions with a same-txid-different-witness transaction in the mempool should be ignored,
     // and the mempool entry's wtxid returned.
@@ -825,7 +821,6 @@ BOOST_AUTO_TEST_CASE(package_cpfp_tests)
 {
     mineBlocks(5);
     MockMempoolMinFee(CFeeRate(5000));
-    LOCK(::cs_main);
     size_t expected_pool_size = m_node.mempool->size();
     CKey child_key = GenerateRandomKey();
     CScript parent_spk = GetScriptForDestination(WitnessV0KeyHash(child_key.GetPubKey()));
@@ -1035,7 +1030,6 @@ BOOST_AUTO_TEST_CASE(package_cpfp_tests)
 BOOST_AUTO_TEST_CASE(package_rbf_tests)
 {
     mineBlocks(5);
-    LOCK(::cs_main);
     size_t expected_pool_size = m_node.mempool->size();
     CKey child_key{GenerateRandomKey()};
     CScript parent_spk = GetScriptForDestination(WitnessV0KeyHash(child_key.GetPubKey()));

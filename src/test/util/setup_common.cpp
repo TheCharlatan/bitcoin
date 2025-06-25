@@ -495,7 +495,6 @@ CMutableTransaction TestChain100Setup::CreateValidMempoolTransaction(const std::
     CMutableTransaction mempool_txn = CreateValidTransaction(input_transactions, inputs, input_height, input_signing_keys, outputs, std::nullopt, std::nullopt).first;
     // If submit=true, add transaction to the mempool.
     if (submit) {
-        LOCK(cs_main);
         const MempoolAcceptResult result = m_node.chainman->ProcessTransaction(MakeTransactionRef(mempool_txn));
         assert(result.m_result_type == MempoolAcceptResult::ResultType::VALID);
     }

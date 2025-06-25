@@ -46,6 +46,7 @@ TransactionError BroadcastTransaction(NodeContext& node, const CTransactionRef t
     bool callback_set = false;
 
     {
+        {
         LOCK(cs_main);
 
         // If the transaction is already confirmed in the chain, don't do anything
@@ -56,6 +57,7 @@ TransactionError BroadcastTransaction(NodeContext& node, const CTransactionRef t
             // IsSpent doesn't mean the coin is spent, it means the output doesn't exist.
             // So if the output does exist, then this transaction exists in the chain.
             if (!existingCoin.IsSpent()) return TransactionError::ALREADY_IN_UTXO_SET;
+        }
         }
 
         if (auto mempool_tx = node.mempool->get(txid); mempool_tx) {

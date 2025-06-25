@@ -37,8 +37,6 @@ BOOST_FIXTURE_TEST_CASE(tx_mempool_reject_coinbase, TestChain100Setup)
 
     BOOST_CHECK(CTransaction(coinbaseTx).IsCoinBase());
 
-    LOCK(cs_main);
-
     unsigned int initialPoolSize = m_node.mempool->size();
     const MempoolAcceptResult result = m_node.chainman->ProcessTransaction(MakeTransactionRef(coinbaseTx));
 
@@ -113,7 +111,7 @@ static inline CTransactionRef make_ephemeral_tx(const std::vector<COutPoint>& in
 BOOST_FIXTURE_TEST_CASE(ephemeral_tests, RegTestingSetup)
 {
     CTxMemPool& pool = *Assert(m_node.mempool);
-    LOCK2(cs_main, pool.cs);
+    LOCK(pool.cs);
     TestMemPoolEntryHelper entry;
     CTxMemPool::setEntries empty_ancestors;
 
