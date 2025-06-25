@@ -704,7 +704,6 @@ static RPCHelpMan getblocktemplate()
     NodeContext& node = EnsureAnyNodeContext(request.context);
     ChainstateManager& chainman = EnsureChainman(node);
     Mining& miner = EnsureMining(node);
-    LOCK(cs_main);
     uint256 tip{CHECK_NONFATAL(miner.getTip()).value().hash};
 
     std::string strMode = "template";
@@ -735,6 +734,7 @@ static RPCHelpMan getblocktemplate()
                 throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
 
             uint256 hash = block.GetHash();
+            LOCK(cs_main);
             const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(hash);
             if (pindex) {
                 if (pindex->IsValid(BLOCK_VALID_SCRIPTS))
@@ -810,27 +810,24 @@ static RPCHelpMan getblocktemplate()
         }
 
         // Release lock while waiting
-        LEAVE_CRITICAL_SECTION(cs_main);
-        {
-            MillisecondsDouble checktxtime{std::chrono::minutes(1)};
-            while (IsRPCRunning()) {
-                // If hashWatchedChain is not a real block hash, this will
-                // return immediately.
-                std::optional<BlockRef> maybe_tip{miner.waitTipChanged(hashWatchedChain, checktxtime)};
-                // Node is shutting down
-                if (!maybe_tip) break;
-                tip = maybe_tip->hash;
-                if (tip != hashWatchedChain) break;
+        AssertLockNotHeld(cs_main);
+        MillisecondsDouble checktxtime{std::chrono::minutes(1)};
+        while (IsRPCRunning()) {
+            // If hashWatchedChain is not a real block hash, this will
+            // return immediately.
+            std::optional<BlockRef> maybe_tip{miner.waitTipChanged(hashWatchedChain, checktxtime)};
+            // Node is shutting down
+            if (!maybe_tip) break;
+            tip = maybe_tip->hash;
+            if (tip != hashWatchedChain) break;
 
-                // Check transactions for update without holding the mempool
-                // lock to avoid deadlocks.
-                if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLastLP) {
-                    break;
-                }
-                checktxtime = std::chrono::seconds(10);
+            // Check transactions for update without holding the mempool
+            // lock to avoid deadlocks.
+            if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLastLP) {
+                break;
             }
+            checktxtime = std::chrono::seconds(10);
         }
-        ENTER_CRITICAL_SECTION(cs_main);
 
         tip = CHECK_NONFATAL(miner.getTip()).value().hash;
 
@@ -863,7 +860,7 @@ static RPCHelpMan getblocktemplate()
 
         // Store the pindexBest used before createNewBlock, to avoid races
         nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
-        CBlockIndex* pindexPrevNew = chainman.m_blockman.LookupBlockIndex(tip);
+        CBlockIndex* pindexPrevNew = WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(tip));
         time_start = GetTime();
 
         // Create new block
