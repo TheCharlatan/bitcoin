@@ -5902,7 +5902,7 @@ util::Result<void> ChainstateManager::PopulateAndValidateSnapshot(
 
     uint256 base_blockhash = metadata.m_base_blockhash;
 
-    CBlockIndex* snapshot_start_block = WITH_LOCK(::cs_main, return m_blockman.LookupBlockIndex(base_blockhash));
+    CBlockIndex* snapshot_start_block = LookupBlockIndex(base_blockhash);
 
     if (!snapshot_start_block) {
         // Needed for ComputeUTXOStats to determine the

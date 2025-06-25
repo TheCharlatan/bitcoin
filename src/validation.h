@@ -1123,6 +1123,12 @@ public:
         return m_blockman.m_block_index;
     }
 
+    CBlockIndex* LookupBlockIndex(const uint256& hash)
+    {
+        LOCK(::cs_main);
+        return m_blockman.LookupBlockIndex(hash);
+    }
+
     /**
      * Track versionbit status
      */
