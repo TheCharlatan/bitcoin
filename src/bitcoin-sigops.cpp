@@ -63,13 +63,13 @@ static bool CheckSigopsBIP54(const CTransaction& tx, const CCoinsViewCache& inpu
         // method of accounting was introduced by BIP16, and BIP54 reuses it.
         sigops += tx.vin[i].scriptSig.GetSigOpCount(/*fAccurate=*/true);
         sigops += prev_txo.scriptPubKey.GetSigOpCount(tx.vin[i].scriptSig);
-
-        std::cout << tx.GetHash().ToString() << "," << sigops << std::endl;
-
-        if (sigops > MAX_TX_LEGACY_SIGOPS) {
-            return false;
-        }
     }
+
+    std::cout << tx.GetHash().ToString() << "," << sigops << std::endl;
+    if (sigops > MAX_TX_LEGACY_SIGOPS) {
+        return false;
+    }
+
     return true;
 }
 
@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
     kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
 
     // SETUP: Chainstate
-    auto chainparams = CChainParams::SigNet(CChainParams::SigNetOptions{});
+    auto chainparams = CChainParams::Main();
     const ChainstateManager::Options chainman_opts{
         .chainparams = *chainparams,
         .datadir = abs_datadir,
@@ -124,6 +124,7 @@ int main(int argc, char* argv[])
     };
     const node::BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
+       .prune_target = 550,
         .blocks_dir = abs_datadir / "blocks",
         .notifications = chainman_opts.notifications,
         .block_tree_db_params = DBParams{
@@ -135,6 +136,7 @@ int main(int argc, char* argv[])
     ChainstateManager chainman{interrupt, chainman_opts, blockman_opts};
 
     node::ChainstateLoadOptions options;
+    options.prune = true;
     auto [status, error] = node::LoadChainstate(chainman, cache_sizes, options);
     if (status != node::ChainstateLoadStatus::SUCCESS) {
         std::cerr << "Failed to load Chain state from your datadir." << std::endl;
