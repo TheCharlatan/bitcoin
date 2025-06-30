@@ -461,8 +461,25 @@ if(BUILD_UTIL_CHAINSTATE)
       core_interface
       bitcoinkernel
   )
-endif()
 
+  add_executable(bitcoin-sigops
+    bitcoin-sigops.cpp
+  )
+  # TODO: The `SKIP_BUILD_RPATH` property setting can be deleted
+  #       in the future after reordering Guix script commands to
+  #       perform binary checks after the installation step.
+  # Relevant discussions:
+  # - https://github.com/hebasto/bitcoin/pull/236#issuecomment-2183120953
+  # - https://github.com/bitcoin/bitcoin/pull/30312#issuecomment-2191235833
+  set_target_properties(bitcoin-sigops PROPERTIES
+    SKIP_BUILD_RPATH OFF
+  )
+  target_link_libraries(bitcoin-sigops
+    PRIVATE
+      core_interface
+      bitcoinkernel
+  )
+endif()
 
 add_subdirectory(test/util)
 if(BUILD_BENCH)
