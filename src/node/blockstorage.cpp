@@ -795,7 +795,7 @@ fs::path BlockManager::GetBlockPosFilename(const FlatFilePos& pos) const
 
 FlatFilePos BlockManager::FindNextBlockPos(unsigned int nAddSize, unsigned int nHeight, uint64_t nTime)
 {
-    LOCK(m_blockfile_mutex);
+    AssertLockHeld(m_blockfile_mutex);
 
     const BlockfileType chain_type = BlockfileTypeForHeight(nHeight);
 
@@ -1084,6 +1084,7 @@ bool BlockManager::ReadRawBlock(std::vector<std::byte>& block, const FlatFilePos
 FlatFilePos BlockManager::WriteBlock(const CBlock& block, int nHeight)
 {
     const unsigned int block_size{static_cast<unsigned int>(GetSerializeSize(TX_WITH_WITNESS(block)))};
+    LOCK(m_blockfile_mutex);
     FlatFilePos pos{FindNextBlockPos(block_size + STORAGE_HEADER_BYTES, nHeight, block.GetBlockTime())};
     if (pos.IsNull()) {
         LogError("FindNextBlockPos failed for %s while writing block", pos.ToString());
