@@ -8,7 +8,6 @@
 #include <arith_uint256.h>
 #include <chain.h>
 #include <consensus/params.h>
-#include <net.h>
 #include <primitives/block.h>
 #include <uint256.h>
 #include <util/bitdeque.h>
@@ -135,7 +134,7 @@ public:
      * chain_start: best known fork point that the peer's headers branch from
      * minimum_required_work: amount of chain work required to accept the chain
      */
-    HeadersSyncState(NodeId id, const Consensus::Params& consensus_params,
+    HeadersSyncState(int64_t id, const Consensus::Params& consensus_params,
             const CBlockIndex* chain_start, const arith_uint256& minimum_required_work);
 
     /** Result data structure for ProcessNextHeaders. */
@@ -208,8 +207,8 @@ private:
     std::vector<CBlockHeader> PopHeadersReadyForAcceptance();
 
 private:
-    /** NodeId of the peer (used for log messages) **/
-    const NodeId m_id;
+    /** identifier of the peer (used for log messages) **/
+    const int64_t m_id;
 
     /** We use the consensus params in our anti-DoS calculations */
     const Consensus::Params& m_consensus_params;

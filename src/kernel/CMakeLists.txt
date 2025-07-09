@@ -31,6 +31,7 @@ add_library(bitcoinkernel
   ../deploymentstatus.cpp
   ../flatfile.cpp
   ../hash.cpp
+  ../headerssync.cpp
   ../logging.cpp
   ../node/blockstorage.cpp
   ../node/chainstate.cpp

@@ -5,6 +5,7 @@
 #include <headerssync.h>
 #include <logging.h>
 #include <pow.h>
+#include <random.h>
 #include <util/check.h>
 #include <util/time.h>
 #include <util/vector.h>
@@ -23,7 +24,7 @@ constexpr size_t REDOWNLOAD_BUFFER_SIZE{14827}; // 14827/624 = ~23.8 commitments
 // re-calculate parameters if we compress further)
 static_assert(sizeof(CompressedHeader) == 48);
 
-HeadersSyncState::HeadersSyncState(NodeId id, const Consensus::Params& consensus_params,
+HeadersSyncState::HeadersSyncState(int64_t id, const Consensus::Params& consensus_params,
         const CBlockIndex* chain_start, const arith_uint256& minimum_required_work) :
     m_commit_offset(FastRandomContext().randrange<unsigned>(HEADER_COMMITMENT_PERIOD)),
     m_id(id), m_consensus_params(consensus_params),
