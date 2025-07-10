@@ -4548,7 +4548,7 @@ bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& blo
 
         // CheckBlock() does not support multi-threaded block validation because CBlock::fChecked can cause data race.
         // Therefore, the following critical section must include the CheckBlock() call as well.
-        TRY_LOCK(cs_main, lock);
+        WAIT_LOCK(cs_main, lock);
 
         // Skipping AcceptBlock() for CheckBlock() failures means that we will never mark a block as invalid if
         // CheckBlock() fails.  This is protective against consensus failure if there are any unknown forms of block
@@ -5123,7 +5123,7 @@ void ChainstateManager::LoadExternalBlockFile(
                 std::shared_ptr<CBlock> pblock{}; // needs to remain available after the cs_main lock is released to avoid duplicate reads from disk
 
                 {
-                    TRY_LOCK(cs_main, lock);
+                    WAIT_LOCK(cs_main, lock);
                     // detect out of order blocks, and store them for later
                     if (hash != params.GetConsensus().hashGenesisBlock && !m_blockman.LookupBlockIndex(header.hashPrevBlock)) {
                         LogDebug(BCLog::REINDEX, "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
@@ -5208,7 +5208,7 @@ void ChainstateManager::LoadExternalBlockFile(
                         if (m_blockman.ReadBlock(*pblockrecursive, it->second)) {
                             LogDebug(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, pblockrecursive->GetHash().ToString(),
                                     head.ToString());
-                            TRY_LOCK(cs_main, lock);
+                            WAIT_LOCK(cs_main, lock);
                             BlockValidationState dummy;
                             if (AcceptBlock(pblockrecursive, lock, dummy, nullptr, true, &it->second, nullptr, true)) {
                                 nLoaded++;
