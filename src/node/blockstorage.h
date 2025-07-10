@@ -201,7 +201,7 @@ private:
         const Chainstate& chain,
         ChainstateManager& chainman) EXCLUSIVE_LOCKS_REQUIRED(!m_blockfile_mutex);
 
-    Mutex m_blockfile_mutex;
+    mutable Mutex m_blockfile_mutex;
     std::vector<CBlockFileInfo> m_blockfile_info GUARDED_BY(m_blockfile_mutex);
 
     //! Since assumedvalid chainstates may be syncing a range of the chain that is very
@@ -420,7 +420,7 @@ public:
     /**
      *  Actually unlink the specified files
      */
-    void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune) const;
+    void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune) const EXCLUSIVE_LOCKS_REQUIRED(!m_blockfile_mutex);
 
     /** Functions for disk access for blocks */
     bool ReadBlock(CBlock& block, const FlatFilePos& pos, const std::optional<uint256>& expected_hash = {}) const;

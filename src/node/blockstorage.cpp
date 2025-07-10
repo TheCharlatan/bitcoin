@@ -563,17 +563,19 @@ bool BlockManager::LoadBlockIndexDB(const std::optional<uint256>& snapshot_block
 void BlockManager::ScanAndUnlinkAlreadyPrunedFiles()
 {
     AssertLockHeld(::cs_main);
+    std::set<int> block_files_to_prune;
+    {
     LOCK(m_blockfile_mutex);
     int max_blockfile = this->MaxBlockfileNum();
     if (!m_have_pruned) {
         return;
     }
 
-    std::set<int> block_files_to_prune;
     for (int file_number = 0; file_number < max_blockfile; file_number++) {
         if (m_blockfile_info[file_number].nSize == 0) {
             block_files_to_prune.insert(file_number);
         }
+    }
     }
 
     UnlinkPrunedFiles(block_files_to_prune);
@@ -766,6 +768,7 @@ uint64_t BlockManager::CalculateCurrentUsageImpl()
 
 void BlockManager::UnlinkPrunedFiles(const std::set<int>& setFilesToPrune) const
 {
+    LOCK(m_blockfile_mutex);
     std::error_code ec;
     for (std::set<int>::iterator it = setFilesToPrune.begin(); it != setFilesToPrune.end(); ++it) {
         FlatFilePos pos(*it, 0);
