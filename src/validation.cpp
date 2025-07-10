@@ -4438,8 +4438,10 @@ void ChainstateManager::ReportHeadersPresync(const arith_uint256& work, int64_t 
 bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, UniqueLock<RecursiveMutex>& lock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock, bool min_pow_checked)
 {
     const CBlock& block = *pblock;
-
     if (fNewBlock) *fNewBlock = false;
+
+    static Mutex map_mutex;
+    static std::set<uint256> blocks_being_processed;
 
     CBlockIndex *pindexDummy = nullptr;
     CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
@@ -4449,6 +4451,15 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
 
     if (!accepted_header)
         return false;
+
+    {
+        LOCK(map_mutex);
+        if (!blocks_being_processed.contains(block.GetHash())) {
+            blocks_being_processed.insert(block.GetHash());
+        } else {
+            return true;
+        }
+    }
 
     // Check all requested blocks that we do not already have for validity and
     // save them to disk. Skip processing of unrequested blocks as an anti-DoS
@@ -4503,8 +4514,12 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
 
     // Write block to history file
     if (fNewBlock) *fNewBlock = true;
+
     try {
         FlatFilePos blockPos{};
+        auto pre_pos{pindex->GetBlockPos()};
+        assert(pre_pos.IsNull());
+        LogInfo("Thread %p: About to REVERSE_LOCK for block %s, pindex=%p\n", std::this_thread::get_id(), block.GetHash().ToString(), pindex);
         {
             REVERSE_LOCK(lock, cs_main);
             if (dbp) {
@@ -4518,9 +4533,17 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
                 }
             }
         }
+        auto post_pos{pindex->GetBlockPos()};
+        LogInfo("Thread %p: After REVERSE_LOCK for block %s, pindex=%p, pos=%s, but expected pos=%s\n", std::this_thread::get_id(), block.GetHash().ToString(), pindex, pindex->GetBlockPos().ToString(), blockPos.ToString());
+        assert(post_pos.IsNull());
         ReceivedBlockTransactions(block, pindex, blockPos);
     } catch (const std::runtime_error& e) {
         return FatalError(GetNotifications(), state, strprintf(_("System error while saving block to disk: %s"), e.what()));
+    }
+
+    {
+        LOCK(map_mutex);
+        blocks_being_processed.erase(block.GetHash());
     }
 
     // TODO: FlushStateToDisk() handles flushing of both block and chainstate
