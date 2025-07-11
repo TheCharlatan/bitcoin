@@ -127,11 +127,10 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
     // TODO: much of this is inlined from ProcessNewBlock(); just reuse PNB()
     // once it is changed to support multiple chainstates.
     {
-        TRY_LOCK(::cs_main, lock);
-        bool checked = CheckBlock(*pblockone, state, chainparams.GetConsensus());
+        bool checked = WITH_LOCK(cs_main, return CheckBlock(*pblockone, state, chainparams.GetConsensus()));
         BOOST_CHECK(checked);
         bool accepted = chainman.AcceptBlock(
-            pblockone, lock, state, &pindex, true, nullptr, &newblock, true);
+            pblockone, state, &pindex, true, nullptr, &newblock, true);
         BOOST_CHECK(accepted);
     }
 
