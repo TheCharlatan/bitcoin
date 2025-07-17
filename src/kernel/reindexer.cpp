@@ -8,6 +8,7 @@
 #include <cassert>
 #include <filesystem>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
 class TestLog
@@ -68,6 +69,21 @@ std::optional<kernel_ChainType> string_to_chain_type(const std::string& chainTyp
     }
 }
 
+std::filesystem::path get_network_data_dir(const std::filesystem::path& base_dir, kernel_ChainType chain_type) {
+    switch (chain_type) {
+        case kernel_CHAIN_TYPE_MAINNET:
+            return base_dir;
+        case kernel_CHAIN_TYPE_SIGNET:
+            return base_dir / "signet";
+        case kernel_CHAIN_TYPE_REGTEST:
+            return base_dir / "regtest";
+        case kernel_CHAIN_TYPE_TESTNET:
+            return base_dir / "testnet";
+        default:
+            throw std::runtime_error("Unknown chain type");
+    }
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 3) {
         std::cout << "Usage: <data_dir> <chain_type>" << std::endl;
@@ -99,8 +115,8 @@ int main(int argc, char* argv[]) {
     ReindexKernelNotifications notifications{};
     auto context = create_context(notifications, chain_type);
     assert(context);
-    run_reindex(data_dir, data_dir / "blocks", context);
-
+    auto network_data_dir = get_network_data_dir(data_dir, chain_type);
+    run_reindex(network_data_dir, network_data_dir / "blocks", context);
     std::cout << "Reindex completed";
 }
 
