@@ -3,6 +3,7 @@
 # file COPYING or https://opensource.org/license/mit/.
 
 add_executable(bench_bitcoin
+  api.cpp
   bench_bitcoin.cpp
   bench.cpp
   nanobench.cpp
