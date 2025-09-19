@@ -24,11 +24,29 @@
 #include <vector>
 
 class ThreadPool {
-
 private:
+
+    class TaskWrapper {
+        std::unique_ptr<void, void(*)(void*)> m_ptr;
+        void (*m_invoke)(void*);
+    public:
+        TaskWrapper() : m_ptr(nullptr, [](void*){}), m_invoke(nullptr) {}
+
+        template<typename F>
+        TaskWrapper(F&& f)
+            : m_ptr(new F(std::forward<F>(f)), [](void* p) { delete static_cast<F*>(p); })
+            , m_invoke([](void* p) { (*static_cast<F*>(p))(); }) {}
+
+        void operator()() {
+            if (m_invoke) m_invoke(m_ptr.get());
+        }
+
+        explicit operator bool() const { return m_invoke != nullptr; }
+    };
+
     std::string m_name;
     Mutex m_mutex;
-    std::queue<std::function<void()>> m_work_queue GUARDED_BY(m_mutex);
+    std::queue<TaskWrapper> m_work_queue GUARDED_BY(m_mutex);
     std::condition_variable m_cv;
     std::atomic<bool> m_interrupt{false};
     std::vector<std::thread> m_workers;
@@ -37,7 +55,7 @@ private:
     {
         WAIT_LOCK(m_mutex, wait_lock);
         for (;;) {
-            std::function<void()> task;
+            TaskWrapper task;
             {
                 // Wait only if needed; avoid sleeping when a new task was submitted while we were processing another one.
                 if (!m_interrupt.load() && m_work_queue.empty()) {
@@ -57,7 +75,7 @@ private:
             {
                 // Execute the task without the lock
                 REVERSE_LOCK(wait_lock, m_mutex);
-                task();
+                if (task) task();
             }
         }
     }
@@ -102,12 +120,12 @@ public:
     {
         if (m_workers.empty() || m_interrupt.load()) throw std::runtime_error("No active workers; cannot accept new tasks");
         using TaskType = std::packaged_task<decltype(task())()>;
-        auto ptr_task = std::make_shared<TaskType>(std::move(task));
+        auto ptr_task = std::make_unique<TaskType>(std::move(task));
         std::future<decltype(task())> future = ptr_task->get_future();
         {
             LOCK(m_mutex);
-            m_work_queue.emplace([ptr_task]() {
-                (*ptr_task)();
+            m_work_queue.emplace([moved_task = std::move(ptr_task)]() {
+                (*moved_task)();
             });
         }
         m_cv.notify_one();
@@ -117,7 +135,7 @@ public:
     // Synchronous processing
     void ProcessTask() EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
     {
-        std::function<void()> task;
+        TaskWrapper task;
         {
             LOCK(m_mutex);
             if (m_work_queue.empty()) return;
