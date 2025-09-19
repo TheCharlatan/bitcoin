@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <format>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -59,6 +60,20 @@ std::vector<std::byte> hex_string_to_byte_vec(std::string_view hex)
         bytes.push_back(static_cast<std::byte>(byte_value));
     }
     return bytes;
+}
+
+std::string byte_span_to_hex_string_reversed(std::span<const std::byte> bytes)
+{
+    std::string hex;
+    hex.reserve(bytes.size() * 2);
+
+    // Iterate in reverse order
+    for (auto it = bytes.rbegin(); it != bytes.rend(); ++it) {
+        std::format_to(std::back_inserter(hex), "{:02x}",
+                      static_cast<uint8_t>(*it));
+    }
+
+    return hex;
 }
 
 constexpr auto VERIFY_ALL_PRE_SEGWIT{ScriptVerificationFlags::P2SH | ScriptVerificationFlags::DERSIG |
@@ -653,6 +668,7 @@ void chainman_mainnet_validation_test(TestDirectory& test_directory)
     auto raw_block = hex_string_to_byte_vec("010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e362990101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000");
     Block block{raw_block};
     TransactionView tx{block.GetTransaction(block.CountTransactions() - 1)};
+    BOOST_CHECK_EQUAL(byte_span_to_hex_string_reversed(tx.Txid().ToBytes()), "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098");
     BOOST_CHECK_EQUAL(tx.CountInputs(), 1);
     Transaction tx2 = tx;
     BOOST_CHECK_EQUAL(tx2.CountInputs(), 1);
@@ -788,6 +804,48 @@ BOOST_AUTO_TEST_CASE(btck_chainman_regtest_tests)
     auto tip_2 = tip.GetPrevious().value();
     auto read_block_2 = chainman->ReadBlock(tip_2).value();
     check_equal(read_block_2.ToBytes(), as_bytes(REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 2]));
+
+    Txid txid = read_block.Transactions()[0].Txid();
+    Txid txid_2 = read_block_2.Transactions()[0].Txid();
+    BOOST_CHECK(txid != txid_2);
+    BOOST_CHECK(txid == txid);
+    CheckHandle(txid, txid_2);
+
+    auto find_transaction = [&chainman](const TxidView& target_txid) -> std::optional<Transaction> {
+        for (const auto block_tree_entry : chainman->GetChain().Entries()) {
+            auto block{chainman->ReadBlock(block_tree_entry)};
+            for (const auto transaction : block->Transactions()) {
+                if (transaction.Txid() == target_txid) {
+                    return transaction;
+                }
+            }
+        }
+        return std::nullopt;
+    };
+
+    for (const auto block_tree_entry : chainman->GetChain().Entries()) {
+        auto block{chainman->ReadBlock(block_tree_entry)};
+        for (const auto transaction : block->Transactions()) {
+            std::vector<TransactionInput> inputs;
+            std::vector<TransactionOutput> spent_outputs;
+            for (const auto input : transaction.Inputs()) {
+                OutPointView point = input.OutPoint();
+                if (point.index() == std::numeric_limits<uint32_t>::max()) {
+                    continue;
+                }
+                inputs.emplace_back(input);
+                BOOST_CHECK(point.Txid() != transaction.Txid());
+                Transaction tx = *find_transaction(point.Txid());
+                BOOST_CHECK(point.Txid() == tx.Txid());
+                spent_outputs.emplace_back(tx.GetOutput(point.index()));
+            }
+            BOOST_CHECK(inputs.size() == spent_outputs.size());
+            ScriptVerifyStatus status = ScriptVerifyStatus::OK;
+            for (size_t i{0}; i < inputs.size(); ++i) {
+                BOOST_CHECK(spent_outputs[i].GetScriptPubkey().Verify(spent_outputs[i].Amount(), transaction, spent_outputs, i, ScriptVerificationFlags::ALL, status));
+            }
+        }
+    }
 
     BlockSpentOutputs block_spent_outputs{chainman->ReadBlockSpentOutputs(tip)};
     BlockSpentOutputs block_spent_outputs_prev{chainman->ReadBlockSpentOutputs(*tip.GetPrevious())};
