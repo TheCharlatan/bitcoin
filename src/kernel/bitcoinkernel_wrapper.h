@@ -701,6 +701,44 @@ public:
         : Handle{view} {}
 };
 
+template <typename Derived>
+class BlockHeaderApi
+{
+private:
+    auto impl() const
+    {
+        return static_cast<const Derived*>(this)->get();
+    }
+
+    friend Derived;
+    BlockHeaderApi() = default;
+
+public:
+    BlockHash Hash() const
+    {
+        return BlockHash{btck_block_header_get_hash(impl())};
+    }
+};
+
+class BlockHeaderView : public View<btck_BlockHeader>, public BlockHeaderApi<BlockHeaderView>
+{
+public:
+    explicit BlockHeaderView(const btck_BlockHeader* ptr) : View{ptr} {}
+};
+
+class BlockHeader : public Handle<btck_BlockHeader, btck_block_header_copy, btck_block_header_destroy>, public BlockHeaderApi<BlockHeader>
+{
+public:
+    explicit BlockHeader(std::span<const std::byte> raw_block_header)
+        : Handle{btck_block_header_create(raw_block_header.data(), raw_block_header.size())} {}
+
+    BlockHeader(const BlockHeaderView& view)
+        : Handle{view} {}
+
+    BlockHeader(btck_BlockHeader* ptr)
+        : Handle{ptr} {}
+};
+
 class Block : public Handle<btck_Block, btck_block_copy, btck_block_destroy>
 {
 public:
@@ -719,6 +757,11 @@ public:
     TransactionView GetTransaction(size_t index) const
     {
         return TransactionView{btck_block_get_transaction_at(get(), index)};
+    }
+
+    BlockHeader GetHeader() const
+    {
+        return BlockHeader{btck_block_get_header(get())};
     }
 
     MAKE_RANGE_METHOD(Transactions, Block, &Block::CountTransactions, &Block::GetTransaction, *this)
@@ -801,6 +844,11 @@ public:
     {
         return BlockHashView{btck_block_tree_entry_get_block_hash(get())};
     }
+
+    BlockHeader GetHeader() const
+    {
+        return BlockHeader{btck_block_tree_entry_get_block_header(get())};
+    }
 };
 
 class KernelNotifications
@@ -823,28 +871,41 @@ public:
     virtual void FatalErrorHandler(std::string_view error) {}
 };
 
-class BlockValidationState
+template <typename Derived>
+class BlockValidationStateApi
 {
 private:
-    const btck_BlockValidationState* m_state;
+    auto impl() const
+    {
+        return static_cast<const Derived*>(this)->get();
+    }
+    friend Derived;
+    BlockValidationStateApi() = default;
 
 public:
-    BlockValidationState(const btck_BlockValidationState* state) : m_state{state} {}
+   ValidationMode GetValidationMode() const
+   {
+       return static_cast<ValidationMode>(btck_block_validation_state_get_validation_mode(impl()));
+   }
 
-    BlockValidationState(const BlockValidationState&) = delete;
-    BlockValidationState& operator=(const BlockValidationState&) = delete;
-    BlockValidationState(BlockValidationState&&) = delete;
-    BlockValidationState& operator=(BlockValidationState&&) = delete;
+   BlockValidationResult GetBlockValidationResult() const
+   {
+       return static_cast<BlockValidationResult>(btck_block_validation_state_get_block_validation_result(impl()));
+   }
+};
 
-    ValidationMode GetValidationMode() const
-    {
-        return static_cast<ValidationMode>(btck_block_validation_state_get_validation_mode(m_state));
-    }
+class BlockValidationStateView : public View<btck_BlockValidationState>, public BlockValidationStateApi<BlockValidationStateView>
+{
+public:
+    explicit BlockValidationStateView(const btck_BlockValidationState* ptr) : View{ptr} {}
+};
 
-    BlockValidationResult GetBlockValidationResult() const
-    {
-        return static_cast<BlockValidationResult>(btck_block_validation_state_get_block_validation_result(m_state));
-    }
+class BlockValidationState : public Handle<btck_BlockValidationState, btck_block_validation_state_copy, btck_block_validation_state_destroy>, public BlockValidationStateApi<BlockValidationState>
+{
+public:
+    explicit BlockValidationState() : Handle{btck_block_validation_state_create()} {}
+
+    BlockValidationState(const BlockValidationStateView& view) : Handle{view} {}
 };
 
 class ValidationInterface
@@ -852,7 +913,7 @@ class ValidationInterface
 public:
     virtual ~ValidationInterface() = default;
 
-    virtual void BlockChecked(Block block, const BlockValidationState state) {}
+    virtual void BlockChecked(Block block, const BlockValidationStateView state) {}
 
     virtual void PowValidBlock(BlockTreeEntry entry, Block block) {}
 
@@ -910,7 +971,7 @@ public:
             btck_ValidationInterfaceCallbacks{
                 .user_data = heap_vi.release(),
                 .user_data_destroy = +[](void* user_data) { delete static_cast<user_type>(user_data); },
-                .block_checked = +[](void* user_data, btck_Block* block, const btck_BlockValidationState* state) { (*static_cast<user_type>(user_data))->BlockChecked(Block{block}, BlockValidationState{state}); },
+                .block_checked = +[](void* user_data, btck_Block* block, const btck_BlockValidationState* state) { (*static_cast<user_type>(user_data))->BlockChecked(Block{block}, BlockValidationStateView{state}); },
                 .pow_valid_block = +[](void* user_data, btck_Block* block, const btck_BlockTreeEntry* entry) { (*static_cast<user_type>(user_data))->PowValidBlock(BlockTreeEntry{entry}, Block{block}); },
                 .block_connected = +[](void* user_data, btck_Block* block, const btck_BlockTreeEntry* entry) { (*static_cast<user_type>(user_data))->BlockConnected(Block{block}, BlockTreeEntry{entry}); },
                 .block_disconnected = +[](void* user_data, btck_Block* block, const btck_BlockTreeEntry* entry) { (*static_cast<user_type>(user_data))->BlockDisconnected(Block{block}, BlockTreeEntry{entry}); },
@@ -1131,6 +1192,11 @@ public:
         return res == 0;
     }
 
+    bool ProcessBlockHeader(const BlockHeader& header, BlockValidationState& state)
+    {
+        return btck_chainstate_manager_process_block_header(get(), header.get(), state.get()) == 0;
+    }
+
     ChainView GetChain() const
     {
         return ChainView{btck_chainstate_manager_get_active_chain(get())};
@@ -1141,6 +1207,11 @@ public:
         auto entry{btck_chainstate_manager_get_block_tree_entry_by_hash(get(), block_hash.get())};
         if (!entry) return std::nullopt;
         return entry;
+    }
+
+    BlockTreeEntry GetBestEntry() const
+    {
+        return btck_chainstate_manager_get_best_entry(get());
     }
 
     std::optional<Block> ReadBlock(const BlockTreeEntry& entry) const
