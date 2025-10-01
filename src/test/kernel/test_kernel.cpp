@@ -151,7 +151,7 @@ class TestValidationInterface : public ValidationInterface<TestValidationInterfa
 public:
     std::optional<std::vector<std::byte>> m_expected_valid_block = std::nullopt;
 
-    void BlockChecked(Block block, const BlockValidationState state) override
+    void BlockChecked(Block block, const BlockValidationStateView state) override
     {
         {
             auto ser_block{block.ToBytes()};
@@ -502,6 +502,14 @@ BOOST_AUTO_TEST_CASE(btck_transaction_input)
     CheckHandle(point_0, point_1);
 }
 
+BOOST_AUTO_TEST_CASE(btck_header_tests)
+{
+    BlockHeader header_0{hex_string_to_byte_vec("00e07a26beaaeee2e71d7eb19279545edbaf15de0999983626ec00000000000000000000579cf78b65229bfb93f4a11463af2eaa5ad91780f27f5d147a423bea5f7e4cdf2a47e268b4dd01173a9662ee")};
+    BOOST_CHECK_EQUAL(byte_span_to_hex_string_reversed(header_0.Hash().ToBytes()), "00000000000000000000325c7e14a4ee3b4fcb2343089a839287308a0ddbee4f");
+    BlockHeader header_1{hex_string_to_byte_vec("00c00020e7cb7b4de21d26d55bd384017b8bb9333ac3b2b55bed00000000000000000000d91b4484f801b99f03d36b9d26cfa83420b67f81da12d7e6c1e7f364e743c5ba9946e268b4dd011799c8533d")};
+    CheckHandle(header_0, header_1);
+}
+
 BOOST_AUTO_TEST_CASE(btck_script_verify_tests)
 {
     // Legacy transaction aca326a724eda9a461c10a876534ecd5ae7b27f10f26c3862fb996f80ea2d45d
@@ -715,7 +723,7 @@ void chainman_reindex_test(TestDirectory& test_directory)
     check_equal(next_block_data, second_block_data);
 
     auto second_hash{second_index.GetHash()};
-    auto another_second_index{chainman->GetBlockTreeEntry(second_hash.get())};
+    auto another_second_index{chainman->GetBlockTreeEntry(second_hash)};
     auto another_second_height{another_second_index.GetHeight()};
     auto second_block_hash{second_block.GetHash()};
     check_equal(second_block_hash.ToBytes(), second_hash.ToBytes());
@@ -860,6 +868,20 @@ BOOST_AUTO_TEST_CASE(btck_chainman_regtest_tests)
 
     auto notifications{std::make_shared<TestKernelNotifications>()};
     auto context{create_context(notifications, ChainType::REGTEST)};
+
+    {
+        auto chainman{create_chainman(test_directory, false, false, false, false, context)};
+        for (const auto& data : REGTEST_BLOCK_DATA) {
+            Block block{as_bytes(data)};
+            BlockHeader header = block.GetHeader();
+            BlockValidationState state{};
+            BOOST_CHECK(state.GetBlockValidationResult() == BlockValidationResult::UNSET);
+            BOOST_CHECK(chainman->ProcessBlockHeader(header,state));
+            BOOST_CHECK(state.GetValidationMode() == ValidationMode::VALID);
+            auto entry{chainman->GetBlockTreeEntry(header.Hash())};
+            BOOST_CHECK(!chainman->GetChain().Contains(entry));
+        }
+    }
 
     // Validate 206 regtest blocks in total.
     // Stop halfway to check that it is possible to continue validating starting
