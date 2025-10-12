@@ -74,10 +74,23 @@ void TestCoinsView(FuzzedDataProvider& fuzzed_data_provider, CCoinsView& backend
                 }
             },
             [&] {
-                (void)coins_view_cache.Flush();
+                try {
+                    coins_view_cache.Flush();
+                } catch (const std::logic_error& e) {
+                    if (is_db || e.what() != std::string{"Not all unspent flagged entries were cleared"}) {
+                        throw e;
+                    }
+                }
             },
             [&] {
-                (void)coins_view_cache.Sync();
+                try {
+                    coins_view_cache.Sync();
+                } catch (const std::logic_error& e) {
+                    if (is_db || e.what() != std::string{"Not all unspent flagged entries were cleared"}) {
+                        throw e;
+                    }
+                }
+
             },
             [&] {
                 uint256 best_block{ConsumeUInt256(fuzzed_data_provider)};
