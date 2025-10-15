@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "kernel/mempool_removal_reason.h"
+#include "sync.h"
 #include <node/kernel_notifications.h>
 
 #include <bitcoin-build-config.h> // IWYU pragma: keep
@@ -16,6 +17,7 @@
 #include <node/abort.h>
 #include <node/interface_ui.h>
 #include <node/warnings.h>
+#include <sync.h>
 #include <txmempool.h>
 #include <util/check.h>
 #include <util/signalinterrupt.h>
@@ -130,6 +132,18 @@ void KernelNotifications::check(const CCoinsViewCache& active_coins_tip, int64_t
     if (!m_mempool) return;
     LOCK(::cs_main);
     m_mempool->check(active_coins_tip, spendheight);
+}
+
+void KernelNotifications::BeginChainstateUpdate()
+{
+    if (!m_mempool) return;
+    m_mempool->Lock();
+}
+
+void KernelNotifications::EndChainstateUpdate()
+{
+    if (!m_mempool) return;
+    m_mempool->Unlock();
 }
 
 void KernelNotifications::flushError(const bilingual_str& message)

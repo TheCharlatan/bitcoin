@@ -182,6 +182,12 @@ public:
             Enter(pszName, pszFile, nLine);
     }
 
+    UniqueLock(UniqueLock&& other) noexcept : Base(std::move(other)) {}
+    UniqueLock& operator=(UniqueLock&& other) noexcept {
+        Base::operator=(std::move(other));
+        return *this;
+    }
+
     UniqueLock(MutexType* pmutexIn, const char* pszName, const char* pszFile, int nLine, bool fTry = false) EXCLUSIVE_LOCK_FUNCTION(pmutexIn)
     {
         if (!pmutexIn) return;
