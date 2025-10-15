@@ -1737,6 +1737,23 @@ static void LimitValidationInterfaceQueue(ValidationSignals& signals) LOCKS_EXCL
     }
 }
 
+struct ChainstateUpdateGuard {
+    Notifications& m_notifications;
+
+    explicit ChainstateUpdateGuard(Notifications& notifications) : m_notifications{notifications}
+    {
+        m_notifications.BeginChainstateUpdate();
+    }
+
+    ~ChainstateUpdateGuard() {
+        m_notifications.EndChainstateUpdate();
+    }
+
+    ChainstateUpdateGuard(const ChainstateUpdateGuard&) = delete;
+    ChainstateUpdateGuard& operator=(const ChainstateUpdateGuard&) = delete;
+};
+
+
 bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<const CBlock> pblock)
 {
     AssertLockNotHeld(m_chainstate_mutex);
@@ -1777,7 +1794,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
             LOCK(cs_main);
             {
             // Lock transaction pool for at least as long as it takes for connectTrace to be consumed
-            // LOCK(MempoolMutex());
+            ChainstateUpdateGuard guard{m_chainman.GetNotifications()};
             const bool was_in_ibd = m_chainman.IsInitialBlockDownload();
             CBlockIndex* starting_tip = m_chain.Tip();
             bool blocks_connected = false;
@@ -1859,7 +1876,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                     break;
                 }
             }
-            } // release MempoolMutex
+            } // Release the chainstate update guard
             // Notify external listeners about the new tip, even if pindexFork == pindexNewTip.
             if (m_chainman.m_options.signals && this == &m_chainman.ActiveChainstate()) {
                 m_chainman.m_options.signals->ActiveTipChange(*Assert(pindexNewTip), m_chainman.IsInitialBlockDownload());
@@ -1991,7 +2008,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         LOCK(cs_main);
         // Lock for as long as disconnectpool is in scope to make sure MaybeUpdateMempoolForReorg is
         // called after DisconnectTip without unlocking in between
-        // LOCK(MempoolMutex());
+        ChainstateUpdateGuard guard{m_chainman.GetNotifications()};
         if (!m_chain.Contains(pindex)) break;
         pindex_was_in_chain = true;
         CBlockIndex *invalid_walk_tip = m_chain.Tip();
