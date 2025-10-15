@@ -376,15 +376,24 @@ public:
 
     using Limits = kernel::MemPoolLimits;
 
+    void Lock() {
+        m_lock.emplace(cs, "CTxMemPool::cs", __FILE__, __LINE__);
+    }
+
+    void Unlock() {
+        m_lock.reset();
+    }
+
     uint64_t CalculateDescendantMaximum(txiter entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 private:
     typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;
-
 
     void UpdateParent(txiter entry, txiter parent, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void UpdateChild(txiter entry, txiter child, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     std::vector<indexed_transaction_set::const_iterator> GetSortedDepthAndScore() const EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    std::optional<UniqueLock<RecursiveMutex>> m_lock;
 
     /**
      * Track locally submitted transactions to periodically retry initial broadcast.

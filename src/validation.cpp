@@ -1334,7 +1334,6 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
 bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool)
 {
     AssertLockHeld(cs_main);
-    if (m_mempool) AssertLockHeld(m_mempool->cs);
 
     CBlockIndex *pindexDelete = m_chain.Tip();
     assert(pindexDelete);
@@ -1450,7 +1449,6 @@ bool Chainstate::ConnectTip(
     DisconnectedBlockTransactions& disconnectpool)
 {
     AssertLockHeld(cs_main);
-    if (m_mempool) AssertLockHeld(m_mempool->cs);
 
     assert(pindexNew->pprev == m_chain.Tip());
     // Read block from disk.
@@ -1626,7 +1624,6 @@ void Chainstate::PruneBlockIndexCandidates() {
 bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace)
 {
     AssertLockHeld(cs_main);
-    if (m_mempool) AssertLockHeld(m_mempool->cs);
 
     const CBlockIndex* pindexOldTip = m_chain.Tip();
     const CBlockIndex* pindexFork = m_chain.FindFork(pindexMostWork);
@@ -1745,6 +1742,24 @@ static void LimitValidationInterfaceQueue(ValidationSignals& signals) LOCKS_EXCL
     }
 }
 
+struct ChainstateUpdateGuard {
+    Notifications& m_notifications;
+    ChainstateRole m_role;
+
+    explicit ChainstateUpdateGuard(Notifications& notifications, ChainstateRole role) : m_notifications{notifications}, m_role{role}
+    {
+        if (m_role != ChainstateRole::BACKGROUND) m_notifications.BeginChainstateUpdate();
+    }
+
+    ~ChainstateUpdateGuard() {
+        if (m_role != ChainstateRole::BACKGROUND) m_notifications.EndChainstateUpdate();
+    }
+
+    ChainstateUpdateGuard(const ChainstateUpdateGuard&) = delete;
+    ChainstateUpdateGuard& operator=(const ChainstateUpdateGuard&) = delete;
+};
+
+
 bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<const CBlock> pblock)
 {
     AssertLockNotHeld(m_chainstate_mutex);
@@ -1785,7 +1800,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
             LOCK(cs_main);
             {
             // Lock transaction pool for at least as long as it takes for connectTrace to be consumed
-            LOCK(MempoolMutex());
+            ChainstateUpdateGuard guard{m_chainman.GetNotifications(), GetRole()};
             const bool was_in_ibd = m_chainman.IsInitialBlockDownload();
             CBlockIndex* starting_tip = m_chain.Tip();
             bool blocks_connected = false;
@@ -1867,7 +1882,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                     break;
                 }
             }
-            } // release MempoolMutex
+            } // Release the chainstate update guard
             // Notify external listeners about the new tip, even if pindexFork == pindexNewTip.
             if (m_chainman.m_options.signals && this == &m_chainman.ActiveChainstate()) {
                 m_chainman.m_options.signals->ActiveTipChange(*Assert(pindexNewTip), m_chainman.IsInitialBlockDownload());
@@ -1999,7 +2014,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         LOCK(cs_main);
         // Lock for as long as disconnectpool is in scope to make sure MaybeUpdateMempoolForReorg is
         // called after DisconnectTip without unlocking in between
-        LOCK(MempoolMutex());
+        ChainstateUpdateGuard guard{m_chainman.GetNotifications(), GetRole()};
         if (!m_chain.Contains(pindex)) break;
         pindex_was_in_chain = true;
         CBlockIndex *invalid_walk_tip = m_chain.Tip();
