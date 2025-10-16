@@ -46,7 +46,6 @@
 #include <signet.h>
 #include <tinyformat.h>
 #include <txdb.h>
-#include <txmempool.h>
 #include <uint256.h>
 #include <undo.h>
 #include <util/check.h>
@@ -275,12 +274,10 @@ void CoinsViews::InitCache()
 }
 
 Chainstate::Chainstate(
-    CTxMemPool* mempool,
     BlockManager& blockman,
     ChainstateManager& chainman,
     std::optional<uint256> from_snapshot_blockhash)
-    : m_mempool(mempool),
-      m_blockman(blockman),
+    : m_blockman(blockman),
       m_chainman(chainman),
       m_from_snapshot_blockhash(from_snapshot_blockhash) {}
 
@@ -1073,9 +1070,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 CoinsCacheSizeState Chainstate::GetCoinsCacheSizeState()
 {
     AssertLockHeld(::cs_main);
-    return this->GetCoinsCacheSizeState(
-        m_coinstip_cache_size_bytes,
-        m_mempool ? m_mempool->m_opts.max_size_bytes : 0);
+    return this->GetCoinsCacheSizeState(m_coinstip_cache_size_bytes, 0);
 }
 
 CoinsCacheSizeState Chainstate::GetCoinsCacheSizeState(
@@ -1083,7 +1078,7 @@ CoinsCacheSizeState Chainstate::GetCoinsCacheSizeState(
     size_t max_mempool_size_bytes)
 {
     AssertLockHeld(::cs_main);
-    const int64_t nMempoolUsage = m_mempool ? m_chainman.GetNotifications().measureExternalDynamicMemoryUsage() : 0;
+    const int64_t nMempoolUsage = GetRole() != ChainstateRole::BACKGROUND ? m_chainman.GetNotifications().measureExternalDynamicMemoryUsage() : 0;
     int64_t cacheSize = CoinsTip().DynamicMemoryUsage();
     int64_t nTotalSpace =
         max_coins_cache_size_bytes + std::max<int64_t>(int64_t(max_mempool_size_bytes) - nMempoolUsage, 0);
@@ -1301,7 +1296,7 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
     }
 
     // New best block
-    if (m_mempool) {
+    if (GetRole() != ChainstateRole::BACKGROUND) {
         m_chainman.GetNotifications().addTransactionsUpdated(1);
     }
 
@@ -1376,7 +1371,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
         return false;
     }
 
-    if (disconnectpool && m_mempool) {
+    if (disconnectpool && GetRole() != ChainstateRole::BACKGROUND) {
         // Save transactions to re-add to mempool at end of reorg. If any entries are evicted for
         // exceeding memory limits, remove them and their descendants from the mempool.
         for (auto&& evicted_tx : disconnectpool->AddTransactionsFromBlock(block.vtx)) {
@@ -1508,7 +1503,7 @@ bool Chainstate::ConnectTip(
              Ticks<SecondsDouble>(m_chainman.time_chainstate),
              Ticks<MillisecondsDouble>(m_chainman.time_chainstate) / m_chainman.num_blocks_total);
     // Remove conflicting transactions from the mempool.;
-    if (m_mempool) {
+    if (GetRole() != ChainstateRole::BACKGROUND) {
         m_chainman.GetNotifications().removeForBlock(*block_to_connect, pindexNew->nHeight);
         disconnectpool.removeForBlock(block_to_connect->vtx);
     }
@@ -1635,7 +1630,7 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
         if (!DisconnectTip(state, &disconnectpool)) {
             // This is likely a fatal error, but keep the mempool consistent,
             // just in case. Only remove from the mempool in this case.
-            if (m_mempool) m_chainman.GetNotifications().MaybeUpdateMempoolForReorg(*this, disconnectpool, false);
+            if (GetRole() != ChainstateRole::BACKGROUND) m_chainman.GetNotifications().MaybeUpdateMempoolForReorg(*this, disconnectpool, false);
 
             // If we're unable to disconnect a block during normal operation,
             // then that is a failure of our local system -- we should abort
@@ -1679,7 +1674,7 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
                     // A system error occurred (disk space, database error, ...).
                     // Make the mempool consistent with the current tip, just in case
                     // any observers try to use it before shutdown.
-                    if (m_mempool) m_chainman.GetNotifications().MaybeUpdateMempoolForReorg(*this, disconnectpool, false);
+                    if (GetRole() != ChainstateRole::BACKGROUND) m_chainman.GetNotifications().MaybeUpdateMempoolForReorg(*this, disconnectpool, false);
                     return false;
                 }
             } else {
@@ -1696,9 +1691,9 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
     if (fBlocksDisconnected) {
         // If any blocks were disconnected, disconnectpool may be non empty.  Add
         // any disconnected transactions back to the mempool.
-        if (m_mempool) m_chainman.GetNotifications().MaybeUpdateMempoolForReorg(*this, disconnectpool, true);
+        if (GetRole() != ChainstateRole::BACKGROUND) m_chainman.GetNotifications().MaybeUpdateMempoolForReorg(*this, disconnectpool, true);
     }
-    if (m_mempool) m_chainman.GetNotifications().check(this->CoinsTip(), this->m_chain.Height() + 1);
+    if (GetRole() != ChainstateRole::BACKGROUND) m_chainman.GetNotifications().check(this->CoinsTip(), this->m_chain.Height() + 1);
 
     CheckForkWarningConditions();
 
@@ -2028,7 +2023,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         // transactions back to the mempool if disconnecting was successful,
         // and we're not doing a very deep invalidation (in which case
         // keeping the mempool up to date is probably futile anyway).
-        if (m_mempool) m_chainman.GetNotifications().MaybeUpdateMempoolForReorg(*this, disconnectpool, /* fAddToMempool = */ (++disconnected <= 10) && ret);
+        if (GetRole() != ChainstateRole::BACKGROUND) m_chainman.GetNotifications().MaybeUpdateMempoolForReorg(*this, disconnectpool, /* fAddToMempool = */ (++disconnected <= 10) && ret);
         if (!ret) return false;
         assert(invalid_walk_tip->pprev == m_chain.Tip());
 
@@ -3954,13 +3949,13 @@ std::vector<Chainstate*> ChainstateManager::GetAll()
     return out;
 }
 
-Chainstate& ChainstateManager::InitializeChainstate(CTxMemPool* mempool)
+Chainstate& ChainstateManager::InitializeChainstate()
 {
     AssertLockHeld(::cs_main);
     assert(!m_ibd_chainstate);
     assert(!m_active_chainstate);
 
-    m_ibd_chainstate = std::make_unique<Chainstate>(mempool, m_blockman, *this);
+    m_ibd_chainstate = std::make_unique<Chainstate>(m_blockman, *this);
     m_active_chainstate = m_ibd_chainstate.get();
     return *m_active_chainstate;
 }
@@ -4043,11 +4038,6 @@ util::Result<CBlockIndex*> ChainstateManager::ActivateSnapshot(
         if (!m_best_header || m_best_header->GetAncestor(snapshot_start_block->nHeight) != snapshot_start_block) {
             return util::Error{Untranslated("A forked headers-chain with more work than the chain with the snapshot base block header exists. Please proceed to sync without AssumeUtxo.")};
         }
-
-        auto mempool{m_active_chainstate->GetMempool()};
-        if (mempool && mempool->size() > 0) {
-            return util::Error{Untranslated("Can't activate a snapshot when mempool not empty")};
-        }
     }
 
     int64_t current_coinsdb_cache_size{0};
@@ -4083,8 +4073,7 @@ util::Result<CBlockIndex*> ChainstateManager::ActivateSnapshot(
     }
 
     auto snapshot_chainstate = WITH_LOCK(::cs_main,
-        return std::make_unique<Chainstate>(
-            /*mempool=*/nullptr, m_blockman, *this, base_blockhash));
+        return std::make_unique<Chainstate>(m_blockman, *this, base_blockhash));
 
     {
         LOCK(::cs_main);
@@ -4140,12 +4129,6 @@ util::Result<CBlockIndex*> ChainstateManager::ActivateSnapshot(
     const bool chaintip_loaded = m_snapshot_chainstate->LoadChainTip();
     assert(chaintip_loaded);
 
-    // Transfer possession of the mempool to the snapshot chainstate.
-    // Mempool is empty at this point because we're still in IBD.
-    Assert(m_active_chainstate->m_mempool->size() == 0);
-    Assert(!m_snapshot_chainstate->m_mempool);
-    m_snapshot_chainstate->m_mempool = m_active_chainstate->m_mempool;
-    m_active_chainstate->m_mempool = nullptr;
     m_active_chainstate = m_snapshot_chainstate.get();
     m_blockman.m_snapshot_height = this->GetSnapshotBaseHeight();
 
@@ -4636,14 +4619,9 @@ Chainstate& ChainstateManager::ActivateExistingSnapshot(uint256 base_blockhash)
 {
     assert(!m_snapshot_chainstate);
     m_snapshot_chainstate =
-        std::make_unique<Chainstate>(nullptr, m_blockman, *this, base_blockhash);
+        std::make_unique<Chainstate>(m_blockman, *this, base_blockhash);
     LogInfo("[snapshot] switching active chainstate to %s", m_snapshot_chainstate->ToString());
 
-    // Mempool is empty at this point because we're still in IBD.
-    Assert(m_active_chainstate->m_mempool->size() == 0);
-    Assert(!m_snapshot_chainstate->m_mempool);
-    m_snapshot_chainstate->m_mempool = m_active_chainstate->m_mempool;
-    m_active_chainstate->m_mempool = nullptr;
     m_active_chainstate = m_snapshot_chainstate.get();
     return *m_snapshot_chainstate;
 }
@@ -4717,7 +4695,6 @@ bool ChainstateManager::DeleteSnapshotChainstate()
         return false;
     }
     m_active_chainstate = m_ibd_chainstate.get();
-    m_active_chainstate->m_mempool = m_snapshot_chainstate->m_mempool;
     m_snapshot_chainstate.reset();
     return true;
 }
