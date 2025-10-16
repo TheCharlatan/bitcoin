@@ -12,8 +12,10 @@
 
 class CBlock;
 class CCoinsViewCache;
+class Chainstate;
 class CTransaction;
 class CTxMemPool;
+class DisconnectedBlockTransactions;
 
 namespace node {
 
@@ -28,6 +30,7 @@ public:
     size_t measureExternalDynamicMemoryUsage() override;
     void addTransactionsUpdated(uint32_t n) override;
     void check(const CCoinsViewCache& active_coins_tip, int64_t spendheight) override;
+    void MaybeUpdateMempoolForReorg(Chainstate& active_chainstate, DisconnectedBlockTransactions& disconnectpool, bool fAddToMempool) override;
 
 private:
     CTxMemPool& m_mempool;
