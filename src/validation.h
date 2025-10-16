@@ -26,7 +26,6 @@
 #include <script/verify_flags.h>
 #include <sync.h>
 #include <txdb.h>
-#include <txmempool.h>
 #include <uint256.h>
 #include <util/byte_units.h>
 #include <util/check.h>
@@ -51,7 +50,6 @@
 #include <vector>
 
 class Chainstate;
-class CTxMemPool;
 class ChainstateManager;
 struct ChainTxData;
 class DisconnectedBlockTransactions;
@@ -101,8 +99,6 @@ bool FatalError(kernel::Notifications& notifications, BlockValidationState& stat
 
 /** Prune block files up to a given height */
 void PruneBlockFilesManual(Chainstate& active_chainstate, int nManualPruneHeight);
-
-/* Mempool validation helper functions */
 
 /**
  * Check if transaction will be final in the next block to be created.
@@ -362,10 +358,6 @@ protected:
      */
     Mutex m_chainstate_mutex;
 
-    //! Optional mempool that is kept in sync with the chain.
-    //! Only the active chainstate has a mempool.
-    CTxMemPool* m_mempool;
-
     //! Manages the UTXO set, which is a reflection of the contents of `m_chain`.
     std::unique_ptr<CoinsViews> m_coins_views;
 
@@ -398,7 +390,6 @@ public:
     ChainstateManager& m_chainman;
 
     explicit Chainstate(
-        CTxMemPool* mempool,
         node::BlockManager& blockman,
         ChainstateManager& chainman,
         std::optional<uint256> from_snapshot_blockhash = std::nullopt);
@@ -473,12 +464,6 @@ public:
     {
         AssertLockHeld(::cs_main);
         return Assert(m_coins_views)->m_dbview;
-    }
-
-    //! @returns A pointer to the mempool.
-    CTxMemPool* GetMempool()
-    {
-        return m_mempool;
     }
 
     //! @returns A reference to a wrapped view of the in-memory UTXO set that
@@ -563,7 +548,7 @@ public:
                       CCoinsViewCache& view, bool fJustCheck = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     // Apply the effects of a block disconnection on the UTXO set.
-    bool DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
+    bool DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     // Manual block validity manipulation:
     /** Mark a block as precious and reorganize.
@@ -616,20 +601,14 @@ public:
 
     std::string ToString() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    //! Indirection necessary to make lock annotations work with an optional mempool.
-    RecursiveMutex* MempoolMutex() const LOCK_RETURNED(m_mempool->cs)
-    {
-        return m_mempool ? &m_mempool->cs : nullptr;
-    }
-
 protected:
-    bool ActivateBestChainStep(BlockValidationState& state, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
+    bool ActivateBestChainStep(BlockValidationState& state, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     bool ConnectTip(
         BlockValidationState& state,
         CBlockIndex* pindexNew,
         std::shared_ptr<const CBlock> block_to_connect,
         ConnectTrace& connectTrace,
-        DisconnectedBlockTransactions& disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
+        DisconnectedBlockTransactions& disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     void InvalidBlockFound(CBlockIndex* pindex, const BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     CBlockIndex* FindMostWorkChain() EXCLUSIVE_LOCKS_REQUIRED(cs_main);
@@ -891,10 +870,7 @@ public:
     size_t m_total_coinsdb_cache{0};
 
     //! Instantiate a new chainstate.
-    //!
-    //! @param[in] mempool              The mempool to pass to the chainstate
-    //                                  constructor
-    Chainstate& InitializeChainstate(CTxMemPool* mempool) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    Chainstate& InitializeChainstate() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! Get all chainstates currently being used.
     std::vector<Chainstate*> GetAll();
