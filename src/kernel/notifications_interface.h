@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <variant>
 
+class CBlock;
 class CBlockIndex;
 class CTransaction;
 enum class SynchronizationState;
@@ -45,6 +46,7 @@ public:
     virtual void warningUnset(Warning id) {}
 
     virtual void removeRecursive(const CTransaction& tx) {}
+    virtual void removeForBlock(const CBlock& block, unsigned int block_height) {}
 
     //! The flush error notification is sent to notify the user that an error
     //! occurred while flushing block data to disk. Kernel code may ignore flush

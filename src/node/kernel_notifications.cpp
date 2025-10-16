@@ -98,6 +98,13 @@ void KernelNotifications::removeRecursive(const CTransaction& tx)
     m_mempool->removeRecursive(tx, MemPoolRemovalReason::BLOCK);
 }
 
+void KernelNotifications::removeForBlock(const CBlock& block, unsigned int block_height)
+{
+    if (!m_mempool) return;
+    LOCK(m_mempool->cs);
+    m_mempool->removeForBlock(block.vtx, block_height);
+}
+
 void KernelNotifications::flushError(const bilingual_str& message)
 {
     AbortNode(m_shutdown_request, m_exit_status, message, &m_warnings);
