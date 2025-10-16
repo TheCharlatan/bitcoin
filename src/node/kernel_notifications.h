@@ -17,6 +17,7 @@
 
 class ArgsManager;
 class CBlockIndex;
+class CTxMemPool;
 enum class SynchronizationState;
 struct bilingual_str;
 
@@ -32,8 +33,8 @@ static constexpr int DEFAULT_STOPATHEIGHT{0};
 class KernelNotifications : public kernel::Notifications
 {
 public:
-    KernelNotifications(const std::function<bool()>& shutdown_request, std::atomic<int>& exit_status, node::Warnings& warnings)
-        : m_shutdown_request(shutdown_request), m_exit_status{exit_status}, m_warnings{warnings} {}
+    KernelNotifications(const std::function<bool()>& shutdown_request, std::atomic<int>& exit_status, node::Warnings& warnings, CTxMemPool* mempool)
+        : m_shutdown_request(shutdown_request), m_exit_status{exit_status}, m_warnings{warnings}, m_mempool{mempool} {}
 
     [[nodiscard]] kernel::InterruptResult blockTip(SynchronizationState state, const CBlockIndex& index, double verification_progress) override EXCLUSIVE_LOCKS_REQUIRED(!m_tip_block_mutex);
 
@@ -44,6 +45,8 @@ public:
     void warningSet(kernel::Warning id, const bilingual_str& message) override;
 
     void warningUnset(kernel::Warning id) override;
+
+    void removeRecursive(const CTransaction& tx) override;
 
     void flushError(const bilingual_str& message) override;
 
@@ -65,6 +68,7 @@ private:
     const std::function<bool()>& m_shutdown_request;
     std::atomic<int>& m_exit_status;
     node::Warnings& m_warnings;
+    CTxMemPool* m_mempool;
 
     std::optional<uint256> m_tip_block GUARDED_BY(m_tip_block_mutex);
 };

@@ -1279,10 +1279,6 @@ static ChainstateLoadResult InitAndLoadChainstate(
 
     const CChainParams& chainparams = Params();
 
-    Assert(!node.notifications); // Was reset above
-    node.notifications = std::make_unique<KernelNotifications>(Assert(node.shutdown_request), node.exit_status, *Assert(node.warnings));
-    ReadNotificationArgs(args, *node.notifications);
-
     CTxMemPool::Options mempool_opts{
         .check_ratio = chainparams.DefaultConsistencyChecks() ? 1 : 0,
         .signals = node.validation_signals.get(),
@@ -1297,6 +1293,11 @@ static ChainstateLoadResult InitAndLoadChainstate(
     LogInfo("* Using %.1f MiB for in-memory UTXO set (plus up to %.1f MiB of unused mempool space)",
             cache_sizes.coins * (1.0 / 1024 / 1024),
             mempool_opts.max_size_bytes * (1.0 / 1024 / 1024));
+
+    Assert(!node.notifications); // Was reset above
+    node.notifications = std::make_unique<KernelNotifications>(Assert(node.shutdown_request), node.exit_status, *Assert(node.warnings), node.mempool.get());
+    ReadNotificationArgs(args, *node.notifications);
+
     ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
         .datadir = args.GetDataDirNet(),

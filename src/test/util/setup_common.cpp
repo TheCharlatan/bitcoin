@@ -257,7 +257,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, TestOpts opts)
     Assert(error.empty());
     m_node.warnings = std::make_unique<node::Warnings>();
 
-    m_node.notifications = std::make_unique<KernelNotifications>(Assert(m_node.shutdown_request), m_node.exit_status, *Assert(m_node.warnings));
+    m_node.notifications = std::make_unique<KernelNotifications>(Assert(m_node.shutdown_request), m_node.exit_status, *Assert(m_node.warnings), m_node.mempool.get());
 
     m_make_chainman = [this, &chainparams, opts] {
         Assert(!m_node.chainman);
