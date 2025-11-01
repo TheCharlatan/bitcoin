@@ -106,6 +106,8 @@ int main(int argc, char* argv[])
     };
     auto notifications = std::make_unique<KernelNotifications>();
 
+    auto mempool = std::make_unique<kernel::Mempool>();
+
     kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
 
     // SETUP: Chainstate
@@ -113,6 +115,7 @@ int main(int argc, char* argv[])
     const ChainstateManager::Options chainman_opts{
         .chainparams = *chainparams,
         .datadir = abs_datadir,
+        .mempool_interface = *mempool,
         .notifications = *notifications,
         .signals = &validation_signals,
     };
