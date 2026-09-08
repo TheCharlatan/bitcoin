@@ -380,7 +380,7 @@ void TestCoinsView(FuzzedDataProvider& fuzzed_data_provider, CCoinsViewCache& co
             coin_in_backend = backend_coins_view->PeekCoin(random_out_point);
             exists_using_have_coin_in_backend = coin_in_backend.has_value();
         } else {
-            exists_using_have_coin_in_backend = backend_coins_view->HaveCoin(random_out_point);
+            exists_using_have_coin_in_backend = backend_coins_view->GetCoin(random_out_point).has_value();
             coin_in_backend = backend_coins_view->GetCoin(random_out_point);
         }
         if (!coin_using_access_coin.IsSpent() && exists_using_have_coin_in_backend) {
